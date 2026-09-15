@@ -191,10 +191,17 @@
   .jo:hover{box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(0,0,0,.08)}
   .jo.late{border-left-color:var(--red);background:var(--red-wash)}
   .jorow{display:flex;align-items:center;gap:12px;padding:13px 14px}
-  .jo .qty{width:46px;height:52px;flex:none;background:#1A1A1A;clip-path:var(--hex);
+  .jo .qty{width:48px;height:54px;flex:none;background:#1A1A1A;clip-path:var(--hex);
            display:grid;place-items:center;text-align:center;line-height:1}
-  .jo .qty b{display:block;font-weight:800;font-size:17px;color:#fff}
-  .jo .qty small{display:block;font-weight:700;font-size:7px;letter-spacing:.1em;color:#B4B4B0;margin-top:2px}
+  .jo .qty b{display:block;font-weight:800;font-size:18px;color:#fff;font-variant-numeric:tabular-nums}
+  /* the unit was 7px - smaller than anything else in the app, and it is the
+     half that says what the number means */
+  .jo .qty small{display:block;font-weight:700;font-size:8.5px;letter-spacing:.12em;
+                 color:#CFCFCA;margin-top:3px}
+  /* a hexagon narrows towards the top and bottom, so a long number has to
+     come down or it sits on the slope */
+  .qty b.lng{font-size:14px;letter-spacing:-.02em}
+  .qty b.lngr{font-size:11.5px;letter-spacing:-.03em}
   .jobody{flex:1;min-width:0}
   .jo .t{display:flex;align-items:baseline;gap:8px}
   .jo .no{font-weight:800;font-size:17px}
@@ -235,8 +242,17 @@
   .gacc .gl{font-size:12.5px;color:var(--text-2);margin-top:3px}
   /* files: Google Drive links, each with a label */
   /* opposite + New, so a thumb finds it and it never sits on a control */
-  .calcfab{left:16px;right:auto;width:52px;height:52px;padding:0;background:var(--black);color:#fff;
-           display:grid;place-items:center;border-color:var(--black);line-height:0}
+  /* the red glow belongs to + New; on a black button beside it, two glowing
+     buttons is one too many */
+  /* .fab is declared further down and carries the red glow that belongs to
+     + New, so this has to out-specify it - two glowing buttons side by side
+     is one too many, and the red one should be the one that makes an order */
+  /* no .btn class on this one, so without border:0 it takes the browser's
+     default 2px OUTSET button border - which draws a grey 3D bevel ring */
+  .fab.calcfab{left:16px;right:auto;width:52px;height:52px;padding:0;background:var(--black);
+           color:#fff;display:grid;place-items:center;border:0;line-height:0;
+           box-shadow:0 6px 18px rgba(0,0,0,.28)}
+  .fab.calcfab:active{transform:translateY(1px)}
   .calcfab svg{display:block}
   /* the answer to a dangerous question is red, the way of out is quiet */
   .btn.danger{background:var(--red);border-color:var(--red);color:#fff}
@@ -434,10 +450,11 @@
         background:#fff;border:0;border-radius:var(--r);box-shadow:0 1px 2px rgba(0,0,0,.05);
         padding:13px 14px;margin-bottom:9px}
   .drow:hover{box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(0,0,0,.08)}
-  .drow .qty{width:48px;height:54px;flex:none;background:#1A1A1A;clip-path:var(--hex);
+  .drow .qty{width:50px;height:56px;flex:none;background:#1A1A1A;clip-path:var(--hex);
              display:grid;place-items:center;text-align:center;line-height:1}
-  .drow .qty b{display:block;font-weight:800;font-size:19px;color:#fff}
-  .drow .qty small{display:block;font-weight:700;font-size:7.5px;letter-spacing:.1em;color:#B4B4B0;margin-top:2px}
+  .drow .qty b{display:block;font-weight:800;font-size:20px;color:#fff;font-variant-numeric:tabular-nums}
+  .drow .qty small{display:block;font-weight:700;font-size:9px;letter-spacing:.12em;
+                   color:#CFCFCA;margin-top:3px}
   .drow .who{flex:1;min-width:0}
   .drow .nm{font-weight:800;font-size:17px;letter-spacing:-.01em}
   .drow .what{font-weight:600;font-size:13.5px;color:var(--text-2);margin-top:2px;
@@ -948,11 +965,20 @@
 <!-- Quick sums at the counter: 40 shirts at 265, a discount, a delivery
      charge. The answer copies as a plain number so it pastes into a price. -->
 <button class="fab calcfab" id="hCalc" aria-label="Calculator" title="Calculator">
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-    <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/>
-    <line x1="8" y1="11" x2="8.01" y2="11"/><line x1="12" y1="11" x2="12.01" y2="11"/><line x1="16" y1="11" x2="16.01" y2="11"/>
-    <line x1="8" y1="15" x2="8.01" y2="15"/><line x1="12" y1="15" x2="12.01" y2="15"/><line x1="16" y1="15" x2="16" y2="18"/>
-    <line x1="8" y1="18" x2="12" y2="18"/></svg>
+  <!-- Drawn as a filled display over solid keys rather than an outline of
+       dots and dashes: at 24px the old one read as a phone. The one red key
+       is the equals, which is what makes it unmistakably a calculator. -->
+  <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="3.6" y="2.4" width="16.8" height="19.2" rx="2.6"
+          fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <rect x="6.4" y="5.2" width="11.2" height="3.6" rx="1.1" fill="currentColor"/>
+    <circle cx="8.2" cy="13" r="1.25" fill="currentColor"/>
+    <circle cx="12"  cy="13" r="1.25" fill="currentColor"/>
+    <circle cx="15.8" cy="13" r="1.25" fill="currentColor"/>
+    <circle cx="8.2" cy="17.4" r="1.25" fill="currentColor"/>
+    <circle cx="12"  cy="17.4" r="1.25" fill="currentColor"/>
+    <rect x="14.5" y="16.1" width="2.6" height="2.6" rx="0.8" fill="var(--red)"/>
+  </svg>
 </button>
 
 <dialog id="calcDlg">
@@ -2772,6 +2798,22 @@ addEventListener('keydown', e => {
   else if(k === 'Delete' || k.toLowerCase() === 'c') { calcKey('C'); e.preventDefault(); }
 });
 
+/* jo_void raises in plain words for the things a counter can act on, and
+   those are passed through. A permission error is different: it means the
+   app and the database disagree about who may void, which nobody at the
+   counter can do anything about - so it says who to tell instead of showing
+   them `permission denied for table job_orders`. That exact message reached
+   a counter on 15 Sep, when build18e revoked the columns jo_void writes and
+   jo_void turned out to run as the caller. */
+function voidFailed(error){
+  const raw = String((error && error.message) || '');
+  if(/permission denied/i.test(raw))
+    return 'This app cannot void orders at the moment - tell Spawn Solutions. Nothing was changed.';
+  if(/not on this shop/i.test(raw)) return 'That order is not on this shop.';
+  if(/reason is required/i.test(raw)) return 'A reason is required to void an order.';
+  return raw || 'The order was not voided. Try again.';
+}
+
 /* ── asking ──
    ask() replaces confirm() and prompt(). It answers with a promise: false or
    null when the person backs out, true or the typed text when they go on.
@@ -3017,12 +3059,36 @@ const uomOf = o => unitOf((o.jo_items && o.jo_items.length) ? o.jo_items[0].item
 /* What goes in the hexagon. Adding the quantities only means something when
    every line is the same unit: 2 pcs + 48 sqft + 3 pcs is not 53 of anything.
    A mixed order shows how many items it holds instead. */
+/* "5 PC" reads like a typo to the person holding the card. The unit agrees
+   with the number it sits under; SQFT is already a plural and QTY is a
+   fallback that never takes an s. */
+const plural = (n, u) => {
+  /* QTY is what unitOf falls back to when an item carries no unit, and on a
+     card it says nothing at all - "10 QTY". Things a print shop counts
+     without a unit are pieces. */
+  const unit = u === 'QTY' ? 'PC' : u;
+  if(Number(n) === 1) return unit;
+  return unit === 'PC' ? 'PCS' : unit === 'SET' ? 'SETS'
+       : unit === 'METER' ? 'METERS' : unit;      // SQFT is already plural
+};
+
+/* One place draws the hexagon, so the board and the dashboard cannot drift
+   apart - they had the same markup written out twice. */
+function qtyBadge(o){
+  const bg = badgeOf(o), t = String(bg.n);
+  const size = t.length > 4 ? ' class="lngr"' : t.length > 3 ? ' class="lng"' : '';
+  return '<div class="qty" aria-label="' + esc(t + ' ' + bg.unit.toLowerCase()) + '"><b' + size + '>' +
+         esc(t) + '</b><small>' + esc(bg.unit) + '</small></div>';
+}
+
 function badgeOf(o){
   const ls = (o.jo_items || []);
-  if(!ls.length) return { n: Number(o.qty) || 0, unit: uomOf(o) };
+  if(!ls.length){ const n = Number(o.qty) || 0; return { n, unit: plural(n, uomOf(o)) }; }
   const units = new Set(ls.map(l => unitOf(l.item_type) || ''));
-  if(units.size === 1)
-    return { n: ls.reduce((n, l) => n + Number(l.qty || 0), 0), unit: uomOf(o) };
+  if(units.size === 1){
+    const n = ls.reduce((t, l) => t + Number(l.qty || 0), 0);
+    return { n, unit: plural(n, uomOf(o)) };
+  }
   const groups = new Set(ls.map((l, i) => l.group_no == null ? 'l' + i : 'g' + l.group_no));
   return { n: groups.size, unit: groups.size === 1 ? 'ITEM' : 'ITEMS' };
 }
@@ -3046,7 +3112,7 @@ function drowHTML(o){
       ? `<b>${peso(o.balance)}</b><small>BALANCE</small>`
       : `<b class="ok">Paid</b><small>${(LABEL[o.status]||'').toUpperCase()}</small>`;
   return `<button class="drow" type="button" data-id="${esc(o.id)}">
-      <div class="qty"><b>${esc(bg.n)}</b><small>${esc(bg.unit)}</small></div>
+      ${qtyBadge(o)}
       <div class="who">
         <div class="nm">${o.rush ? '<span class="chip rush">Rush</span> ' : ''}${esc(o.customer_name)}</div>
         <div class="what">${esc(lineText(o))}</div>
@@ -3252,7 +3318,7 @@ function renderBoard(){
       ? o.jo_items.reduce((n,l)=>n+Number(l.qty), 0) : Number(o.qty);
     b.innerHTML =
       `<div class="jorow">
-         <div class="qty"><b>${esc(bg.n)}</b><small>${esc(bg.unit)}</small></div>
+         ${qtyBadge(o)}
          <div class="jobody">
            <div class="t"><span class="no">JO ${esc(o.jo_no)}</span><span class="cust">${esc(o.customer_name)}</span></div>
            <div class="items">${esc(lineText(o))}</div>
@@ -3500,7 +3566,7 @@ $('#dVoid').onclick = async () => {
      reason, sets the status, and RLS scopes it to this shop. The order is
      never deleted - there is no delete policy anywhere, by design. */
   const { error } = await sb.rpc('jo_void', { p_id: CUR.id, p_reason: why.trim() });
-  if(error) return toast(error.message);
+  if(error) return toast(voidFailed(error));
   dlg.close(); toast('JO ' + CUR.jo_no + ' voided'); refresh();
 };
 
