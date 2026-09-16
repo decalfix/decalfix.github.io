@@ -278,6 +278,44 @@
   .dif{padding:0 0 10px 12px;border-left:2px solid var(--line);margin:0 0 8px 2px}
   .dif .fl-add input{height:40px;font-size:15px}
   .dif .flink{font-size:14px}
+  /* M / F rather than a dropdown: one tap instead of three, and it fits a
+     column where a select would not. Tapping the one already on turns it off,
+     because plenty of apparel is ordered without a split. */
+  .gsel{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+  .gsel button{height:44px;padding:0;border:1px solid var(--line);background:#fff;
+               border-radius:8px;font:inherit;font-weight:800;font-size:13px;
+               color:var(--text-2);cursor:pointer}
+  .gsel button[aria-pressed="true"]{background:var(--black);border-color:var(--black);color:#fff}
+  .gsel button:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+  /* apparel rows carry one more column than everything else */
+  .line .r2.gd{grid-template-columns:1fr 66px 62px 100px}
+  .line .r2.sr.gd,.line .cap.gd{grid-template-columns:86px 66px 58px 92px 1fr 40px}
+  /* The shop's own manifest, drawn back. Right-aligned and tabular so the
+     columns read down as numbers rather than as text. */
+  /* The one to print, said once and plainly. Bordered rather than filled:
+     it sits above a list of the same files and should read as a pointer at
+     one of them, not as a different kind of thing. */
+  .latest{border:1px solid var(--line);border-left:3px solid var(--black);
+          border-radius:3px;padding:10px 12px;margin:0 0 10px}
+  .latest .k{margin:0 0 6px}
+  .latest .fl{margin:0}
+  .latest .when{display:block;color:var(--text-2);font-size:12px;font-weight:600;
+                margin-top:5px}
+  .mani{margin:4px 0 10px;overflow-x:auto}
+  .mani table{width:100%;border-collapse:collapse;font-size:13px;
+              font-variant-numeric:tabular-nums}
+  .mani caption{caption-side:top;text-align:left;font-size:10.5px;font-weight:800;
+                letter-spacing:.1em;text-transform:uppercase;color:var(--text-2);
+                padding:2px 0 5px}
+  .mani th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+           color:var(--text-2);font-weight:800;padding:4px 6px;text-align:right;
+           border-bottom:1px solid var(--line);white-space:nowrap}
+  .mani th:first-child{text-align:left}
+  .mani td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--line)}
+  .mani td.sz{text-align:left;font-weight:800}
+  .mani td.t{font-weight:800}
+  .mani tr.tot td{border-top:2px solid var(--text);border-bottom:0;
+                  font-weight:800;padding-top:7px}
   .r2.sq{grid-template-columns:1fr 1fr 1fr 1.2fr}
   .r2.sq .sqarea{grid-column:1 / -1;text-align:right;font-weight:800;font-size:13px;
                  color:var(--text-2);padding:2px 2px 0}
@@ -382,6 +420,7 @@
   .fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:7;
        box-shadow:0 8px 24px rgba(216,35,42,.4);padding:0 22px;border-radius:30px}
   .empty{text-align:center;color:var(--text-2);padding:36px 10px;font-size:13.5px;font-weight:600}
+  #boot{padding:28px 16px;text-align:center;color:var(--text-2);font-weight:700;font-size:14px}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:#1A1A1A;color:#fff;
          padding:12px 18px;border-radius:9px;font-weight:800;font-size:13px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 
@@ -594,6 +633,9 @@
     .line .r2{grid-template-columns:1fr 60px 96px}
     /* a 360px phone leaves about 300px for a size row; the total takes what is left */
     .line .r2.sr,.line .cap{grid-template-columns:62px 46px 72px 1fr 34px;gap:5px}
+    .line .r2.gd{grid-template-columns:1fr 56px 46px 84px}
+    .line .r2.sr.gd,.line .cap.gd{grid-template-columns:52px 56px 40px 64px 1fr 28px;gap:4px}
+    .gsel button{height:40px;font-size:12px}
     .line .sr input,.line .sr select{padding:0 6px}
     /* Header on a 360px phone: a smaller mark, and the name and clock only.
        Bench and build are one tap away in the account panel. */
@@ -625,7 +667,11 @@
 </div>
 
 <!-- ───────── sign in ───────── -->
-<section id="auth">
+<!-- Hidden until boot() decides. It used to paint first, so every reload
+     showed the sign-in screen for as long as the session check, the shop
+     query and the first data load took - which reads as being signed out on
+     a slow line. boot() reveals it, and so does its own failure path. -->
+<section id="auth" hidden>
   <div class="box">
     <h1 class="mark">Decal<span class="b">Fix</span> OS</h1>
     <p class="s">Job orders, balances and sales.</p>
@@ -646,6 +692,10 @@
 
 <!-- ───────── app ───────── -->
 <div id="app" hidden>
+<!-- Only seen on a reload, between the shell painting and the data landing.
+     Taken down by openShop(); an empty board would otherwise read as "no
+     orders" for the second or two the query takes. -->
+<div id="boot" hidden>Opening…</div>
 <header>
   <div class="in">
     <img class="hmark" src="mark-600.png" alt="Decal Fix">
@@ -1634,6 +1684,7 @@ function paintWho(){
 }
 
 async function openShop(){
+  $('#boot').hidden = true;
   paintWho();
   $('#auth').hidden = true; $('#app').hidden = false; $('#hCalc').hidden = false;
   if(ENV === 'dev') envStripe();
@@ -1717,7 +1768,7 @@ function newOrder(){
 /* The form's lines. Each entry is one item with one or more size rows:
    { id, itemId, rows:[{ id, size, qty, price, touched }] }.
    One row saves as a plain line; two or more save as a group (see save). */
-function newRow(size){ return { id:crypto.randomUUID(), size:size||'', qty:1, price:'', touched:false }; }
+function newRow(size){ return { id:crypto.randomUUID(), size:size||'', gender:'', qty:1, price:'', touched:false }; }
 function addLine(){
   LINES.push({ id:crypto.randomUUID(), itemId:'', note:'', rows:[newRow()] });
   renderLines();
@@ -1962,13 +2013,16 @@ function renderLines(){
       b.el.files = fw;      // appended after the sizes and the subtotal
     }
     if(many){
-      const cap = document.createElement('div'); cap.className = 'cap';
-      cap.innerHTML = '<span>Size</span><span>Qty</span><span>Price</span><span>Total</span><span></span>';
+      const cap = document.createElement('div');
+      cap.className = 'cap' + (ladder(it) ? ' gd' : '');
+      cap.innerHTML = '<span>Size</span>' + (ladder(it) ? '<span>M / F</span>' : '') +
+        '<span>Qty</span><span>Price</span><span>Total</span><span></span>';
       el.appendChild(cap);
     }
 
     b.rows.forEach((r, ri) => {
-      const row = document.createElement('div'); row.className = 'r2' + (many ? ' sr' : '');
+      const row = document.createElement('div');
+      row.className = 'r2' + (many ? ' sr' : '') + (ladder(it) ? ' gd' : '');
 
       /* A per-square-foot row is three numbers, not a size and a quantity.
          The area it works out is what gets saved as the quantity, so every
@@ -2032,7 +2086,24 @@ function renderLines(){
       pr.placeholder = it && it.price_open ? (many ? 'price' : 'type price') : '0';
       pr.value = r.touched ? r.price : (it ? basePrice(b, r) : '');
       pr.oninput = () => { r.touched = true; r.price = pr.value.replace(/[^0-9.]/g,''); pr.classList.add('typed'); paint(); };
-      row.append(sizeEl, qty, pr);
+      /* Who the size is for. Apparel only - ladder(it) is the nine items with
+         a size_add - because a mug has no gender and a tarpaulin has no size.
+         Optional: a school's order of 40 shirts may not be split at all. */
+      if(ladder(it)){
+        const gs = document.createElement('div'); gs.className = 'gsel';
+        [['male','M','Male'], ['female','F','Female']].forEach(([v, short, full]) => {
+          const gb = document.createElement('button');
+          gb.type = 'button'; gb.textContent = short;
+          gb.setAttribute('aria-label', full + (r.size ? ' ' + r.size : ''));
+          gb.setAttribute('aria-pressed', r.gender === v ? 'true' : 'false');
+          // tapping the one already on clears it, so "not split" stays reachable
+          gb.onclick = () => { r.gender = r.gender === v ? '' : v; renderLines(); };
+          gs.appendChild(gb);
+        });
+        row.append(sizeEl, gs, qty, pr);
+      }else{
+        row.append(sizeEl, qty, pr);
+      }
       r.qtyEl = qty; r.priceEl = pr;   // so a refusal can focus the field it names
 
       r.el = null;
@@ -2235,8 +2306,27 @@ async function loadFiles(o){
       (f.kind === 'upload' && f.drive_file_id && !f.backed_up_at)
         ? `<button type="button" class="dl" data-dl="${esc(f.id)}" aria-label="Save ${esc(f.file_name || 'file')} to this device">Save</button>` : ''}${mover(f)}${
       canTakeOrders() ? `<button type="button" class="x" data-id="${esc(f.id)}" aria-label="Remove link">×</button>` : ''}</div>`;
+  /* Which one prints. Only worth saying when there is more than one upload -
+     with a single file there is no question to answer, and repeating it above
+     itself is just clutter. Newest wins: no schema change, and it matches how
+     an artist actually works, sending a draft and then the finished art. If
+     drafts and finals ever get muddled in practice, that is when jo_files
+     earns a flag - not before. */
+  const ups = rows.filter(f => f.kind === 'upload' && f.drive_file_id && !f.backed_up_at);
+  const latest = ups.length > 1 ? ups[ups.length - 1] : null;
+  const itemOfFile = f => {
+    if(!f.jo_item_id) return 'the whole order';
+    const g = groups.find(x => x.id === f.jo_item_id);
+    return g ? g.item : 'an item';
+  };
+  const head = latest ? `<div class="latest"><div class="k">Newest file — this is the one to print</div>` +
+      row(latest) +
+      `<span class="when">${esc(String(latest.created_at || '').slice(0, 10))} · on ${esc(itemOfFile(latest))}` +
+      `${ups.length > 1 ? ` · ${ups.length} files on this order` : ''}</span></div>` : '';
+
   const whole = rows.filter(f => !f.jo_item_id);
-  box.innerHTML = whole.length ? '<div class="k">For the whole order</div>' + whole.map(row).join('') : '';
+  box.innerHTML = head +
+    (whole.length ? '<div class="k">For the whole order</div>' + whole.map(row).join('') : '');
 
   /* Each item's own files, under the item on the detail - the same order the
      counter worked in when taking the job. Uploading is here and not on the
@@ -2962,6 +3052,7 @@ $('#save').onclick = async () => {
         item_type: nameOf(b),
         size: (bySqft(itemOf(b)) ? sqftText(r) : r.size) || null,
         qty: qtyOf(b, r), unit_price: priceOf(b, r),
+        gender: r.gender || null,          // apparel only; null everywhere else
         notes: ri === 0 ? ((b.note || '').trim() || null) : null
       }));
     });
@@ -2995,7 +3086,7 @@ $('#save').onclick = async () => {
 
     // the database owns the total — read back what the trigger computed
     const { data:fresh } = await sb.from('job_orders')
-      .select('*, jo_items(id,line_no,group_no,item_type,size,qty,unit_price,line_total,notes), jo_files(label,url,kind,removed_at)')
+      .select('*, jo_items(id,line_no,group_no,item_type,size,gender,qty,unit_price,line_total,notes), jo_files(label,url,kind,removed_at)')
       .eq('id', o.id).single();
 
     msg.className='msg ok'; msg.textContent = `JO ${fresh.jo_no} saved — ${peso(fresh.total)}.`;
@@ -3245,7 +3336,7 @@ $('#dOpenAll').onclick = () => $('#nvBoard').click();
 /* ── board ── */
 async function refresh(){
   const { data } = await sb.from('job_orders')
-    .select('*, jo_items(id,line_no,group_no,item_type,size,qty,unit_price,line_total,notes)')
+    .select('*, jo_items(id,line_no,group_no,item_type,size,gender,qty,unit_price,line_total,notes)')
     .order('jo_no', { ascending:false }).limit(300);
   ORDERS = data || [];
   SYNCED = Date.now();
@@ -3340,6 +3431,43 @@ function renderBoard(){
 
 /* ── detail ── */
 const dlg = $('#dlg');
+/* The manifest: the sheet a parade order arrives on, drawn from the rows.
+   Only when the item actually carries a split - one shirt in one size needs
+   no table, and an item nobody split reads perfectly well as a list.
+   An "Any" column appears only if some rows of the same item were left
+   unsplit, so the figures still add up to the order rather than quietly
+   dropping the rows that have no gender. */
+function manifest(g){
+  const rows = (g.rows || []).filter(r => r.size);
+  if(!rows.some(r => r.gender)) return '';
+  const unsplit = rows.some(r => !r.gender);
+  // the ladder's order, then anything hand-typed, alphabetically
+  const rank = z => { const i = SIZES.indexOf(z); return i < 0 ? 99 : i; };
+  const sizes = [...new Set(rows.map(r => r.size))]
+    .sort((a, b) => rank(a) - rank(b) || String(a).localeCompare(String(b)));
+  const cols = ['male', 'female'].concat(unsplit ? [''] : []);
+  const head = cols.map(c => '<th>' + (c === 'male' ? 'Male' : c === 'female' ? 'Female' : 'Any') + '</th>').join('');
+  const cell = (z, c) => rows
+    .filter(r => r.size === z && (c ? r.gender === c : !r.gender))
+    .reduce((n, r) => n + Number(r.qty || 0), 0);
+  const foot = cols.map(() => 0);
+  let grand = 0;
+  const body = sizes.map(z => {
+    const v = cols.map(c => cell(z, c));
+    v.forEach((n, i) => { foot[i] += n; });
+    const t = v.reduce((a, b) => a + b, 0);
+    grand += t;
+    // an empty cell reads better than a nought in a column of real numbers
+    return '<tr><td class="sz">' + esc(z) + '</td>' +
+           v.map(n => '<td>' + (n || '') + '</td>').join('') +
+           '<td class="t">' + t + '</td></tr>';
+  }).join('');
+  return '<div class="mani"><table><caption>Size sheet</caption>' +
+         '<tr><th>Size</th>' + head + '<th>Total</th></tr>' + body +
+         '<tr class="tot"><td>Total</td>' + foot.map(n => '<td>' + n + '</td>').join('') +
+         '<td class="t">' + grand + '</td></tr></table></div>';
+}
+
 function openDetail(o){
   CUR = o;
   $('#dNo').textContent = 'JO ' + o.jo_no;
@@ -3366,7 +3494,9 @@ function openDetail(o){
         `<div class="lrow lhead"><div class="d">${esc(g.item)}
            ${g.note?`<div class="small inote">${esc(g.note)}</div>`:''}
            <div class="muted small">${g.qty} in ${g.rows.length} sizes</div></div></div>` +
-        g.rows.map(l=>`<div class="lrow lsub"><div class="d">${esc(l.size||'—')}
+        manifest(g) +
+        g.rows.map(l=>`<div class="lrow lsub"><div class="d">${esc(l.size||'—')}${
+           l.gender ? ` · ${l.gender === 'male' ? 'Male' : 'Female'}` : ''}
            <div class="muted small">${l.qty} × ${peso(l.unit_price)}</div></div>
            <div class="money">${peso(l.line_total)}</div></div>`).join('') +
         `<div class="lrow lsubt"><div class="d">Subtotal</div><div class="money">${peso(g.total)}</div></div>`)
@@ -3946,7 +4076,26 @@ function restoreTab(id){
 }
 $('#fab').onclick = ()=>$('#nvNew').click();
 
-boot();
+/* A reload where somebody was tapped in should look like the page it was,
+   not like opening the app. The shell goes up before boot() has asked
+   anything - the header, the tabs, the empty board - and the rows fill in as
+   they arrive. Guarded on the same two conditions as resuming: it must be a
+   real reload, and the marker must still be good, so a fresh open still shows
+   nothing until boot decides. */
+if(cameBackByReload() && readTapped()){
+  $('#app').hidden = false;
+  $('#boot').hidden = false;
+}
+
+boot().catch(e => {
+  /* If boot throws - offline mid-query, a bad response - the app must not sit
+     on a blank screen with nothing to do. Show the way back in. */
+  $('#boot').hidden = true;
+  $('#app').hidden = true;
+  $('#auth').hidden = false;
+  $('#aMsg').className = 'msg err';
+  $('#aMsg').textContent = 'Could not open the app: ' + (e && e.message ? e.message : 'try again') + '.';
+});
 
 /* ── install to home screen ──
    Registered only when the page is the site root, which is what the
