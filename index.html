@@ -301,6 +301,43 @@
   .latest .fl{margin:0}
   .latest .when{display:block;color:var(--text-2);font-size:12px;font-weight:600;
                 margin-top:5px}
+  /* Eight questions do not fit across 360px, so the strip scrolls sideways
+     rather than wrapping into a block that pushes the board off the screen. */
+  /* The red tile is a pale wash, not a red block - so these are white cards
+     on it, the same as the age boxes above them. */
+  .owedgo{margin-top:11px;width:100%;height:40px;border:1px solid var(--red-wash-line);
+          border-radius:9px;background:#fff;color:var(--red-deep);font:inherit;
+          font-weight:800;font-size:13px;cursor:pointer}
+  .owedgo:active{background:var(--red-wash)}
+  .owedgo:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .owedlist{margin-top:9px;display:grid;gap:6px}
+  .owedrow{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:baseline;
+           width:100%;text-align:left;padding:10px 11px;border:1px solid var(--line);
+           border-radius:9px;background:#fff;color:var(--text);font:inherit;cursor:pointer}
+  .owedrow:active{background:var(--red-wash)}
+  .owedrow:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .owedrow .who{font-weight:800;font-size:13.5px}
+  .owedrow .amt{font-weight:800;font-size:14.5px;color:var(--red-deep);
+                font-variant-numeric:tabular-nums}
+  .owedrow .sub{grid-column:1;font-size:11.5px;font-weight:700;color:var(--grey)}
+  .owedrow .out{grid-column:2;justify-self:end;font-size:9px;font-weight:800;
+                letter-spacing:.08em;text-transform:uppercase;
+                background:var(--red);color:#fff;border-radius:99px;padding:2px 7px}
+  .owedsum{font-size:11.5px;font-weight:800;color:var(--red-deep);padding:1px 2px 2px}
+  .btabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;
+         scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .btabs::-webkit-scrollbar{display:none}
+  .btab{flex:none;height:36px;padding:0 13px;border:1px solid var(--line);
+        border-radius:99px;background:#fff;color:var(--text-2);cursor:pointer;
+        font:inherit;font-weight:800;font-size:12.5px;letter-spacing:.02em;
+        white-space:nowrap;display:flex;align-items:center;gap:6px}
+  .btab[aria-selected="true"]{background:var(--black);border-color:var(--black);color:#fff}
+  .btab .n{font-variant-numeric:tabular-nums;font-size:11.5px;opacity:.75}
+  .btab[aria-selected="true"] .n{opacity:.9}
+  /* the one that means someone is waiting */
+  .btab.warn{border-color:var(--red);color:var(--red)}
+  .btab.warn[aria-selected="true"]{background:var(--red);border-color:var(--red);color:#fff}
+  .btab:focus-visible{outline:2px solid var(--red);outline-offset:2px}
   .mani{margin:4px 0 10px;overflow-x:auto}
   .mani table{width:100%;border-collapse:collapse;font-size:13px;
               font-variant-numeric:tabular-nums}
@@ -861,6 +898,9 @@
   </section>
 
   <section class="view" id="vBoard" hidden>
+    <!-- Only for the benches that run the whole shop; an artist and
+         production already see nothing but their own work. -->
+    <div id="boardTabs" class="btabs" role="tablist" aria-label="Board" hidden></div>
     <div id="boardList"></div>
   </section>
 
@@ -880,6 +920,10 @@
         <div class="age"><div class="v" id="tA3" style="color:var(--red)">₱0</div><div class="k">30 days +</div></div>
       </div>
       <div class="agebar" id="tAgeBar" aria-hidden="true"></div>
+      <!-- A figure nobody can open is a figure nobody can chase. -->
+      <button type="button" class="owedgo" id="tOwedGo" aria-expanded="false"
+              aria-controls="tOwedList">Show the orders</button>
+      <div class="owedlist" id="tOwedList" hidden></div>
     </div>
     <div class="card" style="margin-top:12px">
       <h2>Orders taken per day</h2>
@@ -1182,7 +1226,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const URL_  = 'https://ybwmdkemhsdtrbmmtver.supabase.co';
 const ANON  = 'sb_publishable_KG01c0kWK0wOUAMoUWigQA_sUuzVbiq';
-const BUILD = 18;
+const BUILD = 19;
 
 /* ── which books are open ──
    The shop comes from the signed-in account, never from this file. A copy
@@ -3376,11 +3420,78 @@ function lineText(o){
     : `${l.qty} × ${l.item_type}` + (l.size ? ` (${l.size})` : '');
   return gs.length>1 ? `${first} · +${gs.length-1} more` : first;
 }
+/* The questions a counter actually asks the board, in the order they ask
+   them. "All" is first and is the board as it always was - without it an
+   order that is merely received, not late, not due today and not with anyone
+   would appear under no tab at all and become unreachable.
+   Each one reads over the same bench-filtered set, so nothing here widens
+   what a bench may see. */
+const BOARD_TABS = [
+  { id:'all',      label:'All',          keep:(o, m) => m.includes(o.status) &&
+                                                       !(o.status === 'claimed' && Number(o.balance) <= 0) },
+  { id:'late',     label:'Past due',     warn:true, keep:o => isLate(o) },
+  { id:'today',    label:'Today',        keep:o => o.target_date === today() &&
+                                                   !['claimed','cancelled'].includes(o.status) },
+  { id:'artist',   label:'With artist',  keep:o => ['layout','for_approval'].includes(o.status) },
+  { id:'printing', label:'Producing',    keep:o => o.status === 'printing' },
+  { id:'ready',    label:'To release',   keep:o => o.status === 'ready' },
+  { id:'rush',     label:'Rush',         keep:o => !!o.rush && o.status !== 'claimed' },
+  { id:'claimed',  label:'Released',     keep:o => o.status === 'claimed' }
+];
+let BOARD_TAB = 'all';
+
+/* An order on this list may be older than the board's newest-300 window, so
+   it cannot be assumed to be in ORDERS. Fetch it by id when it is not. */
+async function openOwed(id){
+  const known = ORDERS.find(o => o.id === id);
+  if(known) return openDetail(known);
+  const { data, error } = await sb.from('job_orders')
+    .select('*, jo_items(id,line_no,group_no,item_type,size,gender,qty,unit_price,line_total,notes)')
+    .eq('id', id).maybeSingle();
+  if(error || !data) return toast('Could not open that order.');
+  openDetail(data);
+}
+
+$('#tOwedGo').onclick = () => {
+  const list = $('#tOwedList'), go = $('#tOwedGo');
+  const open = list.hidden;
+  list.hidden = !open;
+  go.setAttribute('aria-expanded', String(open));
+  go.textContent = open ? 'Hide the orders' : 'Show the orders';
+};
+
 function renderBoard(){
   const mine = SEES[BENCH] || SEES.counter;
-  const open = ORDERS.filter(o=>!o.voided && o.status!=='cancelled' &&
-                                mine.includes(o.status) && forMe(o) &&
-                                !(o.status==='claimed' && Number(o.balance)<=0));
+  /* Every tab reads from here, so a bench can never be shown work that is not
+     its own - the tabs ask a different question of the same set. */
+  const seen = ORDERS.filter(o => !o.voided && o.status !== 'cancelled' && forMe(o));
+
+  const tabsOn = canTakeOrders();
+  const tabEl = $('#boardTabs');
+  tabEl.hidden = !tabsOn;
+  // and emptied, not just hidden: an artist tapping in after a counter would
+  // otherwise be carrying the counter's strip around in the DOM
+  if(!tabsOn){ BOARD_TAB = 'all'; tabEl.innerHTML = ''; }
+  const tab = BOARD_TABS.find(t => t.id === BOARD_TAB) || BOARD_TABS[0];
+
+  if(tabsOn){
+    tabEl.innerHTML = '';
+    BOARD_TABS.forEach(t => {
+      const n = seen.filter(o => t.keep(o, mine)).length;
+      // a tab with nothing behind it is still drawn: its nought is the answer
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btab' + (t.warn && n ? ' warn' : '');
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(t.id === tab.id));
+      b.setAttribute('aria-label', t.label + ', ' + n + (n === 1 ? ' order' : ' orders'));
+      b.innerHTML = esc(t.label) + '<span class="n">' + n + '</span>';
+      b.onclick = () => { BOARD_TAB = t.id; renderBoard(); };
+      tabEl.appendChild(b);
+    });
+  }
+
+  const open = seen.filter(o => tab.keep(o, mine));
   // rush first, then late, then newest
   open.sort((a,b)=> (!!b.rush - !!a.rush) || (isLate(b)-isLate(a)) || (b.jo_no-a.jo_no));
 
@@ -3395,8 +3506,9 @@ function renderBoard(){
   renderDash();
   const box = $('#boardList');
   if(!open.length){
-    box.innerHTML = '<div class="empty">Nothing waiting at the ' +
-      BENCH_NAME[BENCH].toLowerCase() + ' bench right now.</div>';
+    box.innerHTML = '<div class="empty">' + esc(tab.id === 'all'
+      ? 'Nothing waiting at the ' + BENCH_NAME[BENCH].toLowerCase() + ' bench right now.'
+      : 'Nothing ' + tab.label.toLowerCase() + '.') + '</div>';
     return;
   }
   box.innerHTML = '';
@@ -3866,7 +3978,7 @@ async function renderSales(){
       .eq('voided', false).neq('status','cancelled')
       .gte('order_date', from).limit(2000),
     sb.from('job_orders')
-      .select('balance,order_date')
+      .select('id,jo_no,customer_name,customer_contact,balance,total,downpayment,order_date,status,order_type')
       .eq('voided', false).neq('status','cancelled')
       .gt('balance', 0).limit(2000),
     // money that came in this month (Manila), one row per payment
@@ -3911,6 +4023,47 @@ async function renderSales(){
   const parts = [sumOf(o=>age(o)<=7), sumOf(o=>age(o)>7 && age(o)<=30), sumOf(o=>age(o)>30)];
   $('#tAgeBar').innerHTML = owedTotal > 0
     ? parts.map((v,i)=>`<i class="a${i+1}" style="width:${(v/owedTotal*100).toFixed(2)}%"></i>`).join('') : '';
+
+  /* Whose money it is, oldest first - the order that has been owing longest
+     is the one to ring. The one thing that separates real credit from work
+     still in the shop is whether it has been released, so that is the only
+     tag: "released" means the goods are gone and the money is not. */
+  const owedSorted = owed.slice().sort((a, b) =>
+    String(a.order_date).localeCompare(String(b.order_date)) || (a.jo_no - b.jo_no));
+  const out = owedSorted.filter(o => o.status === 'claimed');
+  $('#tOwedList').innerHTML = '';
+  if(!owedSorted.length){
+    $('#tOwedGo').hidden = true;
+    $('#tOwedList').hidden = true;
+  }else{
+    $('#tOwedGo').hidden = false;
+    const sum = document.createElement('div');
+    sum.className = 'owedsum';
+    sum.textContent = out.length
+      ? peso(out.reduce((n, o) => n + Number(o.balance), 0)) + ' of it is released and unpaid, in ' +
+        out.length + (out.length === 1 ? ' order' : ' orders')
+      : 'nothing released is unpaid - every balance is still work in the shop';
+    $('#tOwedList').appendChild(sum);
+    owedSorted.forEach(o => {
+      const days = age(o);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'owedrow';
+      b.setAttribute('aria-label', 'JO ' + o.jo_no + ', ' + o.customer_name + ', ' +
+        peso(o.balance) + ' owing, ' + days + ' days old');
+      b.innerHTML =
+        '<span class="who">JO ' + esc(o.jo_no) + ' · ' + esc(o.customer_name) + '</span>' +
+        '<span class="amt">' + peso(o.balance) + '</span>' +
+        // the white pill already says released, so the word is not repeated here
+        '<span class="sub">' +
+          (o.status === 'claimed' ? '' : esc(LABEL[o.status] || o.status) + ' · ') +
+          (days === 0 ? 'today' : days + (days === 1 ? ' day' : ' days')) + ' old' +
+          (Number(o.downpayment) > 0 ? ' · ' + peso(o.downpayment) + ' paid of ' + peso(o.total) : '') +
+        '</span>' +
+        (o.status === 'claimed' ? '<span class="out">released</span>' : '');
+      b.onclick = () => openOwed(o.id);
+      $('#tOwedList').appendChild(b);
+    });
+  }
 
   const mix = {};
   mon.forEach(o=>{
