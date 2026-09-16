@@ -324,7 +324,12 @@
                 letter-spacing:.08em;text-transform:uppercase;
                 background:var(--red);color:#fff;border-radius:99px;padding:2px 7px}
   .owedsum{font-size:11.5px;font-weight:800;color:var(--red-deep);padding:1px 2px 2px}
-  .btabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;
+  /* Sticks under the nav: the question you are asking of the board has to
+     stay on screen while you read the answer, or you scroll back up to find
+     out which tab you are on. 78px of header plus a 51px nav. */
+  .btabs{display:flex;gap:6px;overflow-x:auto;padding:10px 0;
+         position:sticky;top:129px;z-index:7;
+         background:var(--paper);border-bottom:1px solid var(--line);
          scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .btabs::-webkit-scrollbar{display:none}
   .btab{flex:none;height:36px;padding:0 13px;border:1px solid var(--line);
@@ -460,6 +465,15 @@
   #boot{padding:28px 16px;text-align:center;color:var(--text-2);font-weight:700;font-size:14px}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:#1A1A1A;color:#fff;
          padding:12px 18px;border-radius:9px;font-weight:800;font-size:13px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+  /* Sits where the toast sits - above both thumb buttons, never over them. */
+  .updbar{position:fixed;left:12px;right:12px;bottom:84px;z-index:30;
+          display:flex;align-items:center;gap:10px;justify-content:space-between;
+          background:#1A1A1A;color:#fff;border-radius:11px;padding:10px 10px 10px 14px;
+          font-weight:800;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.32)}
+  .updbar button{flex:none;height:34px;padding:0 15px;border:0;border-radius:8px;
+                 background:var(--red);color:#fff;font:inherit;font-weight:800;
+                 font-size:12.5px;cursor:pointer}
+  .updbar button:active{background:var(--red-deep)}
 
   /* PIN pad - light, because this is stared at for a full shift */
   #lock{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;
@@ -4254,8 +4268,39 @@ boot().catch(e => {
    Registered only when the page is the site root, which is what the
    manifest's start_url says. The test copies live at /demo.html and must
    never get a worker: one could hand a rebuilt stub back to a test run. */
+/* Says so when a new build has taken over, and offers the reload rather than
+   taking it: a half-typed order would go with it. */
+function showUpdateBar(){
+  if($('#upd')) return;
+  const d = document.createElement('div');
+  d.id = 'upd'; d.className = 'updbar';
+  d.innerHTML = '<span>A new version is ready.</span>' +
+                '<button type="button" id="updGo">Reload</button>';
+  document.body.appendChild(d);
+  $('#updGo').onclick = () => location.reload();
+}
+
 if('serviceWorker' in navigator && location.pathname === '/'){
-  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  addEventListener('load', async () => {
+    let reg;
+    try { reg = await navigator.serviceWorker.register('sw.js'); } catch(e) { return; }
+
+    /* A first install changes the controller too - the page had none until
+       then - and "a new version is ready" on the very first open is a lie
+       that teaches people to ignore the next one. Only a change while a
+       worker was already in charge means a new build took over. */
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(had) showUpdateBar();
+    });
+
+    /* An installed app can stay open for a whole shift without ever asking
+       whether it is still the current build. Ask on the way back to it, and
+       once in a while while it sits there. */
+    const look = () => { try { reg.update(); } catch(e) {} };
+    addEventListener('visibilitychange', () => { if(!document.hidden) look(); });
+    setInterval(look, 15 * 60 * 1000);
+  });
 }
 </script>
 </body>
