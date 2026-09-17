@@ -343,6 +343,31 @@
   .btab.warn{border-color:var(--red);color:var(--red)}
   .btab.warn[aria-selected="true"]{background:var(--red);border-color:var(--red);color:#fff}
   .btab:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  /* One line per hand-off, so it reads as a chain rather than a paragraph. */
+  .hands{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px}
+  .hand{display:inline-flex;align-items:baseline;gap:5px;font-size:11.5px;
+        background:var(--surface-2);border:1px solid var(--line);
+        border-radius:99px;padding:3px 10px}
+  .hand .k{font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+           font-size:9.5px;color:var(--grey)}
+  .hand .v{font-weight:700;color:var(--text)}
+  /* Each cell is a door, so it is a button and it looks like one. The count
+     leads because that is the thing being read across the grid. */
+  .depts h2{margin-bottom:10px}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+  .dcell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+         padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+         background:var(--card);cursor:pointer;font:inherit;text-align:left}
+  .dcell:active{background:var(--surface-2)}
+  .dcell:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .dcell b{font-size:24px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+  .dcell small{font-size:10px;font-weight:800;letter-spacing:.09em;
+               text-transform:uppercase;color:var(--grey)}
+  .dcell .sub{font-size:11px;font-weight:700;color:var(--text-2)}
+  /* the two that mean somebody is waiting on the shop */
+  .dcell.warn{border-color:var(--red);background:var(--red-wash)}
+  .dcell.warn b, .dcell.warn small{color:var(--red-deep)}
+  .dcell.zero b{color:var(--grey)}
   .mani{margin:4px 0 10px;overflow-x:auto}
   .mani table{width:100%;border-collapse:collapse;font-size:13px;
               font-variant-numeric:tabular-nums}
@@ -463,6 +488,18 @@
        box-shadow:0 8px 24px rgba(216,35,42,.4);padding:0 22px;border-radius:30px}
   .empty{text-align:center;color:var(--text-2);padding:36px 10px;font-size:13.5px;font-weight:600}
   #boot{padding:28px 16px;text-align:center;color:var(--text-2);font-weight:700;font-size:14px}
+  .pwl{display:flex;flex-direction:column;gap:5px;margin-top:10px;
+       font-weight:800;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+       color:var(--grey)}
+  .pwl input{height:46px;border:1px solid var(--line);border-radius:9px;padding:0 12px;
+             font:inherit;font-size:16px;font-weight:600;text-transform:none;
+             letter-spacing:normal;color:var(--text);background:var(--card)}
+  .pwl input:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+  .linky{display:block;margin:10px auto 0;background:none;border:0;padding:6px 8px;
+         font:inherit;font-size:12.5px;font-weight:700;color:var(--grey);
+         text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+  .linky:hover{color:var(--text)}
+  .linky:focus-visible{outline:2px solid var(--red);outline-offset:2px}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:#1A1A1A;color:#fff;
          padding:12px 18px;border-radius:9px;font-weight:800;font-size:13px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.3)}
   /* Sits where the toast sits - above both thumb buttons, never over them. */
@@ -726,7 +763,11 @@
   <div class="box">
     <h1 class="mark">Decal<span class="b">Fix</span> OS</h1>
     <p class="s">Job orders, balances and sales.</p>
-    <div class="tabsw" role="tablist">
+    <!-- One account per shop, and public sign-up is off from 16 Sep, so
+         "New account" pointed at an endpoint the server refuses. It is hidden
+         rather than deleted: onboarding shop #2 needs it back for as long as
+         sign-up is re-opened, and `SIGNUP_OPEN` is the one line to flip. -->
+    <div class="tabsw" role="tablist" id="authTabs" hidden>
       <button id="tabIn"  role="tab" aria-selected="true">Sign in</button>
       <button id="tabUp"  role="tab" aria-selected="false">New account</button>
     </div>
@@ -737,6 +778,7 @@
       <label id="wrapCode" hidden>Join code<input id="aCode" placeholder="Code from the owner" autocomplete="off"></label>
     </div>
     <button class="btn" id="aGo" style="width:100%">Sign in</button>
+    <button type="button" class="linky" id="aForgot">Forgot your password?</button>
     <div class="msg" id="aMsg"></div>
   </div>
 </section>
@@ -898,6 +940,13 @@
     </div>
     <div class="dashgo">
       <button class="btn" id="dNew" style="flex:1;height:56px;font-size:16px">+ NEW JOB ORDER</button>
+    </div>
+    <!-- Where every job order in the shop is standing, right now. Owner and
+         counter only: it is the whole floor, which is exactly what a bench
+         that runs one department must not be handed. -->
+    <div class="card depts" id="dDepts" hidden>
+      <h2>Where everything is</h2>
+      <div class="dgrid" id="dDeptGrid"></div>
     </div>
     <div class="dsec">
       <span class="t">Due today</span>
@@ -1141,6 +1190,24 @@
   </div>
 </dialog>
 
+<!-- Where a reset link lands. Supabase turns the link into a session and
+     raises PASSWORD_RECOVERY; until a new password is actually set, that
+     session is the only way in, so this cannot be dismissed by tapping away. -->
+<dialog id="pwDlg">
+  <div class="dh"><span class="no">Set a new password</span></div>
+  <div class="db">
+    <p class="small muted">This is the shop's own account - the one the device
+      signs in with. Everyone shares it, so keep it somewhere you can find it.</p>
+    <label class="pwl">New password
+      <input id="pwNew" type="password" autocomplete="new-password" minlength="8">
+    </label>
+    <div class="msg" id="pwMsg"></div>
+  </div>
+  <div class="df">
+    <button class="btn" id="pwSave" style="width:100%">Save password</button>
+  </div>
+</dialog>
+
 <dialog id="okDlg">
   <div class="dh"><span class="no" id="okHead">Cannot save yet</span></div>
   <div class="db"><p id="okText"></p></div>
@@ -1197,6 +1264,9 @@
   <div class="db">
     <div id="dCust" style="font-weight:700"></div>
     <div class="small muted" id="dMeta"></div>
+    <!-- Who, not just when. The trail below says what happened; this says
+         whose hands it passed through. -->
+    <div class="hands" id="dHands" hidden></div>
     <button type="button" class="rushsw" id="dRush" aria-pressed="false">Rush order</button>
     <label class="dart" id="dArtWrap" hidden>Artist<select id="dArtist"></select></label>
     <div class="dpo" id="dPoRow" hidden>
@@ -1297,9 +1367,15 @@ const BENCH_NAME = { counter:'Counter', artist:'Artist', production:'Production'
    order once it is paid, so the only claimed rows that show are ones that
    left the shop still owing - and without this nobody could open them to
    collect the balance. */
+/* What a bench may see. The artist's list runs past their own bench on
+   purpose: everything here is still filtered by `forMe`, so an artist sees
+   only orders that are theirs, and MOVES still stops at 'layout' so they
+   cannot push one along. Without it an order vanished the moment it was
+   approved, and the artist had no way to tell a design that was accepted
+   from one still sitting unread. */
 const SEES = {
   counter:    ['new','layout','for_approval','printing','ready'],
-  artist:     ['layout','for_approval'],
+  artist:     ['layout','for_approval','printing','ready','claimed'],
   production: ['printing','ready'],
   office:     ['new','layout','for_approval','printing','ready','claimed'],
   owner:      ['new','layout','for_approval','printing','ready','claimed']
@@ -1331,6 +1407,10 @@ function toast(t){
 }
 
 /* ── auth ── */
+/* Public sign-up is off on this project (16 Sep). The tab stays in the markup
+   so shop #2 can be onboarded by flipping this and the dashboard switch
+   together - one without the other is a form that always fails. */
+const SIGNUP_OPEN = false;
 let mode = 'in';
 const setMode = m => {
   mode = m;
@@ -1342,8 +1422,32 @@ const setMode = m => {
   $('#aPass').autocomplete = m==='in' ? 'current-password' : 'new-password';
   $('#aMsg').textContent = '';
 };
+$('#authTabs').hidden = !SIGNUP_OPEN;
 $('#tabIn').onclick = ()=>setMode('in');
 $('#tabUp').onclick = ()=>setMode('up');
+
+/* A reset link is the credential, and it only ever goes to the address on the
+   account - so possession of that mailbox is what protects this, and nothing
+   in the browser can add to it. No PIN in front: the key that would have to
+   guard it ships inside this page, so a PIN here would be a gate anyone could
+   walk around with one request. The real backstop stays the Supabase
+   dashboard, which is also the reliable one - the built-in mailer is
+   rate-limited and its delivery is not guaranteed. */
+$('#aForgot').onclick = async () => {
+  const msg = $('#aMsg');
+  const email = $('#aEmail').value.trim();
+  if(!email){ msg.className = 'msg err'; msg.textContent = 'Type the shop email first.'; return $('#aEmail').focus(); }
+  $('#aForgot').disabled = true;
+  msg.className = 'msg'; msg.textContent = 'Sending…';
+  try{
+    await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/' });
+  }catch(e){ /* fall through: the answer must not depend on what happened */ }
+  /* The same answer either way. "No such account" would turn this box into a
+     way of finding out which addresses have one. */
+  msg.className = 'msg';
+  msg.textContent = 'If that address is on this shop, a reset link is on its way. Check the inbox.';
+  $('#aForgot').disabled = false;
+};
 
 $('#aGo').onclick = async () => {
   const msg = $('#aMsg');
@@ -1370,6 +1474,50 @@ $('#aGo').onclick = async () => {
     msg.className = 'msg err';
     msg.textContent = e.message || 'That did not work.';
   }finally{ $('#aGo').disabled = false; }
+};
+
+/* A reset link arrives as a session plus a PASSWORD_RECOVERY event. Boot
+   would otherwise just open the shop, leaving the person signed in with a
+   password they still do not know - and locked out again as soon as that
+   session ends. */
+const pwDlg = $('#pwDlg');
+let RECOVERING = false;
+sb.auth.onAuthStateChange((event) => {
+  if(event !== 'PASSWORD_RECOVERY' || RECOVERING) return;
+  RECOVERING = true;
+  $('#auth').hidden = true;
+  $('#pwMsg').textContent = '';
+  $('#pwNew').value = '';
+  try{ pwDlg.showModal(); }catch(e){}
+  setTimeout(()=>$('#pwNew').focus(), 80);
+});
+// no way out but setting one: dismissing leaves the account unreachable again
+pwDlg.addEventListener('cancel', e => e.preventDefault());
+
+$('#pwSave').onclick = async () => {
+  const pw = $('#pwNew').value;
+  const msg = $('#pwMsg');
+  if(pw.length < 8){
+    msg.className = 'msg err';
+    msg.textContent = 'Use at least 8 characters.';
+    return $('#pwNew').focus();
+  }
+  $('#pwSave').disabled = true;
+  msg.className = 'msg'; msg.textContent = 'Saving…';
+  const { error } = await sb.auth.updateUser({ password: pw });
+  $('#pwSave').disabled = false;
+  if(error){
+    msg.className = 'msg err';
+    msg.textContent = error.message || 'That did not work.';
+    return;
+  }
+  pwDlg.close();
+  RECOVERING = false;
+  // the address carries the recovery token; leaving it there means a reload
+  // tries to spend a link that is already used
+  try{ history.replaceState({}, '', location.pathname); }catch(e){}
+  toast('Password changed.');
+  boot().catch(()=>{});
 };
 
 /* ── live/dev guard ── */
@@ -1475,18 +1623,30 @@ const LAST_KEY = 'df_last';
    only decides whether the pad is shown again. */
 const TAP_KEY = 'df_tapped';
 const TAP_FOR = 5 * 60 * 1000;           // the same window as the idle lock
-const markTapped = id => { try{ sessionStorage.setItem(TAP_KEY, JSON.stringify({ id, at: Date.now() })); }catch(e){} };
-const clearTapped = () => { try{ sessionStorage.removeItem(TAP_KEY); }catch(e){} };
-const readTapped = () => { try{
-    const t = JSON.parse(sessionStorage.getItem(TAP_KEY) || 'null');
-    return (t && t.id && (Date.now() - Number(t.at || 0)) < TAP_FOR) ? t : null;
+/* A fresh launch from the home screen is not a reload, and it used to mean the
+   PIN every time - because the marker lived in sessionStorage and died with
+   the tab. On a phone that is wrong far more often than it is right: back at
+   the root closes an installed app, and the counter is then made to type a PIN
+   for a thumb slip. So the marker outlives the tab now, in localStorage.
+   **The window is what keeps it honest.** A reload or a back/forward keeps the
+   full five minutes, which is the idle lock's own window - the app already
+   sits unlocked that long on the counter, so nothing new is exposed. A fresh
+   launch gets sixty seconds, because that is what an accident looks like: the
+   app closes and you open it again straight away. A phone picked up later, or
+   handed to someone else, is past it and asks. */
+const TAP_NAV = 60 * 1000;
+const markTapped = id => { try{ safeStore.setItem(TAP_KEY, JSON.stringify({ id, at: Date.now() })); }catch(e){} };
+const clearTapped = () => { try{ safeStore.removeItem(TAP_KEY); }catch(e){} };
+const readTapped = (within) => { try{
+    const t = JSON.parse(safeStore.getItem(TAP_KEY) || 'null');
+    return (t && t.id && (Date.now() - Number(t.at || 0)) < (within || TAP_FOR)) ? t : null;
   }catch(e){ return null; } };
 
 /* The tab is remembered the same way and for the same reason: a reload should
    put the counter back where they were, not on the dashboard. */
 const TABKEY = 'df_tab';
-const markTab = id => { try{ sessionStorage.setItem(TABKEY, id); }catch(e){} };
-const readTab = () => { try{ return sessionStorage.getItem(TABKEY) || ''; }catch(e){ return ''; } };
+const markTab = id => { try{ safeStore.setItem(TABKEY, id); }catch(e){} };
+const readTab = () => { try{ return safeStore.getItem(TABKEY) || ''; }catch(e){ return ''; } };
 const readLast = () => { try { return JSON.parse(safeStore.getItem(LAST_KEY) || 'null'); } catch(e){ return null; } };
 
 function showPerson(r){
@@ -1515,11 +1675,19 @@ function showSearch(){
    button returning to it. Typing the address, following a link, or reopening
    the app from the home screen are all `navigate` - a fresh open, which still
    asks for the PIN. Old browsers report nothing, and nothing means no. */
-function cameBackByReload(){
+/* Returns the window this opening is worth, or 0 for "ask for the PIN".
+   A reload or a back/forward is the same page coming back: the full five
+   minutes. A fresh launch - typing the address, a link, or the home-screen
+   icon - is worth sixty seconds, enough to undo a thumb slip and nothing
+   more. A browser that reports nothing gets the pad, as before. */
+function openedWorth(){
   try{
     const nav = performance.getEntriesByType('navigation')[0];
-    return !!nav && (nav.type === 'reload' || nav.type === 'back_forward');
-  }catch(e){ return false; }
+    if(!nav) return 0;
+    if(nav.type === 'reload' || nav.type === 'back_forward') return TAP_FOR;
+    if(nav.type === 'navigate') return TAP_NAV;
+    return 0;
+  }catch(e){ return 0; }
 }
 
 /* Was somebody tapped in on this tab a moment ago, and is this the same page
@@ -1527,8 +1695,9 @@ function cameBackByReload(){
    way. Returns false for anything it cannot confirm, so the pad is the
    default in every doubtful case. */
 async function resumeTapped(){
-  if(!cameBackByReload()) return false;
-  const t = readTapped();
+  const worth = openedWorth();
+  if(!worth) return false;
+  const t = readTapped(worth);
   if(!t) return false;
   const { data, error } = await sb.rpc('staff_get', { p_staff: t.id });
   const row = !error && (data || [])[0];
@@ -1745,6 +1914,8 @@ async function openShop(){
   $('#boot').hidden = true;
   paintWho();
   $('#auth').hidden = true; $('#app').hidden = false; $('#hCalc').hidden = false;
+  // one state for the back button to consume, or the first press closes the app
+  armBack();
   if(ENV === 'dev') envStripe();
   document.title = (ENV === 'dev' ? '[DEV] ' : '') + SHOP.name + ' — Decal Fix OS';
 
@@ -1769,7 +1940,7 @@ async function openShop(){
      the counter was actually on. Read it BEFORE clicking Dashboard - that
      click runs the handler, which writes the tab down and would overwrite
      the very thing being restored. */
-  const wanted = cameBackByReload() ? readTab() : '';   // a fresh open starts on the dashboard
+  const wanted = openedWorth() ? readTab() : '';        // an opening worth nothing starts on the dashboard
   $('#nvDash').click();
   restoreTab(wanted);
   $('#hLock').hidden = !onRoster().length;
@@ -2847,7 +3018,17 @@ async function loadArtists(){
 const artistName = id => (ARTISTS.find(a => a.id === id) || {}).name || '';
 /* An artist's board and dashboard: what was sent to them, plus anything
    not sent to anyone, so unassigned work is never invisible. */
-const forMe = o => BENCH !== 'artist' || !o.artist_id || (STAFF && o.artist_id === STAFF.id);
+/* Which orders are an artist's. Live work includes the unassigned - somebody
+   has to pick it up - but work that has moved PAST the artist's bench is only
+   theirs if it was actually theirs. Without that split, widening the artist's
+   view to finished orders handed them every unassigned job the shop had ever
+   released, which is the shop's history, not this artist's. */
+const forMe = o => {
+  if(BENCH !== 'artist') return true;
+  if(['printing','ready','claimed'].includes(o.status))
+    return !!(STAFF && o.artist_id === STAFF.id);
+  return !o.artist_id || !!(STAFF && o.artist_id === STAFF.id);
+};
 
 $('#fRush').onclick = () => {
   const b = $('#fRush');
@@ -3452,6 +3633,19 @@ const BOARD_TABS = [
   { id:'rush',     label:'Rush',         keep:o => !!o.rush && o.status !== 'claimed' },
   { id:'claimed',  label:'Released',     keep:o => o.status === 'claimed' }
 ];
+/* The artist's three questions, in the artist's words. "Released" here means
+   released to production - approved and off the artist's hands - which is
+   what the bench calls it, even though the order is nowhere near claimed. */
+const ARTIST_TABS = [
+  { id:'all',      label:'All',            keep:(o, m) => m.includes(o.status) },
+  { id:'today',    label:'Due today',      warn:true,
+    keep:o => o.status === 'layout' && !!o.target_date && o.target_date <= today() },
+  { id:'layout',   label:'Not yet sent',   keep:o => o.status === 'layout' },
+  { id:'approval', label:'To be approved', keep:o => o.status === 'for_approval' },
+  { id:'done',     label:'Released',       keep:o => ['printing','ready','claimed'].includes(o.status) }
+];
+const tabsFor = () => BENCH === 'artist' ? ARTIST_TABS
+                    : canTakeOrders()    ? BOARD_TABS : null;
 let BOARD_TAB = 'all';
 
 /* An order on this list may be older than the board's newest-300 window, so
@@ -3474,23 +3668,76 @@ $('#tOwedGo').onclick = () => {
   go.textContent = open ? 'Hide the orders' : 'Show the orders';
 };
 
+/* The whole floor in one grid, each cell opening the board on that question.
+   The rows come from ORDERS - the newest 300 - so this is "where the shop is
+   standing now", not an all-time count, which is the only reading that is
+   useful at a glance anyway. */
+const DEPTS = [
+  { label:'At the counter', key:'new',          sub:'received, not started' },
+  { label:'With artist',    key:'artist',       sub:'layout in progress' },
+  { label:'To approve',     key:'approval',     sub:'artist says it is done', warn:true },
+  { label:'Producing',      key:'printing',     sub:'on the machines' },
+  { label:'To release',     key:'ready',        sub:'finished, not collected' },
+  { label:'Past due',       key:'late',         sub:'promised before today',  warn:true },
+  { label:'Released owing', key:'owing',        sub:'gone, still unpaid',     warn:true }
+];
+const DEPT_KEEP = {
+  new:      o => o.status === 'new',
+  artist:   o => o.status === 'layout',
+  approval: o => o.status === 'for_approval',
+  printing: o => o.status === 'printing',
+  ready:    o => o.status === 'ready',
+  late:     o => isLate(o),
+  owing:    o => o.status === 'claimed' && Number(o.balance) > 0
+};
+/* Which board tab each door opens. "Released owing" has no tab of its own -
+   Released is the nearest question the board can ask - so the door is honest
+   about landing you one step wider rather than inventing a tab for it. */
+const DEPT_TAB = { new:'all', artist:'artist', approval:'artist', printing:'printing',
+                   ready:'ready', late:'late', owing:'claimed' };
+
+function renderDepts(live, t){
+  const box = $('#dDepts');
+  // the whole floor, so only the benches that run the whole floor
+  box.hidden = !canTakeOrders();
+  if(box.hidden) return;
+  const grid = $('#dDeptGrid');
+  grid.innerHTML = '';
+  DEPTS.forEach(d => {
+    const n = live.filter(DEPT_KEEP[d.key]).length;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'dcell' + (d.warn && n ? ' warn' : '') + (n ? '' : ' zero');
+    b.setAttribute('aria-label', d.label + ', ' + n + (n === 1 ? ' order' : ' orders') +
+                                 ' - ' + d.sub);
+    b.innerHTML = '<b>' + n + '</b><small>' + esc(d.label) + '</small>' +
+                  '<span class="sub">' + esc(d.sub) + '</span>';
+    b.onclick = () => { BOARD_TAB = DEPT_TAB[d.key] || 'all'; $('#nvBoard').click(); };
+    grid.appendChild(b);
+  });
+}
+
 function renderBoard(){
   const mine = SEES[BENCH] || SEES.counter;
   /* Every tab reads from here, so a bench can never be shown work that is not
      its own - the tabs ask a different question of the same set. */
   const seen = ORDERS.filter(o => !o.voided && o.status !== 'cancelled' && forMe(o));
 
-  const tabsOn = canTakeOrders();
+  const set = tabsFor();
+  const tabsOn = !!set;
   const tabEl = $('#boardTabs');
   tabEl.hidden = !tabsOn;
-  // and emptied, not just hidden: an artist tapping in after a counter would
-  // otherwise be carrying the counter's strip around in the DOM
+  // and emptied, not just hidden: a bench tapping in after another would
+  // otherwise be carrying the previous one's strip around in the DOM
   if(!tabsOn){ BOARD_TAB = 'all'; tabEl.innerHTML = ''; }
-  const tab = BOARD_TABS.find(t => t.id === BOARD_TAB) || BOARD_TABS[0];
+  const tabs = set || BOARD_TABS;
+  // the tab last chosen may not exist on this bench's strip
+  const tab = tabs.find(t => t.id === BOARD_TAB) || tabs[0];
+  BOARD_TAB = tab.id;
 
   if(tabsOn){
     tabEl.innerHTML = '';
-    BOARD_TABS.forEach(t => {
+    tabs.forEach(t => {
       const n = seen.filter(o => t.keep(o, mine)).length;
       // a tab with nothing behind it is still drawn: its nought is the answer
       const b = document.createElement('button');
@@ -3514,9 +3761,17 @@ function renderBoard(){
   const live = ORDERS.filter(o=>!o.voided && o.status!=='cancelled');
   $('#dDay').textContent = 'TODAY · ' + new Date().toLocaleDateString('en-PH',
     { timeZone:'Asia/Manila', weekday:'short', month:'short', day:'numeric' }).toUpperCase();
-  $('#dDue').textContent   = live.filter(o=>o.target_date && o.target_date <= t &&
+  /* Whose work is due today. A counter or an owner runs the shop and wants
+     the whole floor; an artist or production wants the bench they are stood
+     at, because a number that counts somebody else's work is a number they
+     cannot act on. `forMe` narrows the artist's further, to their own. */
+  const mineToo = canTakeOrders()
+    ? live
+    : live.filter(o => (SEES[BENCH] || []).includes(o.status) && forMe(o));
+  $('#dDue').textContent   = mineToo.filter(o=>o.target_date && o.target_date <= t &&
                                             !['ready','claimed'].includes(o.status)).length;
-  $('#dClaim').textContent = live.filter(o=>o.status === 'ready').length;
+  $('#dClaim').textContent = mineToo.filter(o=>o.status === 'ready').length;
+  renderDepts(live, t);
   renderDash();
   const box = $('#boardList');
   if(!open.length){
@@ -3657,12 +3912,34 @@ function openDetail(o){
   $('#dPay').hidden = !money;
   $('#dPay').disabled = Number(o.balance) <= 0 || !canTakeOrders();
   loadTrail(o.id);
+  loadHands(o);
   loadPays(o);
   loadFiles(o);
   // the folder and upload only once the shop's Drive is connected
   $('#dDriveTools').hidden = !DRIVE.connected || !!o.voided;
   dlg.showModal();
 }
+/* Whose hands the order passed through. `taken_by` is the person at the
+   counter - `encoded_by` is the device's shared account and cannot answer it -
+   and `artist_id` is who it was sent to.
+   **What this cannot say, and it is worth knowing before trusting it:** the
+   status trail below has no person on it. `jo_status_log.changed_by` defaults
+   to `auth.uid()`, which is the shop's one account, so "who moved this to
+   Producing" is not recorded anywhere today. On PUNCHLIST. */
+async function loadHands(o){
+  const box = $('#dHands');
+  const bits = [];
+  const took = await staffName(o.taken_by);
+  if(took) bits.push(['Taken by', took]);
+  const art = o.artist_id ? await staffName(o.artist_id) : '';
+  if(art) bits.push(['Artist', art]);
+  if(CUR !== o) return;                       // a faster tap opened another order
+  box.innerHTML = bits.map(([k, v]) =>
+    '<span class="hand"><span class="k">' + esc(k) + '</span>' +
+    '<span class="v">' + esc(v) + '</span></span>').join('');
+  box.hidden = !bits.length;
+}
+
 async function loadTrail(id){
   const { data } = await sb.from('jo_status_log')
     .select('from_status,to_status,changed_at').eq('job_order_id', id)
@@ -4216,6 +4493,29 @@ const resetIdle = () => {
 ['click','keydown','touchstart'].forEach(e=>document.addEventListener(e, resetIdle, {passive:true}));
 resetIdle();
 
+/* Android's back button closes an installed app as soon as there is nothing
+   behind it, which is how a thumb slip turns into the PIN pad. Give it the
+   job it has in every native app instead: close what is on top, then leave
+   the tab that was opened, and only exit from the resting one.
+   A state is pushed and re-pushed so there is always one for back to consume.
+   Deliberately NOT a trap - from the dashboard with nothing open, back still
+   closes the app, because a back button that never leaves is worse than the
+   problem it solves. */
+function backStep(){
+  const open = [...document.querySelectorAll('dialog')].filter(d => d.open);
+  if(open.length){ open[open.length - 1].close(); return true; }
+  if($('#lock') && !$('#lock').hidden) return false;   // locked: let it close
+  const here = Object.keys(views).find(k => $('#'+k).getAttribute('aria-selected') === 'true');
+  if(here && here !== 'nvDash' && !$('#nvDash').hidden){ $('#nvDash').click(); return true; }
+  return false;
+}
+function armBack(){
+  try{ history.pushState({ df: 1 }, ''); }catch(e){}
+}
+addEventListener('popstate', () => {
+  if(backStep()) armBack();      // handled: put a state back for the next press
+});
+
 /* ── tabs ── */
 const views = { nvDash:'vDash', nvNew:'vNew', nvBoard:'vBoard', nvSales:'vSales', nvStaff:'vStaff' };
 Object.keys(views).forEach(id=>{
@@ -4249,7 +4549,7 @@ $('#fab').onclick = ()=>$('#nvNew').click();
    they arrive. Guarded on the same two conditions as resuming: it must be a
    real reload, and the marker must still be good, so a fresh open still shows
    nothing until boot decides. */
-if(cameBackByReload() && readTapped()){
+if(openedWorth() && readTapped(openedWorth())){
   $('#app').hidden = false;
   $('#boot').hidden = false;
 }
