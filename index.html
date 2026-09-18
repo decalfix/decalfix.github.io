@@ -344,6 +344,35 @@
   .btab.warn[aria-selected="true"]{background:var(--red);border-color:var(--red);color:#fff}
   .btab:focus-visible{outline:2px solid var(--red);outline-offset:2px}
   /* One line per hand-off, so it reads as a chain rather than a paragraph. */
+  /* A note from the counter, read by the artist - so it is quoted, not
+     styled as an error. It is instruction, not a telling-off. */
+  .edtot{margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--surface-2);
+         font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+  .edtot .was{font-weight:700;font-size:12px;color:var(--grey);text-decoration:line-through;
+              margin-right:7px}
+  .lrow .edit{font:inherit;font-size:10.5px;font-weight:800;letter-spacing:.05em;
+              text-transform:uppercase;color:var(--grey);background:none;border:0;
+              padding:2px 4px;cursor:pointer;text-decoration:underline;
+              text-underline-offset:2px}
+  .lrow .edit:hover{color:var(--red-deep)}
+  .lrow .edit:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .sentback{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--amber);
+            background:var(--surface-2);border-radius:0 9px 9px 0}
+  .sentback .k{font-weight:800;font-size:10px;letter-spacing:.09em;
+               text-transform:uppercase;color:var(--grey)}
+  .sentback .n{font-weight:700;font-size:13.5px;margin-top:2px;white-space:pre-wrap}
+  .sentback .w{font-size:11.5px;font-weight:700;color:var(--grey);margin-top:3px}
+  /* The file the artist says is finished. Louder than "newest file" on
+     purpose: this one has been declared, not inferred from a timestamp. */
+  .finalbox{margin:8px 0 2px;padding:9px 11px;border:1px solid var(--line);
+            border-left:3px solid var(--red);border-radius:0 9px 9px 0;
+            background:var(--card)}
+  .finalbox .k{font-weight:800;font-size:10px;letter-spacing:.09em;
+               text-transform:uppercase;color:var(--red-deep)}
+  .markfinal{font:inherit;font-size:11px;font-weight:700;padding:2px 8px;
+             border:1px solid var(--line);border-radius:6px;background:var(--paper);
+             color:var(--text-2);cursor:pointer;white-space:nowrap}
+  .markfinal[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff}
   .hands{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px}
   .hand{display:inline-flex;align-items:baseline;gap:5px;font-size:11.5px;
         background:var(--surface-2);border:1px solid var(--line);
@@ -465,14 +494,44 @@
   .agebar .a1{background:var(--grey)} .agebar .a2{background:var(--amber)} .agebar .a3{background:var(--red)}
 
   dialog{border:0;border-radius:var(--r-lg);padding:0;width:min(560px,calc(100% - 24px));
+         background:var(--card);color:var(--text);overflow:hidden;
          box-shadow:0 24px 70px rgba(0,0,0,.32)}
-  dialog::backdrop{background:rgba(0,0,0,.55)}
+  /* The whole app sits on a hexagon field; a flat grey scrim in front of it
+     read as a different product. */
+  dialog::backdrop{background:rgba(10,10,10,.6);backdrop-filter:blur(2px)}
+  /* Opens the way a drawer does, from just below, and not at all for anyone
+     who has asked the system for less movement. */
+  dialog[open]{animation:dlgin .16s ease-out}
+  @keyframes dlgin{from{opacity:0;transform:translateY(8px) scale(.985)}
+                   to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){ dialog[open]{animation:none} }
   .dh{background-color:var(--black);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='70'%3E%3Cg fill='none' stroke='%23D8232A' stroke-opacity='.22'%3E%3Cpath d='M20,0L40,11L40,35L20,46L0,35L0,11Z'/%3E%3Cpath d='M0,35L20,46L20,70L0,81L-20,70L-20,46Z'/%3E%3Cpath d='M40,35L60,46L60,70L40,81L20,70L20,46Z'/%3E%3C/g%3E%3C/svg%3E");color:#fff;padding:15px 16px;
       display:flex;align-items:center;gap:10px}
+  /* The torn edge under the header - the same wave the app's own header
+     carries, and the one thing that made these look borrowed without it.
+     It hangs below the header, so .dh needs room and a stacking context. */
+  .dh{position:relative;padding-bottom:22px}
+  .dh::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:14px;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='16' preserveAspectRatio='none'%3E%3Cpath d='M0,16 H120 V8 C105,-10 95,26 80,8 C65,-10 55,26 40,8 C25,-10 15,26 0,8 Z' fill='%23FFFFFF'/%3E%3C/svg%3E") repeat-x;
+    background-size:120px 14px}
   .dh .no{font-weight:800;font-size:16px;margin-right:auto}
   .dh .chip{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.16);color:#fff}
-  .db{padding:16px;max-height:62vh;overflow:auto}
-  .df{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  /* dvh, not vh: on a phone the address bar is counted in vh and a footer
+     can end up under it. */
+  .db{padding:16px;max-height:min(62dvh,62vh);overflow:auto;
+      overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .df{padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+      border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;
+      justify-content:flex-end;background:var(--card)}
+  /* At 360px a row of small buttons is a row of small targets - but one per
+     line is worse: five of them push the order itself off the screen. Two up,
+     each a thumb tall, and the last one (the action) takes the full width. */
+  @media (max-width:430px){
+    dialog{width:calc(100% - 16px)}
+    .df{justify-content:stretch}
+    .df .btn{flex:1 1 46%;min-height:44px}
+    .df .btn:last-child{flex-basis:100%}
+  }
   .lrow{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}
   .lrow:last-child{border-bottom:0}
   .lrow .d{min-width:0;font-weight:700}
@@ -1208,6 +1267,30 @@
   </div>
 </dialog>
 
+<!-- Correcting a line on an order that is already saved. The PIN is asked
+     for here rather than trusted from whoever is tapped in, because a phone
+     left unlocked on a counter is not the same as the person standing at it -
+     and this is the one screen that changes what a customer owes. -->
+<dialog id="edDlg">
+  <div class="dh"><span class="no" id="edHead">Correct the line</span></div>
+  <div class="db">
+    <p class="small muted" id="edWhat"></p>
+    <div class="grid2">
+      <label>Quantity<input id="edQty" inputmode="decimal" autocomplete="off"></label>
+      <label>Rate<input id="edRate" inputmode="decimal" autocomplete="off"></label>
+    </div>
+    <div class="edtot" id="edTot"></div>
+    <label class="pwl" id="edPinWrap">Your 4-digit PIN
+      <input id="edPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000">
+    </label>
+    <div class="msg" id="edMsg"></div>
+  </div>
+  <div class="df">
+    <button class="btn ghost" id="edCancel">Cancel</button>
+    <button class="btn" id="edSave">Save the change</button>
+  </div>
+</dialog>
+
 <dialog id="okDlg">
   <div class="dh"><span class="no" id="okHead">Cannot save yet</span></div>
   <div class="db"><p id="okText"></p></div>
@@ -1292,6 +1375,9 @@
       <label class="upl">or upload a file<input type="file" id="dUpload" hidden></label>
       <div class="uprog" id="dUpProg" hidden><i id="dUpFill"></i><span id="dUpText"></span></div>
     </div>
+    <!-- Why it came back, when it did. The artist's first question on
+         opening a redesign is "what was wrong with it". -->
+    <div class="sentback" id="dSentBack" hidden></div>
     <div class="trail" id="dTrail"></div>
   </div>
   <div class="df">
@@ -1299,6 +1385,7 @@
     <button class="btn ghost" id="dPrint">Print claim stub</button>
     <button class="btn ghost" id="dPay">Collect</button>
     <button class="btn ghost" id="dVoid">Void</button>
+    <button class="btn ghost danger" id="dSendBack" hidden>Send back</button>
     <button class="btn" id="dNext">Move on</button>
   </div>
 </dialog>
@@ -1358,6 +1445,7 @@ const today = () => new Date(Date.now() - new Date().getTimezoneOffset()*6e4).to
 
 let SHOP = null, ME = '', BENCH = 'counter', ROLE = 'staff';
 let STAFF = null, ROSTER = [], PICK = null;
+let LINES_BY_ID = {}, EDITING = null;
 let ITEMS = [], LINES = [], ORDERS = [], CUR = null;
 
 // What each bench is allowed to see and move.
@@ -2493,7 +2581,7 @@ async function loadFiles(o){
   const box = $('#dFiles'); box.innerHTML = '';
   $('#dLinkRow').hidden = !!o.voided;
   $('#dLinkUrl').value = ''; $('#dLinkLabel').value = '';
-  const { data } = await sb.from('jo_files').select('id,kind,url,label,created_at,drive_file_id,file_name,size_bytes,backed_up_at,jo_item_id')
+  const { data } = await sb.from('jo_files').select('id,kind,url,label,created_at,drive_file_id,file_name,size_bytes,backed_up_at,jo_item_id,final_at')
     .eq('job_order_id', o.id).is('removed_at', null).order('created_at');
   if(CUR !== o) return;
   // an uploaded file opens as its Drive file; the artist reaches it through the shared folder
@@ -2530,10 +2618,22 @@ async function loadFiles(o){
       toast('Saved ' + (f.file_name || 'the file'));
     }catch(e){ toast('Could not fetch it: ' + e.message); }
   };
+  /* Saying which file is finished is the artist's job - they are the only
+     one who knows - so the button is theirs and the counter's, not
+     production's. One per order: marking a second clears the first, because
+     "the final design" is singular and two of them is the muddle this exists
+     to end. */
+  const canFinal = (BENCH === 'artist' || canTakeOrders()) && !o.voided;
+  const finalBtn = f => (!canFinal || f.kind !== 'upload' || !f.drive_file_id || f.backed_up_at) ? ''
+    : `<button type="button" class="markfinal" data-final="${esc(f.id)}"` +
+      ` aria-pressed="${f.final_at ? 'true' : 'false'}"` +
+      ` aria-label="${f.final_at ? 'This is the final design' : 'Mark ' + esc(f.file_name || 'this file') + ' as the final design'}">` +
+      `${f.final_at ? '★ Final' : 'Mark final'}</button>`;
   const row = f => `<div class="fl">${
       f.url ? fileLink(f) : `<span class="flink off">${esc(f.label)}</span>`}${
       (f.kind === 'upload' && f.drive_file_id && !f.backed_up_at)
         ? `<button type="button" class="dl" data-dl="${esc(f.id)}" aria-label="Save ${esc(f.file_name || 'file')} to this device">Save</button>` : ''}${mover(f)}${
+      finalBtn(f)}${
       canTakeOrders() ? `<button type="button" class="x" data-id="${esc(f.id)}" aria-label="Remove link">×</button>` : ''}</div>`;
   /* Which one prints. Only worth saying when there is more than one upload -
      with a single file there is no question to answer, and repeating it above
@@ -2553,8 +2653,13 @@ async function loadFiles(o){
       `<span class="when">${esc(String(latest.created_at || '').slice(0, 10))} · on ${esc(itemOfFile(latest))}` +
       `${ups.length > 1 ? ` · ${ups.length} files on this order` : ''}</span></div>` : '';
 
+  /* The declared final design leads everything, above even the newest file:
+     one is a statement, the other a guess from a timestamp. */
+  const fin = rows.find(f => f.final_at);
+  const finHead = fin ? `<div class="finalbox"><div class="k">Final design</div>` + row(fin) + `</div>` : '';
+
   const whole = rows.filter(f => !f.jo_item_id);
-  box.innerHTML = head +
+  box.innerHTML = finHead + head +
     (whole.length ? '<div class="k">For the whole order</div>' + whole.map(row).join('') : '');
 
   /* Each item's own files, under the item on the detail - the same order the
@@ -2594,6 +2699,24 @@ async function loadFiles(o){
       up.appendChild(inp); box2.appendChild(up);
     }
   });
+  /* One final design per order. Marking a second clears the first rather
+     than leaving two, because "the final design" is singular and two of them
+     is exactly the muddle this is here to end. */
+  $('#dlg').querySelectorAll('button[data-final]').forEach(b => { b.onclick = async () => {
+    try{ assertWritable(); }catch(err){ return toast(err.message); }
+    const id = b.dataset.final;
+    const already = b.getAttribute('aria-pressed') === 'true';
+    const others = rows.filter(f => f.final_at && f.id !== id).map(f => f.id);
+    for(const other of others){
+      const { error } = await sb.from('jo_files').update({ final_at: null }).eq('id', other);
+      if(error) return toast(error.message);
+    }
+    const { error } = await sb.from('jo_files')
+      .update({ final_at: already ? null : new Date().toISOString() }).eq('id', id);
+    if(error) return toast(error.message);
+    toast(already ? 'No longer the final design' : 'Marked as the final design');
+    loadFiles(o);
+  }; });
   $('#dlg').querySelectorAll('button[data-dl]').forEach(b => {
     b.onclick = () => saveFile(rows.find(f => f.id === b.dataset.dl) || {});
   });
@@ -3865,9 +3988,18 @@ function openDetail(o){
                             (o.customer_fb ? ' · FB ' + o.customer_fb : '');
   $('#dMeta').textContent = metaText(o);
   const gs = lineGroups(o);
+  // every priced row, by id, so the edit dialog can find the one tapped
+  LINES_BY_ID = {};
+  gs.forEach(g => (g.rows || []).forEach(l => { if(l.id) LINES_BY_ID[l.id] = l; }));
+  /* Only a bench that takes orders, and never on a voided one - a voided
+     order is a record of what was cancelled, not a thing to keep adjusting. */
+  const canEdit = canTakeOrders() && !o.voided;
+  const edit = l => (!canEdit || !l.id) ? '' :
+    `<button type="button" class="edit" data-edit="${esc(l.id)}"` +
+    ` aria-label="Correct the quantity or rate for ${esc(l.item_type || l.size || 'this line')}">Edit</button>`;
   const plain = l => `<div class="lrow"><div class="d">${esc(l.item_type)}${l.size?` · ${esc(l.size)}`:''}
         ${l.notes?`<div class="small inote">${esc(l.notes)}</div>`:''}
-        <div class="muted small">${l.qty} × ${peso(l.unit_price)}</div></div>
+        <div class="muted small">${l.qty} × ${peso(l.unit_price)} ${edit(l)}</div></div>
         <div class="money">${peso(l.line_total)}</div></div>`;
   const filesBox = g => `<div class="dif" data-item="${esc(g.id || '')}"></div>`;
   $('#dLines').innerHTML = gs.length
@@ -3878,7 +4010,7 @@ function openDetail(o){
         manifest(g) +
         g.rows.map(l=>`<div class="lrow lsub"><div class="d">${esc(l.size||'—')}${
            l.gender ? ` · ${l.gender === 'male' ? 'Male' : 'Female'}` : ''}
-           <div class="muted small">${l.qty} × ${peso(l.unit_price)}</div></div>
+           <div class="muted small">${l.qty} × ${peso(l.unit_price)} ${edit(l)}</div></div>
            <div class="money">${peso(l.line_total)}</div></div>`).join('') +
         `<div class="lrow lsubt"><div class="d">Subtotal</div><div class="money">${peso(g.total)}</div></div>`)
         + filesBox(g)
@@ -3911,7 +4043,14 @@ function openDetail(o){
   $('#dVoid').hidden = !canTakeOrders() || o.voided || o.status === 'claimed';
   $('#dPay').hidden = !money;
   $('#dPay').disabled = Number(o.balance) <= 0 || !canTakeOrders();
+  /* Send back is the counter's and owner's answer to "the artist says it is
+     done" - so it appears only on an order waiting for that answer. */
+  $('#dSendBack').hidden = !(o.status === 'for_approval' && canTakeOrders() && !o.voided);
+  $('#dLines').querySelectorAll('button[data-edit]').forEach(b => {
+    b.onclick = () => openEdit(b.dataset.edit);
+  });
   loadTrail(o.id);
+  loadReview(o);
   loadHands(o);
   loadPays(o);
   loadFiles(o);
@@ -3955,6 +4094,10 @@ function nextLabel(){
   const to = $('#dArtist').value;
   $('#dNext').textContent = !owns ? 'Not your bench'
     : !nx ? 'Done'
+    // on an order waiting for a yes, moving it on IS the yes - say so
+    : o.status === 'for_approval' ? 'Approve'
+    // and the artist's own way of saying it is finished
+    : o.status === 'layout' && BENCH === 'artist' ? 'Send for approval'
     : (nx === 'layout' && to && canTakeOrders()) ? 'Send to ' + artistName(to)
     : 'Move to ' + LABEL[nx];
 }
@@ -4014,12 +4157,168 @@ $('#dNext').onclick = async () => {
   // leaving Received for With artist carries the artist chosen, if any
   const to = (nx === 'layout' && canTakeOrders()) ? ($('#dArtist').value || null) : undefined;
   if(to !== undefined) patch.artist_id = to;
+  const approving = CUR.status === 'for_approval';
   const { error } = await sb.from('job_orders').update(patch).eq('id', CUR.id);
   if(error) return toast(error.message);
+  // moving off for_approval IS the approval, so it is recorded as one
+  if(approving) await recordReview('approved', null);
   dlg.close();
-  toast('JO ' + CUR.jo_no + (to ? ' sent to ' + artistName(to) : ' → ' + LABEL[nx]));
+  toast('JO ' + CUR.jo_no + (to ? ' sent to ' + artistName(to)
+        : approving ? ' approved → ' + LABEL[nx] : ' → ' + LABEL[nx]));
   refresh();
 };
+/* The round trip. `for_approval` already means "the artist says it is done,
+   somebody has to say yes", so Move on is the yes and this is the no. Sending
+   back returns the order to `layout` - where the artist picks it up again -
+   and may hand it to a different artist on the way.
+   Every verdict is a row in `jo_reviews`, append-only like `jo_payments`: a
+   design can go round three times and the artist needs the note that applies
+   to THIS round, while the owner needs to see that it went round three
+   times. */
+async function recordReview(verdict, note){
+  const { error } = await sb.from('jo_reviews').insert({
+    shop_id: SHOP.id, job_order_id: CUR.id, verdict,
+    note: note ? String(note).trim().slice(0, 500) : null,
+    reviewed_by: STAFF ? STAFF.id : null });
+  return error;
+}
+
+$('#dSendBack').onclick = async () => {
+  try{ assertWritable(); }catch(err){ return toast(err.message); }
+  const why = await ask('Send JO ' + CUR.jo_no + ' back to the artist. What needs changing?',
+    { head: 'Send back', input: 'What needs changing', yes: 'Send it back', no: 'Keep it here' });
+  if(why === null || why === false) return;
+
+  const to = ($('#dArtist') && !$('#dArtWrap').hidden) ? ($('#dArtist').value || null) : undefined;
+  const patch = { status: 'layout', updated_at: new Date().toISOString() };
+  if(to !== undefined) patch.artist_id = to;
+  const { error } = await sb.from('job_orders').update(patch).eq('id', CUR.id);
+  if(error) return toast(error.message);
+
+  /* The note is written after the move, deliberately. If the move fails the
+     order has not come back and a note saying why would be a lie; if the note
+     fails the order is still correctly with the artist, and a missing note is
+     recoverable by telling them. The move is the fact. */
+  const e2 = await recordReview('sent_back', why);
+  dlg.close();
+  toast(e2 ? 'Sent back, but the note did not save: ' + e2.message
+           : 'JO ' + CUR.jo_no + ' sent back to the artist');
+  refresh();
+};
+
+/* Why it came back, shown to whoever opens it - the artist's first question.
+   Only while it is still being redesigned: once it has gone on, the note has
+   been acted on and the trail is the record. */
+async function loadReview(o){
+  const box = $('#dSentBack');
+  box.hidden = true;
+  if(o.status !== 'layout') return;
+  const { data } = await sb.from('jo_reviews')
+    .select('verdict,note,reviewed_at,reviewed_by').eq('job_order_id', o.id)
+    .order('reviewed_at', { ascending: false }).limit(1);
+  const r = (data || [])[0];
+  if(CUR !== o || !r || r.verdict !== 'sent_back' || !r.note) return;
+  const who = await staffName(r.reviewed_by);
+  if(CUR !== o) return;
+  box.innerHTML = '<div class="k">Sent back - what to change</div>' +
+    '<div class="n">' + esc(r.note) + '</div>' +
+    '<div class="w">' + esc(who || 'The counter') + ' · ' +
+    esc(new Date(r.reviewed_at).toLocaleString('en-PH',
+      { timeZone:'Asia/Manila', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })) +
+    '</div>';
+  box.hidden = false;
+}
+
+/* Correcting a line on a saved order. `line_total` is GENERATED ALWAYS and
+   `jo_items_resync` owns `job_orders.total`, so writing qty and unit_price is
+   the whole change - the line total, the order total and the balance all
+   follow by themselves. Nothing here computes money.
+   The rate is editable beside the quantity because the rate is the lever this
+   shop already uses for an odd job; leaving it locked would send the counter
+   back to voiding and retyping for the exact case this is meant to spare
+   them. */
+const edDlg = $('#edDlg');
+function edPaint(){
+  if(!EDITING) return;
+  const qty = Number($('#edQty').value), rate = Number($('#edRate').value);
+  const ok = Number.isFinite(qty) && Number.isFinite(rate) && qty > 0 && rate >= 0;
+  $('#edTot').innerHTML = ok
+    ? '<span class="was">' + peso(EDITING.line_total) + '</span>' + peso(qty * rate)
+    : '<span class="was">' + peso(EDITING.line_total) + '</span>—';
+}
+$('#edQty').oninput = edPaint;
+$('#edRate').oninput = edPaint;
+$('#edCancel').onclick = () => edDlg.close();
+
+function openEdit(id){
+  const l = LINES_BY_ID[id];
+  if(!l) return toast('That line is no longer on this order.');
+  EDITING = l;
+  $('#edHead').textContent = 'Correct · JO ' + CUR.jo_no;
+  $('#edWhat').textContent = (l.item_type || 'Item') + (l.size ? ' · ' + l.size : '') +
+                             (l.gender ? ' · ' + (l.gender === 'male' ? 'Male' : 'Female') : '');
+  $('#edQty').value = String(l.qty);
+  $('#edRate').value = String(l.unit_price);
+  $('#edPin').value = '';
+  $('#edMsg').textContent = ''; $('#edMsg').className = 'msg';
+  /* With an empty roster nobody is tapped in, so there is no PIN to ask for -
+     the device's own account is the only identity there is. Asking for one
+     would be a box nobody could fill. */
+  $('#edPinWrap').hidden = !STAFF;
+  edPaint();
+  edDlg.showModal();
+  setTimeout(() => $('#edQty').focus(), 80);
+}
+
+$('#edSave').onclick = async () => {
+  if(!EDITING) return;
+  const msg = $('#edMsg');
+  const qty = Number($('#edQty').value), rate = Number($('#edRate').value);
+  const bad = t => { msg.className = 'msg err'; msg.textContent = t; };
+  if(!Number.isFinite(qty) || qty <= 0) return bad('The quantity has to be more than nothing.');
+  if(!Number.isFinite(rate) || rate < 0) return bad('The rate cannot be less than nothing.');
+  if(qty === Number(EDITING.qty) && rate === Number(EDITING.unit_price))
+    return bad('Nothing changed.');
+  try{ assertWritable(); }catch(err){ return bad(err.message); }
+
+  /* The PIN is checked by the database, not here: staff_check compares
+     bcrypt server-side and burns a try. Zero rows means wrong - it raises
+     only for a lockout or somebody not on this shop, which are different
+     answers and are shown as themselves. */
+  if(STAFF){
+    const pin = $('#edPin').value.trim();
+    if(!/^[0-9]{4}$/.test(pin)) return bad('Four digits.');
+    $('#edSave').disabled = true;
+    msg.className = 'msg'; msg.textContent = 'Checking…';
+    try{
+      const { data, error } = await sb.rpc('staff_check', { p_staff: STAFF.id, p_pin: pin });
+      if(error) throw error;
+      if(!(data || []).length){ $('#edSave').disabled = false; return bad('That is not your PIN.'); }
+    }catch(e){
+      $('#edSave').disabled = false;
+      return bad(e.message || 'That did not work.');
+    }
+  }
+
+  $('#edSave').disabled = true;
+  msg.className = 'msg'; msg.textContent = 'Saving…';
+  const { error } = await sb.from('jo_items')
+    .update({ qty, unit_price: rate }).eq('id', EDITING.id);
+  $('#edSave').disabled = false;
+  if(error){ return bad(error.message); }
+
+  edDlg.close();
+  toast('JO ' + CUR.jo_no + ' corrected' + (STAFF ? ' by ' + STAFF.name : ''));
+  /* The order is re-read rather than patched in place: jo_items_resync has
+     just recomputed the total, and balance is generated from it, so the only
+     honest source for either is the database. */
+  const { data } = await sb.from('job_orders')
+    .select('*, jo_items(id,line_no,group_no,item_type,size,gender,qty,unit_price,line_total,notes)')
+    .eq('id', CUR.id).maybeSingle();
+  if(data) openDetail(data);
+  refresh();
+};
+
 /* Collect records a payment row; the database adds it to the order and
    refuses more than the balance. The app checks first so the refusal is in
    plain words. */
