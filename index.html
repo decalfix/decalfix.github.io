@@ -340,6 +340,9 @@
   .btab .n{font-variant-numeric:tabular-nums;font-size:11.5px;opacity:.75}
   .btab[aria-selected="true"] .n{opacity:.9}
   /* the one that means someone is waiting */
+  /* On the card, not only in a tab: an artist scrolling their board should
+     not have to be on the right tab to see that this one came back. */
+  .chip.redo{background:var(--amber-wash,#FFF4E0);border-color:#E8C88A;color:#8A5A05}
   .btab.warn{border-color:var(--red);color:var(--red)}
   .btab.warn[aria-selected="true"]{background:var(--red);border-color:var(--red);color:#fff}
   .btab:focus-visible{outline:2px solid var(--red);outline-offset:2px}
@@ -1446,6 +1449,12 @@ const today = () => new Date(Date.now() - new Date().getTimezoneOffset()*6e4).to
 let SHOP = null, ME = '', BENCH = 'counter', ROLE = 'staff';
 let STAFF = null, ROSTER = [], PICK = null;
 let LINES_BY_ID = {}, EDITING = null;
+/* Job orders that have been sent back at least once. The board reads
+   `job_orders` and nothing else, so without this an artist cannot tell a
+   redesign from a fresh job without opening every one of them.
+   An order sent back, redone and approved leaves `layout`, so pairing this
+   with the status is enough - no need to ask which verdict was the latest. */
+let SENT_BACK = new Set();
 let ITEMS = [], LINES = [], ORDERS = [], CUR = null;
 
 // What each bench is allowed to see and move.
@@ -3701,6 +3710,13 @@ async function refresh(){
     .select('*, jo_items(id,line_no,group_no,item_type,size,gender,qty,unit_price,line_total,notes)')
     .order('jo_no', { ascending:false }).limit(300);
   ORDERS = data || [];
+  /* One extra query per refresh, ids only. RLS scopes it to this shop, and a
+     bench that cannot see the board does not reach here anyway. */
+  try{
+    const { data: rv } = await sb.from('jo_reviews')
+      .select('job_order_id').eq('verdict', 'sent_back').limit(2000);
+    SENT_BACK = new Set((rv || []).map(r => r.job_order_id));
+  }catch(e){ /* the board is still worth drawing without it */ }
   SYNCED = Date.now();
   renderBoard(); await renderSales();
 }
@@ -3756,17 +3772,31 @@ const BOARD_TABS = [
   { id:'rush',     label:'Rush',         keep:o => !!o.rush && o.status !== 'claimed' },
   { id:'claimed',  label:'Released',     keep:o => o.status === 'claimed' }
 ];
+/* The counter and the owner get it too - "what is going round again" is a
+   question about the shop's day, not only the artist's. */
 /* The artist's three questions, in the artist's words. "Released" here means
    released to production - approved and off the artist's hands - which is
    what the bench calls it, even though the order is nowhere near claimed. */
+const cameBack = o => o.status === 'layout' && SENT_BACK.has(o.id);
 const ARTIST_TABS = [
   { id:'all',      label:'All',            keep:(o, m) => m.includes(o.status) },
+  /* First after All, and marked out: a redesign is the thing the shop is
+     already waiting on, so it outranks work nobody has started. */
+  { id:'redo',     label:'Came back',      warn:true, keep:cameBack },
   { id:'today',    label:'Due today',      warn:true,
     keep:o => o.status === 'layout' && !!o.target_date && o.target_date <= today() },
   { id:'layout',   label:'Not yet sent',   keep:o => o.status === 'layout' },
   { id:'approval', label:'To be approved', keep:o => o.status === 'for_approval' },
   { id:'done',     label:'Released',       keep:o => ['printing','ready','claimed'].includes(o.status) }
 ];
+/* The counter and the owner get it too - "what is going round again" is a
+   question about the shop's day, not only the artist's. Spliced rather than
+   written into the list so the two strips cannot drift apart, and placed
+   beside the other artist question. Declared AFTER cameBack: the first
+   attempt put it under BOARD_TABS, whose last entry reads identically to
+   ARTIST_TABS's, and it ran before the const existed. */
+BOARD_TABS.splice(3, 0, { id:'redo', label:'Came back', warn:true, keep:cameBack });
+
 const tabsFor = () => BENCH === 'artist' ? ARTIST_TABS
                     : canTakeOrders()    ? BOARD_TABS : null;
 let BOARD_TAB = 'all';
@@ -3911,6 +3941,15 @@ function renderBoard(){
     const bg = badgeOf(o);
     const qty = (o.jo_items && o.jo_items.length)
       ? o.jo_items.reduce((n,l)=>n+Number(l.qty), 0) : Number(o.qty);
+    /* What this bench is owed an answer about. The dashboard row has gated
+       its figure on `canSeeMoney()` since build 18; the board card never did,
+       so an artist saw every balance on the screen they actually live on -
+       straight against the rule that they see the work and never the money.
+       The government account and the missing PO go the same way: they are a
+       counter's paperwork, and on an artist's card they are noise between
+       them and what they have to make. */
+    const money = canSeeMoney() || BENCH === 'counter';
+    const paper = canTakeOrders();
     b.innerHTML =
       `<div class="jorow">
          ${qtyBadge(o)}
@@ -3919,10 +3958,11 @@ function renderBoard(){
            <div class="items">${esc(lineText(o))}</div>
            <div class="b">
              ${o.rush ? '<span class="chip rush">Rush</span>' : ''}
-             ${o.order_type === 'government' ? `<span class="chip gov">${esc(govName(o.gov_account_id) || 'Government')}</span>` : ''}
-             ${poMissing(o) ? '<span class="chip nopo">PO missing</span>' : ''}
+             ${cameBack(o) ? '<span class="chip redo">Came back</span>' : ''}
+             ${paper ? (o.order_type === 'government' ? `<span class="chip gov">${esc(govName(o.gov_account_id) || 'Government')}</span>` : '') : ''}
+             ${paper && poMissing(o) ? '<span class="chip nopo">PO missing</span>' : ''}
              <span class="chip ${esc(o.status)}">${isLate(o)?'LATE · ':''}${esc(LABEL[o.status])}</span>
-             ${Number(o.balance)>0?`<span class="chip owed">${peso(o.balance)} owed</span>`:'<span class="chip">paid</span>'}
+             ${!money ? '' : Number(o.balance)>0?`<span class="chip owed">${peso(o.balance)} owed</span>`:'<span class="chip">paid</span>'}
              ${o.artist_id && BENCH !== 'artist' ? `<span class="small to">→ ${esc(artistName(o.artist_id) || 'artist')}</span>` : ''}
              <span class="muted small" style="margin-left:auto">${o.target_date?('due '+esc(o.target_date)):''}</span>
            </div>
@@ -4143,6 +4183,30 @@ $('#dRush').onclick = async () => {
 $('#dNext').onclick = async () => {
   const nx = FLOW[FLOW.indexOf(CUR.status)+1]; if(!nx) return;
   try{ assertWritable(); }catch(err){ return toast(err.message); }
+
+  /* Sending for approval with nothing marked final leaves the counter
+     approving a design nobody pointed at - and on an order with four uploads
+     that is a guess. Asked rather than refused: some work has no file at all
+     (a plate number, a re-run of last month's job), and a rule that cannot be
+     satisfied is a rule people learn to resent. */
+  if(nx === 'for_approval' && CUR.status === 'layout'){
+    /* Only where there is something to have marked. An order with no uploads
+       at all - a plate number, a re-run of last month's job - has no final
+       design to point at, and asking every time would be friction on the
+       commonest move in the shop. The question is worth asking when there
+       ARE files and none of them has been declared: that is when the counter
+       is being handed a guess. */
+    const { data: ups } = await sb.from('jo_files')
+      .select('final_at').eq('job_order_id', CUR.id).is('removed_at', null)
+      .eq('kind', 'upload');
+    const files = ups || [];
+    if(files.length && !files.some(f => f.final_at)){
+      const go = await ask('No file on JO ' + CUR.jo_no + ' is marked as the final design. ' +
+        'Send it for approval anyway?',
+        { head: 'No final design', yes: 'Send it anyway', no: 'Go back and mark one' });
+      if(!go) return;
+    }
+  }
   /* Releasing an order that still owes is allowed - a government account
      pays after delivery - but never by a stray tap. */
   if(nx === 'claimed' && Number(CUR.balance) > 0){
@@ -4281,31 +4345,31 @@ $('#edSave').onclick = async () => {
     return bad('Nothing changed.');
   try{ assertWritable(); }catch(err){ return bad(err.message); }
 
-  /* The PIN is checked by the database, not here: staff_check compares
-     bcrypt server-side and burns a try. Zero rows means wrong - it raises
-     only for a lockout or somebody not on this shop, which are different
-     answers and are shown as themselves. */
-  if(STAFF){
-    const pin = $('#edPin').value.trim();
-    if(!/^[0-9]{4}$/.test(pin)) return bad('Four digits.');
-    $('#edSave').disabled = true;
-    msg.className = 'msg'; msg.textContent = 'Checking…';
-    try{
-      const { data, error } = await sb.rpc('staff_check', { p_staff: STAFF.id, p_pin: pin });
-      if(error) throw error;
-      if(!(data || []).length){ $('#edSave').disabled = false; return bad('That is not your PIN.'); }
-    }catch(e){
-      $('#edSave').disabled = false;
-      return bad(e.message || 'That did not work.');
-    }
-  }
+  const pin = STAFF ? $('#edPin').value.trim() : '';
+  if(STAFF && !/^[0-9]{4}$/.test(pin)) return bad('Four digits.');
 
+  /* One call does all of it: `jo_item_edit` checks the PIN where the caller
+     cannot reach it, writes the trail and makes the change in the same
+     statement, and `jo_items` UPDATE is revoked so there is no other way in.
+     The app no longer decides anything here - it asks, and reports.
+     **null means the PIN was wrong**, and one try has been burned; a raise is
+     a lockout, a voided order, another shop's order, or a figure the database
+     will not take. The two are different answers and are shown as such. */
   $('#edSave').disabled = true;
   msg.className = 'msg'; msg.textContent = 'Saving…';
-  const { error } = await sb.from('jo_items')
-    .update({ qty, unit_price: rate }).eq('id', EDITING.id);
+  let out;
+  try{
+    const { data, error } = await sb.rpc('jo_item_edit', {
+      p_item: EDITING.id, p_qty: qty, p_price: rate,
+      p_staff: STAFF ? STAFF.id : null, p_pin: STAFF ? pin : null });
+    if(error) throw error;
+    out = data;
+  }catch(e){
+    $('#edSave').disabled = false;
+    return bad(e.message || 'That did not work.');
+  }
   $('#edSave').disabled = false;
-  if(error){ return bad(error.message); }
+  if(out === null || out === undefined) return bad('That is not your PIN.');
 
   edDlg.close();
   toast('JO ' + CUR.jo_no + ' corrected' + (STAFF ? ' by ' + STAFF.name : ''));
