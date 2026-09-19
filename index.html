@@ -1662,7 +1662,8 @@ function lockOut(){
   document.body.appendChild(box);
 
   $('#sOut').onclick = async () => {
-    await sb.auth.signOut(); location.reload();
+    // local, or a dev copy signing out takes every phone in the shop with it
+    await sb.auth.signOut({ scope: 'local' }); location.reload();
   };
   $('#sGo').onclick = async () => {
     const typed = $('#sName').value.trim().toLowerCase();
@@ -1982,7 +1983,7 @@ async function boot(){
   if(error || !mine || !mine.length){
     $('#aMsg').className='msg err';
     $('#aMsg').textContent='This account is not on any shop yet. Sign up with a join code.';
-    await sb.auth.signOut();
+    await sb.auth.signOut({ scope: 'local' });
     $('#auth').hidden = false; $('#app').hidden = true;
     return;
   }
@@ -4837,7 +4838,28 @@ async function submitPin(){
 function unlock(){ $('#lock').hidden = true; entry=''; $('#lMsg').textContent='';
   $('#hCalc').hidden = false; }
 
-$('#lOut').onclick  = async () => { clearTapped(); await sb.auth.signOut(); location.reload(); };
+/* `scope: 'local'` on every sign-out in this app, and it is not a detail.
+   supabase-js defaults to 'global', which revokes the refresh token for the
+   WHOLE ACCOUNT - and the account is the shop, not the person. So a mis-tap
+   on this button, which says "Sign out of this device", would have signed out
+   every phone in the shop at once, and the way back is typing the account
+   password on each of them. On a counter during a client's week that is a
+   shop stopped by one wrong tap. */
+/* Asked for, because this is the one button that costs the shop its session.
+   The password is typed once per device and never again - so a stray tap here
+   turns a phone that only ever needed four digits into one that needs the
+   owner to come over with the account password. Everything else on this
+   screen is recoverable by the person standing at it; this is not. */
+$('#lOut').onclick  = async () => {
+  const go = await ask('This device will need the shop email and password to sign in again, ' +
+    'and only the owner has those. Nobody needs this to change who is using the app - ' +
+    'tap "Someone else" instead.',
+    { head: 'Sign out of this device', yes: 'Sign out anyway', no: 'Stay signed in', danger: true });
+  if(!go) return;
+  clearTapped();
+  await sb.auth.signOut({ scope: 'local' });
+  location.reload();
+};
 $('#hLock').onclick = () => showPicker();
 
 /* Idling back to the picker only means something when there is a roster. */
