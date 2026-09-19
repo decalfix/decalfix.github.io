@@ -3625,10 +3625,29 @@ function renderDash(){
    checks it. With nobody tapped in (an empty roster) the panel is the shop's
    own account, which has neither. */
 const acctDlg = $('#acctDlg');
+/* Which build is this phone actually running? `BUILD` cannot answer it: it has
+   read 19 since 15 September and covers every release from spawn-55 to this
+   one, so seven deploys looked identical in the panel. The one time the
+   question matters is the one time it is hardest to ask - a counter phone on a
+   bad line, serving whatever the worker cached, with no way to say which.
+   The worker deletes every cache but its own on activate, so `caches.keys()`
+   is the RUNNING answer rather than the deployed one - which is the whole
+   point. Reading sw.js over the network would answer the wrong question. */
+async function cacheName(){
+  try{
+    if(!('caches' in window)) return '';
+    const keys = await caches.keys();
+    return keys.length === 1 ? keys[0] : keys.join(', ');
+  }catch(e){ return ''; }   // no worker, a dev copy, or storage refused
+}
 function openAccount(){
   $('#acAv').textContent = (ME || '?').trim().charAt(0).toUpperCase();
   $('#acName').textContent = ME;
-  $('#acMeta').textContent = (STAFF ? BENCH_NAME[BENCH] : 'Shop account') + ' · ' + SHOP.name + ' · build ' + BUILD;
+  const meta = (STAFF ? BENCH_NAME[BENCH] : 'Shop account') + ' · ' + SHOP.name + ' · build ' + BUILD;
+  $('#acMeta').textContent = meta;
+  /* Appended rather than awaited: the panel must open at once, and a phone
+     with no worker simply keeps the line it already has. */
+  cacheName().then(n => { if(n && acctDlg.open) $('#acMeta').textContent = meta + ' · ' + n; });
   $('#acStaff').hidden = !STAFF;
   $('#acNone').hidden = !!STAFF;
   ['#nName','#nPin','#pOld','#pNew','#pNew2'].forEach(s => { $(s).value = ''; });
