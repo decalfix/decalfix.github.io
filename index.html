@@ -232,6 +232,10 @@
                 font-weight:800;font-size:15px;color:#3A3A38;cursor:pointer}
   .otype button[aria-pressed="true"]{background:#1A1A1A;border-color:#1A1A1A;color:#fff}
   .fgov{margin-top:12px}
+  .govnote{background:var(--amber-wash,#FFF4E0);border:1px solid #E8C88A;
+    color:#6B4A05;border-radius:10px;padding:9px 11px;margin:0 0 10px;
+    font-size:13px;line-height:1.5}
+  .govnote b{font-weight:700}
   .govadd{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}
   .govadd input{height:48px;font-size:17px}
   .chip.gov{background:#fff;border-color:#1A1A1A;color:#1A1A1A}
@@ -964,6 +968,12 @@
       <button type="button" data-ot="government" aria-pressed="false">Government</button>
     </div>
     <div id="fGovWrap" hidden>
+      <!-- Shown with the government block and gone with it. Government work is
+           not priced like walk-in work, and the counter is the one holding the
+           LGU's paperwork - so the app reminds and does not decide. -->
+      <p class="govnote">Government rates are often not the walk-in price.
+        <b>Check the rate on every line</b> before saving - type over it on the
+        row and that row keeps your figure.</p>
       <label class="fgov">Government account<select id="fGov"></select></label>
       <div class="govadd" id="fGovAddRow" hidden>
         <input id="fGovNew" maxlength="80" autocomplete="off" placeholder="New account, e.g. Dipolog City">
@@ -1720,15 +1730,18 @@ const LAST_KEY = 'df_last';
    the shop's own session, which is why the bench limits are app rules. This
    only decides whether the pad is shown again. */
 const TAP_KEY = 'df_tapped';
-const TAP_FOR = 5 * 60 * 1000;           // the same window as the idle lock
+const TAP_FOR = 15 * 60 * 1000;          // the same window as the idle lock
 /* A fresh launch from the home screen is not a reload, and it used to mean the
    PIN every time - because the marker lived in sessionStorage and died with
    the tab. On a phone that is wrong far more often than it is right: back at
    the root closes an installed app, and the counter is then made to type a PIN
    for a thumb slip. So the marker outlives the tab now, in localStorage.
    **The window is what keeps it honest.** A reload or a back/forward keeps the
-   full five minutes, which is the idle lock's own window - the app already
-   sits unlocked that long on the counter, so nothing new is exposed. A fresh
+   full fifteen minutes, which is the idle lock's own window - the app already
+   sits unlocked that long on the counter, so nothing new is exposed. The two
+   numbers are one number and must move together: raised from five to fifteen
+   on 19 Sep because five put the pad in front of a counter who had merely
+   turned to serve somebody. A fresh
    launch gets sixty seconds, because that is what an accident looks like: the
    app closes and you open it again straight away. A phone picked up later, or
    handed to someone else, is past it and asks. */
@@ -3102,8 +3115,12 @@ function fillGovs(sel){
 }
 const govName = id => (GOVS.find(g => g.id === id) || {}).name || '';
 let OTYPE = 'walk_in';
+/* Answered once per order. Reset by setType and by any rate edit, so changing
+   your mind about either asks again rather than riding on an old yes. */
+let GOV_RATE_OK = false;
 function setType(t){
   OTYPE = t;
+  GOV_RATE_OK = false;
   $('#fType').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ot === t)));
   $('#fGovWrap').hidden = t !== 'government';
 }
@@ -3380,6 +3397,23 @@ $('#save').onclick = async () => {
   if(OTYPE === 'government' && !$('#fPO').value.trim() && !$('#fPoLater').checked)
     return stopWith('A government order needs its PO number. If it has not arrived yet, tick "PO follows".',
                     $('#fPO'));
+
+  /* LAST, after every refusal above has had its say. Asked once per order
+     rather than per line - a question that fires on every row is one people
+     learn to tap through - and asked rather than enforced, because plenty of
+     government work IS the walk-in price and a rule that cannot be satisfied
+     is one people resent.
+     It sits here and not beside the account check on purpose: an order that
+     is about to be refused for a missing PO must not first be asked to
+     confirm its rates. Nothing should be asked of an order that is not going
+     to save. */
+  if(OTYPE === 'government' && !GOV_RATE_OK){
+    const go = await ask('Government work is often priced differently from walk-in, and this order is ' +
+      'going out at the rates on the form. You can type over the rate on any row.',
+      { head: 'Check the rates', yes: 'Yes, the rates are right', no: 'Let me check' });
+    if(!go) return;                 // gone back to look - ask again next time
+    GOV_RATE_OK = true;
+  }
 
   $('#save').disabled = true; msg.textContent = 'Saving…';
   let orderId = null;
@@ -4882,6 +4916,7 @@ $('#lOut').onclick  = async () => {
 $('#hLock').onclick = () => showPicker();
 
 /* Idling back to the picker only means something when there is a roster. */
+const IDLE_FOR = 15 * 60 * 1000;   // and TAP_FOR above must match it
 let idle, lastMark = 0;
 const resetIdle = () => {
   clearTimeout(idle);
@@ -4892,7 +4927,13 @@ const resetIdle = () => {
     markTapped(STAFF.id); lastMark = Date.now();
   }
   if(!onRoster().length) return;
-  idle = setTimeout(()=>{ if($('#lock').hidden && !dlg.open) showPicker(); }, 5*60*1000);
+  /* Fifteen minutes, not five (19 Sep). Five was measured against nothing -
+     it is simply how long felt safe - and in the shop it fired while the
+     counter was still standing at the counter. This is not a security
+     boundary (the device holds the shop's session either way); it decides
+     whether the pad is in the way. TAP_FOR is the same window and moves with
+     it. */
+  idle = setTimeout(()=>{ if($('#lock').hidden && !dlg.open) showPicker(); }, IDLE_FOR);
 };
 ['click','keydown','touchstart'].forEach(e=>document.addEventListener(e, resetIdle, {passive:true}));
 resetIdle();
@@ -4952,10 +4993,15 @@ $('#fab').onclick = ()=>$('#nvNew').click();
    anything - the header, the tabs, the empty board - and the rows fill in as
    they arrive. Guarded on the same two conditions as resuming: it must be a
    real reload, and the marker must still be good, so a fresh open still shows
-   nothing until boot decides. */
+   nothing until boot decides.
+   **No "Opening…" on this path** (19 Sep, from the shop's own testing): the
+   word is the whole reason a refresh read as the app starting up rather than
+   as a refresh. "It should only be like a blink of the page, like how refresh
+   works" - and it can be, because the shell is already standing and the rows
+   arrive on their own. The line still exists for the paths that need it; what
+   it must not do is announce a reload that nobody asked to be told about. */
 if(openedWorth() && readTapped(openedWorth())){
   $('#app').hidden = false;
-  $('#boot').hidden = false;
 }
 
 boot().catch(e => {
