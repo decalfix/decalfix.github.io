@@ -606,6 +606,16 @@
   /* A refresh is not a start, so the shop's mark never appears for even one
      frame. Set by the inline script above, before #splash is parsed. */
   html.cameback #splash{display:none}
+  /* The one screen that must render with no JavaScript having run at all -
+     no module, no import, no framework. Plain markup and plain CSS. */
+  #loadfail{position:fixed;inset:0;z-index:90;display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;padding:32px 26px;
+    background:#16181D;color:#EFEAE1;text-align:center;font-size:15px;line-height:1.6}
+  #loadfail.on{display:flex}
+  #loadfail b{font-size:17px;font-weight:800;letter-spacing:.01em}
+  #loadfail p{margin:0;max-width:22em;color:#B4B4B0}
+  #loadfail button{margin-top:6px;font:inherit;font-weight:700;color:#16181D;
+    background:#EFEAE1;border:0;border-radius:10px;padding:12px 26px;cursor:pointer}
   #splash{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;
           background-color:var(--black);background-image:var(--hexcarbon)}
   #splash .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 30px}
@@ -836,7 +846,34 @@ try{
   window.__cameBack = !!(n && (n.type === 'reload' || n.type === 'back_forward'));
   if(window.__cameBack) document.documentElement.classList.add('cameback');
 }catch(e){ window.__cameBack = false; }   // cannot tell: keep the splash
+
+/* The watchdog. `window.__up()` is called by the app the moment ANYTHING is on
+   screen - the shop, the sign-in form, or boot's own error line. If it has not
+   been called by then, the module never ran, and the only thing that can say
+   so is this script, which is why it is inline and not a module.
+   Twelve seconds: long enough not to shout at a slow but working line, short
+   enough that nobody stands there wondering. It is forgiving - if the app
+   turns up late, the message takes itself away again. */
+window.__up = function(){
+  window.__ok = true;
+  var f = document.getElementById('loadfail');
+  if(f) f.classList.remove('on');
+};
+setTimeout(function(){
+  if(window.__ok) return;
+  var f = document.getElementById('loadfail');
+  if(f) f.classList.add('on');
+}, 12000);
 </script>
+<div id="loadfail">
+  <b>Could not load the app</b>
+  <p>The phone needs a connection the first time it opens. Check the signal or
+     the wifi, then try again.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+  <p style="font-size:13px">If it keeps failing on this phone, open
+     <strong>decalfix.github.io</strong> in the browser and tell Spawn what it says.</p>
+</div>
+
 <div id="splash">
   <div class="mid">
     <img src="mark-600.png" alt="Decal Fix Printing Services">
@@ -2014,7 +2051,8 @@ if($('#stSave')) $('#stSave').onclick = async () => {
 
 async function boot(){
   const { data:{ session } } = await sb.auth.getSession();
-  if(!session){ $('#auth').hidden = false; $('#app').hidden = true; $('#fab').hidden = true;
+  if(!session){ window.__up && window.__up();
+    $('#auth').hidden = false; $('#app').hidden = true; $('#fab').hidden = true;
                 $('#hCalc').hidden = true; return; }
 
   const { data:mine, error } = await sb.from('shop_users')
@@ -2084,6 +2122,7 @@ async function openShop(){
   $('#hLock').hidden = !onRoster().length;
   loadDrive();          // not awaited: the Drive card and tools fill in when the Worker answers
   dropSplash();         // there is a board to look at now; the mark has said its piece
+  window.__up && window.__up();   // and the watchdog can stand down
 }
 
 /* The splash is the shop's own mark while the first fetch runs. It is not
@@ -5098,6 +5137,7 @@ if(openedWorth() && readTapped(openedWorth())){
 boot().catch(e => {
   /* If boot throws - offline mid-query, a bad response - the app must not sit
      on a blank screen with nothing to do. Show the way back in. */
+  window.__up && window.__up();   // it failed, but it failed OUT LOUD - that counts
   $('#boot').hidden = true;
   $('#app').hidden = true;
   $('#auth').hidden = false;
