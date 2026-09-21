@@ -193,6 +193,22 @@
      the counter sorts by that before anything else. Indigo, not amber or
      red - both of those already mean "act on this" here, and government is
      something to KNOW rather than something to do. */
+  /* One row per artist, two figures. Tabular numerals so the columns line
+     up down the list - the whole point is comparing people at a glance. */
+  .artwork h2{margin:0 0 10px}
+  .arow{display:flex;align-items:center;gap:10px;padding:9px 0;
+        border-top:1px solid var(--line)}
+  .arow:first-child{border-top:0}
+  .arow .nm{flex:1;font-weight:600;font-size:14.5px;min-width:0;
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .arow .nm.none{font-weight:500;color:var(--text-2);font-style:italic}
+  .arow .fig{width:62px;text-align:right;font-variant-numeric:tabular-nums}
+  .arow .fig b{display:block;font-weight:800;font-size:16px;line-height:1.1}
+  .arow .fig small{display:block;font-size:9.5px;letter-spacing:.08em;
+                   color:var(--text-2);text-transform:uppercase}
+  /* Late or due today is the figure that needs a person to do something. */
+  .arow .fig.due b{color:var(--red)}
+  .arow .fig.due.zero b{color:var(--text-2)}
   .jo.gov{border-left-color:#3D4E8C}
   /* After .gov on purpose: a late government order shows red. Urgency
      outranks filing, and the account chip still names it. */
@@ -1083,6 +1099,13 @@ setTimeout(function(){
     <div class="card depts" id="dDepts" hidden>
       <h2>Where everything is</h2>
       <div class="dgrid" id="dDeptGrid"></div>
+    </div>
+    <!-- Who is carrying what. The owner's question, not the counter's: it is
+         the whole floor's workload split by person, which is the one view that
+         says who to take work off and who to give it to. -->
+    <div class="card artwork" id="dArt" hidden>
+      <h2>Work by artist</h2>
+      <div id="dArtList"></div>
     </div>
     <div class="dsec">
       <span class="t">Due today</span>
@@ -3762,19 +3785,81 @@ function renderDash(){
                              : '<div class="empty">Nothing due today.</div>';
   bindRows(box);
 
-  /* Everything else still in the shop, newest first, kept apart from the
-     due list so an order shows once. The same stages this bench sees on
-     the board. */
-  const mine   = SEES[BENCH] || SEES.counter;
-  const dueIds = new Set(due.map(o => o.id));
-  const open   = live.filter(o => !dueIds.has(o.id) && o.status !== 'claimed' && mine.includes(o.status))
-                     .sort((a,b)=> (!!b.rush - !!a.rush) || (b.jo_no - a.jo_no));
-  $('#dOpenT').textContent = 'Open orders' + (open.length ? ' · ' + open.length : '');
-  $('#dOpenAll').hidden = open.length <= 5;
+  /* TODAY'S WORK, newest first (21 Sep). This slot used to hold "Open
+     orders" - everything still in the shop that was not already above. That
+     set only ever grows, it repeats what the board already says, and it
+     answers no question anybody asks at a counter.
+     What the counter asked for is a receipt for the day: "so they can see the
+     orders they have input has been saved". So it is the orders TAKEN today,
+     including the ones already released - a job typed and collected inside
+     the same afternoon still happened, and leaving it out would make the list
+     disagree with the money. */
+  const mine  = SEES[BENCH] || SEES.counter;
+  /* `o.order_date || t`, and this is load-bearing rather than defensive. The
+     app does NOT send order_date on insert - the database defaults it - so a
+     just-saved order carries no date until the next refetch. Without the
+     fallback the list would be empty at precisely the moment this section
+     exists for: the counter looking to see that what they typed landed.
+     Same pattern the row renderer already uses. */
+  const taken = live.filter(o => String(o.order_date || t) === t && mine.includes(o.status))
+                    .sort((a,b) => b.jo_no - a.jo_no);
+  $('#dOpenT').textContent = 'Taken today' + (taken.length ? ' · ' + taken.length : '');
+  $('#dOpenAll').hidden = taken.length <= 5;
   const ob = $('#dOpen');
-  ob.innerHTML = open.length ? open.slice(0,5).map(drowHTML).join('')
-                             : '<div class="empty">No other open orders.</div>';
+  ob.innerHTML = taken.length ? taken.slice(0,5).map(drowHTML).join('')
+                              : '<div class="empty">Nothing taken today yet.</div>';
   bindRows(ob);
+
+  renderArtists(live, t);
+}
+
+/* WORK BY ARTIST (21 Sep). "Arrange it so the owner can see the compilation of
+   work per artist."
+   Two figures, because they are two different worries:
+     DUE   - due today or already past, and not yet released. Somebody has to
+             do something about these today.
+     WITH  - everything sitting with that person at all, released or not yet.
+             The load, rather than the emergency.
+   Sorted by due first, then by load: the top row is whoever needs help.
+   **Unassigned is a row of its own**, and it belongs here - work nobody has
+   picked up is exactly the thing an owner is scanning this card to find, and
+   it would otherwise be invisible between the benches.
+   Owner only: it is every artist's workload, which is the shop's business and
+   not a counter's, and on an artist's own dashboard it would be a league
+   table of their colleagues. */
+function renderArtists(live, t){
+  const box = $('#dArt');
+  box.hidden = ROLE !== 'owner';
+  if(box.hidden) return;
+
+  // the stages where an order is genuinely somebody's to work on
+  const WITH = ['layout','for_approval','printing','ready'];
+  const held = live.filter(o => WITH.includes(o.status));
+
+  const rows = ARTISTS.map(a => {
+    const theirs = held.filter(o => o.artist_id === a.id);
+    return { name: a.name,
+             due:  theirs.filter(o => o.target_date && String(o.target_date) <= t).length,
+             with: theirs.length };
+  });
+  const loose = held.filter(o => !o.artist_id);
+  if(loose.length) rows.push({
+    name: 'Not with anyone', none: true,
+    due:  loose.filter(o => o.target_date && String(o.target_date) <= t).length,
+    with: loose.length });
+
+  // whoever needs help first; a person with nothing still shows, because an
+  // empty row is how an owner sees who is free
+  rows.sort((a,b) => (b.due - a.due) || (b.with - a.with) ||
+                     (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
+  $('#dArtList').innerHTML = rows.length
+    ? rows.map(r => `<div class="arow">
+         <span class="nm${r.none ? ' none' : ''}">${esc(r.name)}</span>
+         <span class="fig due${r.due ? '' : ' zero'}"><b>${r.due}</b><small>Due</small></span>
+         <span class="fig"><b>${r.with}</b><small>With them</small></span>
+       </div>`).join('')
+    : '<div class="empty">No artists switched on yet.</div>';
 }
 
 /* Staff set their own PIN. The owner picked the first one, so until this
