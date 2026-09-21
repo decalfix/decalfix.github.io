@@ -189,6 +189,13 @@
       padding:0;margin-bottom:9px;cursor:pointer;display:block;width:100%;text-align:left;border:0;
       border-left:4px solid transparent;overflow:hidden}
   .jo:hover{box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(0,0,0,.08)}
+  /* An LGU job is billed, chased and paid differently from a walk-in, and
+     the counter sorts by that before anything else. Indigo, not amber or
+     red - both of those already mean "act on this" here, and government is
+     something to KNOW rather than something to do. */
+  .jo.gov{border-left-color:#3D4E8C}
+  /* After .gov on purpose: a late government order shows red. Urgency
+     outranks filing, and the account chip still names it. */
   .jo.late{border-left-color:var(--red);background:var(--red-wash)}
   .jorow{display:flex;align-items:center;gap:12px;padding:13px 14px}
   .jo .qty{width:48px;height:54px;flex:none;background:#1A1A1A;clip-path:var(--hex);
@@ -596,6 +603,9 @@
   #lock .msg{min-height:1.4em;color:var(--red);font-weight:700}
 
   /* ---------- splash ---------- */
+  /* A refresh is not a start, so the shop's mark never appears for even one
+     frame. Set by the inline script above, before #splash is parsed. */
+  html.cameback #splash{display:none}
   #splash{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;
           background-color:var(--black);background-image:var(--hexcarbon)}
   #splash .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 30px}
@@ -810,6 +820,23 @@
 </head>
 <body>
 
+<script>
+/* BEFORE the splash markup, and that position is the whole point.
+   The app is a module, so it is deferred; by the time it runs the browser has
+   long since painted. But even a plain inline script placed *under* the splash
+   is too late - the parser can paint what it has already built before it
+   reaches the next script. Measured exactly that: the mark still on screen at
+   100ms, gone by 250ms. So the answer has to exist before the element does,
+   and it has to be a CLASS rather than a removal, because a class is applied
+   as the element is first laid out and never gets a frame of its own.
+   It decides one thing - was this a reload - and stashes it, so the module
+   does not ask the same question a second way and drift from it. */
+try{
+  var n = performance.getEntriesByType('navigation')[0];
+  window.__cameBack = !!(n && (n.type === 'reload' || n.type === 'back_forward'));
+  if(window.__cameBack) document.documentElement.classList.add('cameback');
+}catch(e){ window.__cameBack = false; }   // cannot tell: keep the splash
+</script>
 <div id="splash">
   <div class="mid">
     <img src="mark-600.png" alt="Decal Fix Printing Services">
@@ -2056,19 +2083,42 @@ async function openShop(){
   restoreTab(wanted);
   $('#hLock').hidden = !onRoster().length;
   loadDrive();          // not awaited: the Drive card and tools fill in when the Worker answers
+  dropSplash();         // there is a board to look at now; the mark has said its piece
 }
 
 /* The splash is the shop's own mark while the first fetch runs. It is not
-   decoration: opening straight onto an empty board looks like a fault. */
+   decoration: opening straight onto an empty board looks like a fault.
+   **But only on a cold open** (21 Sep). Held on every load it was the thing
+   that made a refresh read as the app starting up - the shop said so twice,
+   and the second time I had already "fixed" it by removing the quiet
+   "Opening…" line, which was never what they were looking at. Screenshotting
+   the reload settled in one minute what two rounds of reading the code had
+   got wrong.
+   A refresh is not a start. The counter was looking at this board a second
+   ago, so a mark and a progress bar are telling them about something that is
+   not happening. `openedWorth()` already draws the reload/fresh line for the
+   PIN pad; this uses the same signal rather than a second one that could
+   drift away from it. */
 let SYNCED = 0;
+function dropSplash(){ const el = $('#splash'); if(el) el.remove(); }
 (function splash(){
+  /* Already gone: the inline script above took it before the first paint.
+     This is the belt to that braces - if the element is not there, there is
+     nothing to animate and nothing to time. */
+  if(!$('#splash')) return;
+  /* A reload or a back/forward gets no splash at all - that is the blink. */
+  if(window.__cameBack) return dropSplash();
+
   const bar = $('#spBar'), msg = $('#spMsg');
   const steps = [[18,'Starting counter'],[46,'Checking the device'],[72,'Syncing job orders'],[100,'Ready']];
   steps.forEach(([pct,text],i)=>setTimeout(()=>{
     if(bar) bar.style.width = pct + '%';
     if(msg) msg.textContent = text;
   }, 260 + i*330));
-  setTimeout(()=>{ const el = $('#splash'); if(el) el.remove(); }, 1750);
+  /* A ceiling, not a target. 1750 was a guess that held a ready app behind a
+     picture on a fast line and lifted too early on a slow one; openShop()
+     drops it the moment there is a board to show. */
+  setTimeout(dropSplash, 1750);
 })();
 
 /* Painted at once and then every second: on a slow phone the header used to
@@ -3118,9 +3168,14 @@ let OTYPE = 'walk_in';
 /* Answered once per order. Reset by setType and by any rate edit, so changing
    your mind about either asks again rather than riding on an old yes. */
 let GOV_RATE_OK = false;
+/* Same once-per-order rule as GOV_RATE_OK, and cleared with it. A counter who
+   says "save it that way" and then adds another row is asked again, which is
+   right - the new row is a new chance to have meant it. */
+let GENDER_OK = false;
 function setType(t){
   OTYPE = t;
   GOV_RATE_OK = false;
+  GENDER_OK = false;
   $('#fType').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ot === t)));
   $('#fGovWrap').hidden = t !== 'government';
 }
@@ -3397,6 +3452,37 @@ $('#save').onclick = async () => {
   if(OTYPE === 'government' && !$('#fPO').value.trim() && !$('#fPoLater').checked)
     return stopWith('A government order needs its PO number. If it has not arrived yet, tick "PO follows".',
                     $('#fPO'));
+
+  /* An apparel item split male/female on some rows and left blank on others.
+     The shop takes parade and team orders as a manifest - sizes down, M and F
+     across - and a blank row in the middle of a split is a row somebody meant
+     to fill in. Named, not counted: "some rows" sends the counter hunting back
+     up a form they have just typed.
+     Only where the buttons were drawn (`ladder`), and only once per order. */
+  if(!GENDER_OK){
+    const blank = [];
+    for(const b of good){
+      /* Only a PARTIAL split. An order where nobody set a gender is a plain
+         order - 20 shirts, no breakdown - and asking about it fires on the
+         commonest apparel job in the shop, which is how people learn to tap
+         a question through without reading it. A blank row sitting BESIDE a
+         filled one is the oversight worth catching.
+         Measured, not guessed: asking on every blank row stopped 70 checks
+         across groups, rcpt and xss - three suites that save apparel orders
+         the way a counter would. That is the common path, not the edge. */
+      if(!ladder(itemOf(b)) || !b.rows.some(r => r.gender)) continue;
+      for(const r of b.rows)
+        if(!r.gender) blank.push(itemOf(b).name + ' · ' + (r.size || 'no size'));
+    }
+    if(blank.length){
+      const go = await ask('No male or female was set on ' +
+        (blank.length === 1 ? 'this row' : 'these ' + blank.length + ' rows') + ': ' +
+        blank.join(', ') + '. Save it that way?',
+        { head: 'A size was left unsplit', yes: 'Save it that way', no: 'Let me set them' });
+      if(!go) return;               // gone back to fill them in - ask again next time
+      GENDER_OK = true;
+    }
+  }
 
   /* LAST, after every refusal above has had its say. Asked once per order
      rather than per line - a question that fires on every row is one people
@@ -3990,7 +4076,12 @@ function renderBoard(){
   box.innerHTML = '';
   open.forEach(o=>{
     const b = document.createElement('button');
-    b.className = 'jo' + (isLate(o)?' late':'');
+    /* `paper` and not `money`: which books an order is billed against is a
+       counter's business, the same rule the account chip already takes. On an
+       artist's board it would be a stripe they cannot act on. */
+    b.className = 'jo'
+      + (canTakeOrders() && o.order_type === 'government' ? ' gov' : '')
+      + (isLate(o) ? ' late' : '');
     /* the quantity leads, in a hexagon, the way the shop counts work */
     const bg = badgeOf(o);
     const qty = (o.jo_items && o.jo_items.length)
