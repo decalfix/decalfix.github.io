@@ -209,6 +209,21 @@
   /* Late or due today is the figure that needs a person to do something. */
   .arow .fig.due b{color:var(--red)}
   .arow .fig.due.zero b{color:var(--text-2)}
+  /* Why this job is in front of the others. Amber rather than red: it is an
+     explanation, not an alarm - the rush chip is the alarm. */
+  .rushwhy{margin:6px 0 0;padding:8px 11px;border-radius:9px;font-size:13px;
+    line-height:1.5;background:var(--amber-wash,#FFF4E0);border:1px solid #E8C88A;
+    color:#6B4A05}
+  .gvrow{display:flex;gap:7px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+  .gvrow:first-child{border-top:0}
+  .gvrow .gvname{flex:1;min-width:0;font:inherit;font-size:15px;color:var(--text);
+    padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg,#fff)}
+  .gvrow .btn{min-height:40px;padding:0 12px;font-size:13px;white-space:nowrap}
+  /* A switched-off account stays visible and readable - it is the only way to
+     switch it back on, and a row you cannot read is not a control. */
+  .gvrow.off .gvname{opacity:.55;text-decoration:line-through}
+  @media (max-width:430px){ .gvrow{flex-wrap:wrap} .gvrow .gvname{flex:1 1 100%} }
+  .addline{width:100%;margin-top:8px}
   .jo.gov{border-left-color:#3D4E8C}
   /* After .gov on purpose: a late government order shows red. Urgency
      outranks filing, and the account chip still names it. */
@@ -255,6 +270,30 @@
                 font-weight:800;font-size:15px;color:#3A3A38;cursor:pointer}
   .otype button[aria-pressed="true"]{background:#1A1A1A;border-color:#1A1A1A;color:#fff}
   .fgov{margin-top:12px}
+  .addprod{background:var(--card);border:1px dashed var(--line);border-radius:10px;
+    padding:11px 13px;margin:12px 0 0}
+  .addprod .q{font-weight:700;font-size:14px;margin-bottom:2px}
+  .addprod .w{font-size:13px;color:var(--text-2);margin-bottom:9px}
+  .addprod .w b{color:var(--text)}
+  .addprod .apf{display:block;margin-bottom:8px;font-size:12px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+  .addprod .apf input{display:block;width:100%;box-sizing:border-box;margin-top:4px;
+    font:inherit;font-size:16px;font-weight:500;text-transform:none;letter-spacing:0;
+    color:var(--text);padding:10px 11px;border:1px solid var(--line);
+    border-radius:9px;background:var(--bg,#fff)}
+  .addprod .pinbox{display:flex;align-items:center;gap:7px;font-size:12px;
+    font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+  .addprod .pinbox input{width:78px;font-size:17px;text-align:center;letter-spacing:.22em;
+    padding:9px 6px;border:1px solid var(--line);border-radius:9px;color:var(--text)}
+  .addprod .go{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px}
+  .addprod .go .btn{min-height:44px}
+  /* At phone width the buttons take the whole line rather than sharing it
+     with a PIN box - three things on one row at 360px is three small targets. */
+  @media (max-width:430px){
+    .addprod .pinbox{width:100%}
+    .addprod .pinbox input{margin-left:auto}
+    .addprod .go .btn{width:100%}
+  }
   .govnote{background:var(--amber-wash,#FFF4E0);border:1px solid #E8C88A;
     color:#6B4A05;border-radius:10px;padding:9px 11px;margin:0 0 10px;
     font-size:13px;line-height:1.5}
@@ -813,6 +852,17 @@
     #slip .fine{font-size:10px;margin-top:5px}
     #slip .sig{margin-top:14px}
     #slip .foot{font-size:8.5px;letter-spacing:.06em;margin-top:10px;color:#444}
+    /* Who keeps which half, said on the paper rather than left to the counter
+       to remember while a customer waits. */
+    #slip .keeps{font-size:9px;font-weight:800;letter-spacing:.1em;
+      text-transform:uppercase;margin-top:8px}
+    /* A long order pushes the office copy onto a second sheet rather than
+       tearing the claim stub in half. The stub is the half that must never
+       arrive cut. */
+    #slip .copy{break-inside:avoid;page-break-inside:avoid}
+    #slip .cutline{border-top:1px dashed #000;margin:18px 0;text-align:center;
+      font-size:8px;letter-spacing:.24em;text-transform:uppercase;color:#666}
+    #slip .cutline span{background:#fff;padding:0 8px;position:relative;top:-6px}
     @page{margin:10mm}
   }
   @media (max-width:560px){
@@ -1107,16 +1157,24 @@ setTimeout(function(){
       <h2>Work by artist</h2>
       <div id="dArtList"></div>
     </div>
+    <!-- Taken today LEADS, and that is the shop's own instruction: "orders
+         taken today, then due today, so they can see the orders they have
+         input has been saved". A counter reaches for this after every single
+         order; the due list is a planning question asked a few times a day.
+         The frequent confirmation goes first.
+         Nothing is lost by it: the DUE TODAY tile is already at the top of the
+         screen, so what must go out today still leads the dashboard - this is
+         only the order of the two lists underneath. -->
+    <div class="dsec">
+      <span class="t" id="dOpenT">Taken today</span>
+      <button class="more" id="dOpenAll">See all</button>
+    </div>
+    <div id="dOpen"></div>
     <div class="dsec">
       <span class="t">Due today</span>
       <button class="more" id="dAll">See all</button>
     </div>
     <div id="dList"></div>
-    <div class="dsec">
-      <span class="t" id="dOpenT">Open orders</span>
-      <button class="more" id="dOpenAll">See all</button>
-    </div>
-    <div id="dOpen"></div>
   </section>
 
   <section class="view" id="vBoard" hidden>
@@ -1175,6 +1233,15 @@ setTimeout(function(){
         <a class="btn ghost" id="drvOpen" target="_blank" rel="noopener noreferrer" hidden>Open Job Orders folder</a>
         <button class="btn ghost" id="drvBackup" hidden>Back up old files</button>
       </div>
+    </div>
+    <!-- The LGUs this shop bills. Any member can add one from the order form;
+         renaming and switching off are the owner's, which is what the policy
+         on gov_accounts has always said and the app has never offered. -->
+    <div class="card" id="govCard" style="margin-top:12px" hidden>
+      <h2>Government accounts</h2>
+      <p class="small muted">Rename one if the office changes its name. Switch one off and it
+        stops appearing on new orders — the orders already billed to it keep it.</p>
+      <div id="govList"></div>
     </div>
     <div class="card" style="margin-top:12px">
       <h2>Who can use this device</h2>
@@ -1270,6 +1337,30 @@ setTimeout(function(){
     <div class="rcrow"><span>Downpayment</span><b id="rDown"></b></div>
     <div class="rcbal" id="rBalBox"><span id="rBalK">Balance</span><b id="rBal"></b></div>
     <p class="small muted rcfoot" id="rFoot">Unpaid balance shows on the claim stub</p>
+    <!-- A one-off typed into a placeholder item. Offered after the order is
+         saved, never on the form: the order is the job, keeping the product is
+         bookkeeping, and bookkeeping must not stand between a customer and
+         their receipt. -->
+    <div class="addprod" id="rAddProd" hidden>
+      <div class="q">Sell this again?</div>
+      <div class="w">You typed something the shop does not have on its list. Put it on the
+        list and it is in the picker next time, with its price already filled in.</div>
+      <!-- Editable, both of them. The name was typed in a hurry beside a
+           customer, and the rate on a one-off is often a one-off rate - a
+           product that arrives misspelled or priced wrong is worse than none,
+           and nothing in the app can rename or reprice it afterwards. -->
+      <label class="apf">Name<input id="rApName" maxlength="80" autocomplete="off"></label>
+      <label class="apf">Price each<input id="rApPrice" inputmode="decimal" autocomplete="off"
+        placeholder="Leave empty to quote each time"></label>
+      <div class="go">
+        <span id="rApPinWrap" class="pinbox"><label for="rApPin">Your PIN</label>
+          <input id="rApPin" inputmode="numeric" maxlength="4" autocomplete="off"
+            placeholder="••••"></span>
+        <button type="button" class="btn" id="rApSave">Put it on the list</button>
+        <button type="button" class="btn ghost" id="rApNo">Not this time</button>
+      </div>
+      <div class="msg" id="rApMsg"></div>
+    </div>
   </div>
   <div class="df">
     <div class="uprog" id="rUpProg" hidden><i id="rUpFill"></i><span id="rUpText"></span></div>
@@ -1371,6 +1462,32 @@ setTimeout(function(){
      for here rather than trusted from whoever is tapped in, because a phone
      left unlocked on a counter is not the same as the person standing at it -
      and this is the one screen that changes what a customer owes. -->
+<!-- A line the order should have had. Same door as correcting one: the PIN
+     goes to the database, not to this form. -->
+<dialog id="adDlg">
+  <div class="dh"><span class="no">Add a line</span></div>
+  <div class="db">
+    <p class="small muted" id="adWhat"></p>
+    <label class="wide">What is it<input id="adName" maxlength="80" autocomplete="off"
+      placeholder="e.g. Lamination"></label>
+    <div class="grid2">
+      <label>Size or note<input id="adSize" maxlength="60" autocomplete="off"
+        placeholder="optional"></label>
+      <label>Quantity<input id="adQty" inputmode="decimal" autocomplete="off"></label>
+      <label>Rate<input id="adRate" inputmode="decimal" autocomplete="off"></label>
+    </div>
+    <div class="edtot" id="adTot"></div>
+    <label class="pwl" id="adPinWrap">Your 4-digit PIN
+      <input id="adPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000">
+    </label>
+    <div class="msg" id="adMsg"></div>
+  </div>
+  <div class="df">
+    <button class="btn ghost" id="adCancel">Cancel</button>
+    <button class="btn" id="adSave">Add the line</button>
+  </div>
+</dialog>
+
 <dialog id="edDlg">
   <div class="dh"><span class="no" id="edHead">Correct the line</span></div>
   <div class="db">
@@ -1451,12 +1568,14 @@ setTimeout(function(){
          whose hands it passed through. -->
     <div class="hands" id="dHands" hidden></div>
     <button type="button" class="rushsw" id="dRush" aria-pressed="false">Rush order</button>
+    <div class="rushwhy" id="dRushWhy" hidden></div>
     <label class="dart" id="dArtWrap" hidden>Artist<select id="dArtist"></select></label>
     <div class="dpo" id="dPoRow" hidden>
       <input id="dPo" maxlength="60" autocomplete="off" placeholder="PO number">
       <button type="button" class="btn ghost" id="dPoSave">Save PO</button>
     </div>
     <div style="margin-top:12px" id="dLines"></div>
+    <button type="button" class="btn ghost addline" id="dAddLine" hidden>+ Add a line</button>
     <div class="totrow" style="margin-top:8px"><span class="muted">Total</span><span id="dTotal"></span></div>
     <div class="totrow"><span class="muted">Paid</span><span id="dPaid"></span></div>
     <div class="totrow big"><span>Balance</span><span id="dBal"></span></div>
@@ -3213,10 +3332,66 @@ async function uploadFileTo(o, file, joItemId, bar){
 /* Government accounts the shop bills. Picked on a government order; the
    counter adds one on the spot and it is remembered. Only switched-on ones
    are offered; all are kept for naming older orders. */
+/* The owner's list of government accounts: rename, or switch off.
+   **Never delete** - the same rule as staff and orders. An account is on
+   invoices and on every order billed to it; removing the row would leave those
+   orders pointing at nothing, and `jo_refs_same_shop` would have no way to
+   explain itself. Switching off only stops it appearing on NEW orders.
+   No migration was needed: `gov_accounts` has carried UPDATE for
+   `authenticated` since the first schema and the policy already restricts it
+   to the owner. It sat on PUNCHLIST as an over-grant for exactly as long as
+   this screen was missing. */
+function renderGovs(){
+  const box = $('#govCard');
+  box.hidden = ROLE !== 'owner' || !GOVS.length;
+  if(box.hidden) return;
+  const list = $('#govList');
+  list.innerHTML = '';
+  GOVS.forEach(g => {
+    const row = document.createElement('div');
+    row.className = 'gvrow' + (g.active ? '' : ' off');
+    row.innerHTML =
+      `<input class="gvname" value="${esc(g.name)}" maxlength="80" aria-label="Account name">
+       <button type="button" class="btn ghost gvsave" hidden>Save</button>
+       <button type="button" class="btn ghost gvtog">${g.active ? 'Switch off' : 'Switch on'}</button>`;
+    const input = row.querySelector('.gvname');
+    const save  = row.querySelector('.gvsave');
+    // the Save button appears only once something has actually changed
+    input.oninput = () => { save.hidden = input.value.trim() === g.name; };
+    save.onclick = async () => {
+      const nm = input.value.trim().replace(/\s+/g, ' ');
+      if(nm.length < 2) return toast('What should it be called?');
+      try{ assertWritable(); }catch(err){ return toast(err.message); }
+      const { error } = await sb.from('gov_accounts').update({ name: nm }).eq('id', g.id);
+      if(error) return toast(/gov_accounts_name/.test(error.message)
+        ? nm + ' is already an account.' : error.message);
+      toast('Renamed to ' + nm);
+      await loadGovs(); fillGovs();
+    };
+    row.querySelector('.gvtog').onclick = async () => {
+      /* Asked before switching off, because the counter will not find it on
+         the next order and nothing else in the app explains where it went. */
+      if(g.active){
+        const go = await ask(g.name + ' will stop appearing when a new order is billed to the government. ' +
+          'Orders already billed to it keep it, and you can switch it back on here.',
+          { head: 'Switch off ' + g.name + '?', yes: 'Switch it off', no: 'Leave it on' });
+        if(!go) return;
+      }
+      try{ assertWritable(); }catch(err){ return toast(err.message); }
+      const { error } = await sb.from('gov_accounts').update({ active: !g.active }).eq('id', g.id);
+      if(error) return toast(error.message);
+      toast(g.name + (g.active ? ' switched off' : ' switched back on'));
+      await loadGovs(); fillGovs();
+    };
+    list.appendChild(row);
+  });
+}
+
 let GOVS = [];
 async function loadGovs(){
   const { data } = await sb.from('gov_accounts').select('id,name,active').order('name');
   GOVS = (data || []).sort((a,b) => a.name.localeCompare(b.name));
+  renderGovs();
   fillGovs();
 }
 function fillGovs(sel){
@@ -3432,7 +3607,13 @@ function ask(text, opt){
   $('#askInput').placeholder = o.placeholder || '';
   askDlg.showModal();
   if(asking) setTimeout(() => $('#askInput').focus(), 50);
-  return new Promise(done => { askDone = { done, asking, need: o.need }; });
+  /* `optional` (21 Sep): an input that may be left empty. Until now every
+     asked-for answer was required - a void reason, a send-back note - and
+     refusing a blank was right for those. A rush reason is different: plenty
+     of rush jobs are obvious, and a box that MUST be filled is one people fill
+     with a full stop, which is worse than an empty one because it looks like
+     an answer. The promise then resolves with '' rather than refusing. */
+  return new Promise(done => { askDone = { done, asking, need: o.need, optional: !!o.optional }; });
 }
 $('#askInput').addEventListener('input', () => {
   if($('#askMsg').className.includes('err')){ $('#askMsg').className = 'msg'; $('#askMsg').textContent = ''; }
@@ -3442,7 +3623,9 @@ $('#askYes').onclick = () => {
   const a = askDone; if(!a) return;
   if(a.asking){
     const v = $('#askInput').value.trim();
-    if(!v){ $('#askMsg').className = 'msg err'; $('#askMsg').textContent = a.need || 'Type an answer first.'; return; }
+    if(!v && !a.optional){
+      $('#askMsg').className = 'msg err'; $('#askMsg').textContent = a.need || 'Type an answer first.'; return;
+    }
     askDone = null; askDlg.close(); return a.done(v);
   }
   askDone = null; askDlg.close(); a.done(true);
@@ -4287,6 +4470,7 @@ function openDetail(o){
   $('#dChip').className = 'chip ' + o.status;
   $('#dChip').textContent = LABEL[o.status];
   $('#dRushChip').hidden = !o.rush;
+  paintRushWhy();          // why it is in front, for whoever opens it next
   $('#dPoChip').hidden = !poMissing(o);
   // whoever takes orders can make one rush, or stop it being rush, while it is still in the shop
   $('#dRush').hidden = !canTakeOrders() || o.voided || o.status === 'claimed';
@@ -4358,6 +4542,9 @@ function openDetail(o){
   $('#dLines').querySelectorAll('button[data-edit]').forEach(b => {
     b.onclick = () => openEdit(b.dataset.edit);
   });
+  /* Never on a voided order, for the same reason Edit is not: a voided order
+     is a record of what was cancelled, not a thing to keep adding to. */
+  $('#dAddLine').hidden = !canTakeOrders() || o.voided;
   loadTrail(o.id);
   loadReview(o);
   loadHands(o);
@@ -4437,18 +4624,52 @@ $('#dPoSave').onclick = async () => {
   toast(po ? poText(po) + ' saved on JO ' + CUR.jo_no : 'PO removed from JO ' + CUR.jo_no);
   refresh();
 };
+/* Rush asks before it fires, and takes a reason (21 Sep, asked for by the
+   shop: "it should have a popup - turning this order into Rush? add Reason?
+   then save").
+   It was a silent toggle, and rush is not a quiet setting: it pushes a job in
+   front of everything else on the board, so the rest of the shop deserves to
+   know why. The reason is OPTIONAL - plenty of rush jobs are obvious and a
+   box that must be filled is one people fill with a full stop - but it is
+   asked for, which is the difference.
+   Turning rush OFF asks nothing. Taking the hurry out of a job is not a
+   decision anybody needs to justify, and the reason is cleared with it rather
+   than left sitting on an order that is no longer rush. */
 $('#dRush').onclick = async () => {
   const on = !CUR.rush;
   try{ assertWritable(); }catch(err){ return toast(err.message); }
+
+  let why = null;
+  if(on){
+    const answer = await ask('This puts JO ' + CUR.jo_no + ' in front of everything else on the board.',
+      { head: 'Make this a rush order?', yes: 'Yes, rush it', no: 'Leave it',
+        input: 'Why the hurry? (optional)',
+        placeholder: 'e.g. customer needs it for Saturday',
+        optional: true });
+    if(answer === false || answer === null) return;   // backed out
+    why = (typeof answer === 'string' ? answer.trim() : '').slice(0, 200) || null;
+  }
+
   const { error } = await sb.from('job_orders')
-    .update({ rush: on, updated_at: new Date().toISOString() }).eq('id', CUR.id);
+    .update({ rush: on, rush_reason: on ? why : null,
+              updated_at: new Date().toISOString() }).eq('id', CUR.id);
   if(error) return toast(error.message);
-  CUR.rush = on;
+  CUR.rush = on; CUR.rush_reason = on ? why : null;
   $('#dRush').setAttribute('aria-pressed', String(on));
   $('#dRushChip').hidden = !on;
+  paintRushWhy();
   toast('JO ' + CUR.jo_no + (on ? ' is a rush order' : ' is no longer rush'));
   refresh();
 };
+
+/* The reason, where the order says it is rush. Shown to every bench: production
+   is the one most owed an explanation for why this jumped the queue. */
+function paintRushWhy(){
+  const el = $('#dRushWhy');
+  const why = CUR && CUR.rush && CUR.rush_reason ? String(CUR.rush_reason).trim() : '';
+  el.hidden = !why;
+  el.textContent = why;
+}
 $('#dNext').onclick = async () => {
   const nx = FLOW[FLOW.indexOf(CUR.status)+1]; if(!nx) return;
   try{ assertWritable(); }catch(err){ return toast(err.message); }
@@ -4570,6 +4791,87 @@ async function loadReview(o){
    shop already uses for an odd job; leaving it locked would send the counter
    back to voiding and retyping for the exact case this is meant to spare
    them. */
+/* Adding a line the order should have had - "in the job order with numbers na,
+   you can add items that are not there when it was ordered, just ask for pin".
+   Goes through `jo_item_add`, the same shape as correcting one: the PIN is
+   checked inside the database, the line and its trail row are written in one
+   statement, and the order is re-read afterwards because `jo_items_resync`
+   owns the total.
+   **One honest limit, and it is written in the migration too:** `jo_items`
+   still grants table-level INSERT, because the new-order form writes its lines
+   directly. So the PIN here is asked by the app, where correcting a line has
+   it enforced by the database. `build19k` closes that; until then this is a
+   step better than nothing, not the same guarantee. */
+const adDlg = $('#adDlg');
+$('#adCancel').onclick = () => adDlg.close();
+
+function adPaint(){
+  const q = Number($('#adQty').value), r = Number($('#adRate').value);
+  $('#adTot').textContent = (Number.isFinite(q) && Number.isFinite(r) && q > 0 && r > 0)
+    ? 'Line total ' + peso(q * r) : '';
+}
+['#adQty', '#adRate'].forEach(k => { $(k).oninput = adPaint; });
+
+$('#dAddLine').onclick = () => {
+  if(!CUR) return;
+  $('#adWhat').textContent = 'JO ' + CUR.jo_no + ' · ' + CUR.customer_name;
+  ['#adName', '#adSize', '#adQty', '#adRate', '#adPin'].forEach(k => { $(k).value = ''; });
+  $('#adTot').textContent = '';
+  $('#adMsg').textContent = ''; $('#adMsg').className = 'msg';
+  /* With an empty roster nobody is tapped in and there is no PIN in existence -
+     a box nobody could fill is worse than none. Same rule as the edit dialog. */
+  $('#adPinWrap').hidden = !STAFF;
+  $('#adSave').disabled = false;
+  adDlg.showModal();
+  setTimeout(() => $('#adName').focus(), 80);
+};
+
+$('#adSave').onclick = async () => {
+  if(!CUR) return;
+  const msg = $('#adMsg');
+  const bad = t => { msg.className = 'msg err'; msg.textContent = t; };
+  const nm = $('#adName').value.trim().replace(/\s+/g, ' ');
+  const qty = Number($('#adQty').value), rate = Number($('#adRate').value);
+  if(nm.length < 1) return bad('What is being added?');
+  if(!Number.isFinite(qty) || qty <= 0) return bad('The quantity has to be more than nothing.');
+  /* Refused at zero, not below it: the new-order form refuses a ₱0 line and
+     adding one is the same act. The database refuses it too - this is the
+     sentence the counter can act on, arriving before the round trip. */
+  if(!Number.isFinite(rate) || rate <= 0) return bad('That line needs a price.');
+  try{ assertWritable(); }catch(err){ return bad(err.message); }
+
+  const pin = STAFF ? $('#adPin').value.trim() : '';
+  if(STAFF && !/^[0-9]{4}$/.test(pin)) return bad('Four digits.');
+
+  $('#adSave').disabled = true;
+  msg.className = 'msg'; msg.textContent = 'Adding…';
+  let out;
+  try{
+    const { data, error } = await sb.rpc('jo_item_add', {
+      p_order: CUR.id, p_item_type: nm, p_qty: qty, p_price: rate,
+      p_size: $('#adSize').value.trim() || null,
+      p_staff: STAFF ? STAFF.id : null, p_pin: STAFF ? pin : null });
+    if(error) throw error;
+    out = data;
+  }catch(e){
+    $('#adSave').disabled = false;
+    return bad(e.message || 'That did not work.');
+  }
+  $('#adSave').disabled = false;
+  if(out === null || out === undefined) return bad('That is not your PIN.');
+
+  adDlg.close();
+  toast('Line added to JO ' + CUR.jo_no + (STAFF ? ' by ' + STAFF.name : ''));
+  /* Re-read rather than patch: jo_items_resync has just recomputed the total
+     and balance is generated from it, so the database is the only honest
+     source for either. */
+  const { data } = await sb.from('job_orders')
+    .select('*, jo_items(id,line_no,group_no,item_type,size,gender,qty,unit_price,line_total,notes)')
+    .eq('id', CUR.id).maybeSingle();
+  if(data) openDetail(data);
+  refresh();
+};
+
 const edDlg = $('#edDlg');
 function edPaint(){
   if(!EDITING) return;
@@ -4795,6 +5097,7 @@ function showReceipt(o){
       <div class="rcsz">${g.rows.map(l => `<div><span>${esc(l.size || '—')}</span>
           <span>${esc(l.qty)} × ${peso(l.unit_price)}</span><span>${peso(l.line_total)}</span></div>`).join('')}</div></div>`;
   }).join('');
+  offerProduct(o);
   const owed = Number(o.balance) > 0;
   $('#rTotal').textContent = peso(o.total);
   $('#rDown').textContent  = peso(o.downpayment);
@@ -4804,6 +5107,90 @@ function showReceipt(o){
   $('#rFoot').hidden = !owed;
   rcptDlg.showModal();
 }
+/* A one-off typed into a placeholder item is a product the shop does not have
+   yet. Offer to keep it - but only ever OFFER: most one-offs really are one
+   time only, and a shop whose picker fills up with every odd job typed this
+   year is worse off than one that types the odd job twice. */
+let NEWPROD = null;
+function offerProduct(o){
+  const box = $('#rAddProd');
+  NEWPROD = null;
+  box.hidden = true;
+  if(!canTakeOrders() || !SHOP) return;
+
+  /* Only a line whose item was a placeholder - `ask_name` - and only when the
+     shop does not already have something by that name. `lower(btrim())`,
+     because "Acrylic stand" and "acrylic stand " are the same product to
+     everybody except a database. */
+  const lines = (o.jo_items || []).filter(l => l.item_type);
+  const known = new Set(ITEMS.map(i => String(i.name).trim().toLowerCase()));
+  const hole  = new Set(ITEMS.filter(i => i.ask_name).map(i => i.name));
+  const cand  = lines.find(l => !known.has(String(l.item_type).trim().toLowerCase())
+                             && !hole.has(l.item_type));
+  if(!cand) return;
+
+  NEWPROD = { unit: cand.unit || 'pc' };
+  // pre-filled with what was actually typed, and both editable from there
+  $('#rApName').value  = String(cand.item_type).slice(0, 80);
+  $('#rApPrice').value = Number(cand.unit_price) > 0 ? String(Number(cand.unit_price)) : '';
+  $('#rApPinWrap').hidden = !STAFF;     // empty roster: no PIN exists to ask for
+  $('#rApPin').value = '';
+  $('#rApMsg').textContent = ''; $('#rApMsg').className = 'msg';
+  $('#rApSave').disabled = false;
+  $('#rApSave').textContent = 'Put it on the list';
+  box.hidden = false;
+}
+
+/* Dismissed for this receipt only. It is not a decision the shop should have
+   to justify, so it takes one tap and leaves nothing behind. */
+$('#rApNo').onclick = () => { NEWPROD = null; $('#rAddProd').hidden = true; };
+
+$('#rApSave').onclick = async () => {
+  if(!NEWPROD) return;
+  const msg = $('#rApMsg');
+  const bad = t => { msg.className = 'msg err'; msg.textContent = t; };
+  const nm  = $('#rApName').value.trim().replace(/\s+/g, ' ');
+  const raw = $('#rApPrice').value.trim().replace(/[^0-9.]/g, '');
+  const pr  = raw === '' ? 0 : Number(raw);
+  if(nm.length < 2) return bad('What should it be called?');
+  if(!Number.isFinite(pr) || pr < 0) return bad('That price is not a number.');
+  const pin = STAFF ? $('#rApPin').value.trim() : '';
+  if(STAFF && !/^[0-9]{4}$/.test(pin)) return bad('Your PIN is four digits.');
+  try{ assertWritable(); }catch(err){ return bad(err.message); }
+  NEWPROD.name = nm; NEWPROD.price = pr;
+
+  /* item_add checks the PIN where the caller cannot reach it and is the only
+     way into item_types - the table's INSERT is revoked. **null means the PIN
+     was wrong**, and one try has been burned; a raise is a lockout, a name
+     already on the list, or a figure the database will not take. */
+  $('#rApSave').disabled = true; msg.className = 'msg'; msg.textContent = 'Adding…';
+  let id;
+  try{
+    const { data, error } = await sb.rpc('item_add', {
+      p_shop: SHOP.id, p_name: NEWPROD.name, p_unit: NEWPROD.unit,
+      p_price: NEWPROD.price > 0 ? NEWPROD.price : null,
+      p_staff: STAFF ? STAFF.id : null, p_pin: STAFF ? pin : null });
+    if(error) throw error;
+    id = data;
+  }catch(e){
+    $('#rApSave').disabled = false;
+    return bad(e.message || 'That did not work.');
+  }
+  if(id === null || id === undefined){
+    $('#rApSave').disabled = false;
+    return bad('That is not your PIN.');
+  }
+
+  await loadItems();            // it is in the picker from the next order on
+  const named = NEWPROD.name;
+  NEWPROD = null;
+  $('#rApName').disabled = $('#rApPrice').disabled = $('#rApPin').disabled = true;
+  $('#rApNo').hidden = true;
+  $('#rApSave').textContent = 'On the list';
+  msg.className = 'msg ok';
+  msg.textContent = named + ' is in the picker now — you will find it on the next order.';
+};
+
 $('#rPrint').onclick = () => { if(RCPT) printSlip(RCPT); };
 $('#rClose').onclick = () => rcptDlg.close();
 
@@ -4834,7 +5221,7 @@ function printSlip(o){
     </tr>`).join('') + `
     <tr class="gt"><td></td><td>Subtotal</td><td class="n">${peso(g.total)}</td></tr>`).join('');
 
-  const block = kind => `
+  const block = (kind, keeps) => `
     <div class="rule"></div>
     <h3>${esc(SHOP.name)}</h3>
     <div class="kind">${kind}${o.rush ? ' · RUSH' : ''}</div>
@@ -4851,10 +5238,25 @@ function printSlip(o){
     ${o.notes?`<div class="fine">${esc(o.notes)}</div>`:''}
     ${STAFF?`<div class="fine">Taken by ${esc(STAFF.name)}</div>`:''}
     <div class="fine sig">Received by ______________________</div>
+    <div class="keeps">${esc(keeps)}</div>
     <div class="foot">Powered by Spawn Solutions</div>`;
 
-  // the claim stub only - the shop's copy of the job order lives in the app
-  $('#slip').innerHTML = block('CLAIM STUB');
+  /* TWO ON ONE SHEET (21 Sep, asked for by the shop): "one bond paper, two
+     receipts - one for the customer which can be used as a claim stub, and the
+     other for the counter as a hardcopy of such order."
+     Short bond, 8.5 x 11, confirmed with the shop - so two halves of about
+     5.5 inches with a cut line between them.
+     The two copies are IDENTICAL apart from their label and who keeps them.
+     That is deliberate: the moment they differ, the shop's copy stops being
+     evidence of what the customer was handed, which is the only reason to keep
+     one. A dispute is settled by two matching pieces of paper.
+     `break-inside: avoid` on each, so a long order pushes the office copy to a
+     second sheet rather than tearing one in half - the claim stub is the one
+     that must never arrive cut. */
+  $('#slip').innerHTML =
+    `<section class="copy">${block('CLAIM STUB', 'Customer keeps this - bring it to collect')}</section>` +
+    `<div class="cutline"><span>cut here</span></div>` +
+    `<section class="copy">${block('OFFICE COPY', 'Keep with the job')}</section>`;
   window.print();
 }
 
