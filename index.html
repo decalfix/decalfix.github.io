@@ -1243,6 +1243,25 @@ setTimeout(function(){
         stops appearing on new orders — the orders already billed to it keep it.</p>
       <div id="govList"></div>
     </div>
+    <!-- Only ever drawn on a demo shop, and only for the owner. The real
+         guard is in `shop_reset`, which is pinned to an explicit list of shop
+         ids - a name can be edited by the owner, and with one account per shop
+         the owner is the client. This is here so the button does not exist
+         where it would fail. -->
+    <div class="card" id="dmoCard" style="margin-top:12px" hidden>
+      <h2>Clear this demo</h2>
+      <p class="small muted">Deletes every job order on this demo shop and starts the
+        numbering again at 1. The staff list, the price list and the government accounts
+        stay. Files already in Google Drive stay too — only the app's record of them goes.</p>
+      <p class="small muted">This asks for the <b>Spawn admin PIN</b>, not a staff PIN — it is
+        Spawn's tool, so the shop cannot use it. Five wrong tries locks it for fifteen
+        minutes, and that is the same lock as creating a shop.</p>
+      <div id="dmoCount" class="small muted" style="margin-bottom:8px"></div>
+      <label id="dmoPinRow" class="wide">Spawn admin PIN<input id="dmoPin" type="password"
+        inputmode="numeric" maxlength="4" autocomplete="off" placeholder="····"></label>
+      <button type="button" class="btn danger" id="dmoGo">Clear the demo</button>
+      <div class="msg" id="dmoMsg"></div>
+    </div>
     <div class="card" style="margin-top:12px">
       <h2>Who can use this device</h2>
       <p class="small muted">These people sign in by tapping their name and typing a PIN.
@@ -3345,6 +3364,28 @@ async function uploadFileTo(o, file, joItemId, bar){
    `authenticated` since the first schema and the policy already restricts it
    to the owner. It sat on PUNCHLIST as an over-grant for exactly as long as
    this screen was missing. */
+/* A demo shop by NAME - the same test the dev-origin guard uses. Here it only
+   decides whether to draw the card; `shop_reset` decides whether it works, and
+   it goes by shop id because a name is editable by the person it guards. */
+const isDemoShop = () => /\b(demo|sandbox|test)\b/i.test((SHOP && SHOP.name) || '');
+
+function renderDemoReset(){
+  const box = $('#dmoCard');
+  box.hidden = !(ROLE === 'owner' && isDemoShop());
+  if(box.hidden) return;
+  /* The count is the honest part of the question. ORDERS is the board's
+     newest-300 window, so say "at least" rather than claim a total the app
+     cannot see. */
+  const n = ORDERS.length;
+  $('#dmoCount').textContent = n
+    ? (n >= 300 ? 'At least 300 job orders on this shop.' : n + (n === 1 ? ' job order' : ' job orders') + ' on this shop.')
+    : 'No job orders on this shop.';
+  /* Always asked for, and it is NOT the staff PIN - it is Spawn's own, the
+     one create_shop uses. This is Spawn's tool on the shop's device, so it is
+     gated on the credential the shop does not have. That also means it works
+     whatever the roster is doing, which matters mid-demo. */
+}
+
 function renderGovs(){
   const box = $('#govCard');
   box.hidden = ROLE !== 'owner' || !GOVS.length;
@@ -3396,6 +3437,7 @@ async function loadGovs(){
   const { data } = await sb.from('gov_accounts').select('id,name,active').order('name');
   GOVS = (data || []).sort((a,b) => a.name.localeCompare(b.name));
   renderGovs();
+  renderDemoReset();
   fillGovs();
 }
 function fillGovs(sel){
@@ -3673,6 +3715,51 @@ $('#vNew').addEventListener('change', () => {
   const m = $('#sMsg'); if(m.className.includes('err')){ m.className = 'msg'; m.textContent = ''; }
 }, true);
 okDlg.addEventListener('close', () => { if(okFocus){ okFocus.focus(); okFocus = null; } });
+
+$('#dmoGo').onclick = async () => {
+  const msg = $('#dmoMsg');
+  msg.className = 'msg'; msg.textContent = '';
+  if(!isDemoShop()){ msg.className = 'msg err'; msg.textContent = 'This is not a demo shop.'; return; }
+  const pin = $('#dmoPin').value.trim();
+  if(pin.length !== 4){
+    msg.className = 'msg err'; msg.textContent = 'Type the 4-digit Spawn admin PIN.'; return;
+  }
+  /* The count goes in the question. "Clear the demo" and "delete the fourteen
+     orders I typed this morning" are the same tap and feel like different
+     decisions, so the sentence says which one it is. */
+  const n = ORDERS.length;
+  const go = await ask(
+    n ? 'This deletes ' + n + (n === 1 ? ' job order' : ' job orders') + ' on ' + SHOP.name +
+        ', and starts the numbering again at 1. The staff, the price list and the government ' +
+        'accounts stay. It cannot be undone.'
+      : 'There are no job orders to delete. This will still reset the numbering to 1.',
+    { head: 'Clear this demo?', yes: 'Clear it', no: 'Keep it', danger: true });
+  if(!go) return;
+
+  $('#dmoGo').disabled = true; msg.textContent = 'Clearing…';
+  try{
+    assertWritable();
+    const { data, error } = await sb.rpc('shop_reset',
+      { p_shop: SHOP.id, p_admin_pin: pin });
+    if(error) throw error;
+    /* The contract every PIN gate here uses: a number is the answer, NULL is a
+       wrong PIN with one try burned, a raise is everything else. 0 and null are
+       different answers, which is why a count works as the return. */
+    if(data === null){
+      msg.className = 'msg err'; msg.textContent = 'That is not the admin PIN.';
+      $('#dmoPin').value = ''; $('#dmoPin').focus();
+      return;
+    }
+    $('#dmoPin').value = '';
+    msg.className = 'msg ok';
+    msg.textContent = data + (data === 1 ? ' job order cleared.' : ' job orders cleared.') +
+                      ' Numbering starts again at 1.';
+    await refresh();
+    renderDemoReset();
+  }catch(e){
+    msg.className = 'msg err'; msg.textContent = e.message || 'Could not clear the demo.';
+  }finally{ $('#dmoGo').disabled = false; }
+};
 
 $('#save').onclick = async () => {
   const msg = $('#sMsg'); msg.className='msg';
