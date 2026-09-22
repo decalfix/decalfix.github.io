@@ -2331,6 +2331,10 @@ function newOrder(){
   $('#fRush').setAttribute('aria-pressed', 'false');
   $('#fArtist').value = '';
   setType('walk_in'); $('#fGov').value = ''; $('#fPO').value = ''; $('#fGovAddRow').hidden = true;
+  /* Starting a fresh order drops the retry ids. They exist to make a SECOND
+     attempt at the SAME order safe; carrying them into a different order would
+     make jo_create answer `created: false` and hand back somebody else's. */
+  SAVE_ID = null; PAY_ID = null;
   $('#fPoLater').checked = false;
   FILES = []; UPQ = []; renderFiles(); $('#fLinkUrl').value = ''; $('#fLinkLabel').value = '';
   $('#fDate').value = today();
@@ -3404,6 +3408,18 @@ const govName = id => (GOVS.find(g => g.id === id) || {}).name || '';
 let OTYPE = 'walk_in';
 /* Answered once per order. Reset by setType and by any rate edit, so changing
    your mind about either asks again rather than riding on an old yes. */
+/* An id the app makes, so a save can be retried without becoming a second
+   order. crypto.randomUUID needs a secure context - every real origin this app
+   runs on is https, and the fallback is only so a file:// copy still works. */
+const newId = () => (crypto.randomUUID ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    }));
+/* Held across a FAILED save so pressing Confirm again sends the same ids -
+   that is what turns a dropped connection into a replay instead of a duplicate
+   order. Cleared once the save has finished, and by starting a new order. */
+let SAVE_ID = null, PAY_ID = null;
 let GOV_RATE_OK = false;
 /* Same once-per-order rule as GOV_RATE_OK, and cleared with it. A counter who
    says "save it that way" and then adds another row is asked again, which is
@@ -3747,74 +3763,106 @@ $('#save').onclick = async () => {
   }
 
   $('#save').disabled = true; msg.textContent = 'Saving…';
-  let orderId = null;
+  let orderId = null, orderNo = null, rollback = false;
   try{
     assertWritable();
     const head = good[0];
     // "+N more" counts items, not size rows; an item in several sizes has no one size
     const summary = itemOf(head).name + (good.length>1 ? ` +${good.length-1} more` : '');
     const headSize = head.rows.length === 1 ? (head.rows[0].size || null) : null;
-    const { data:o, error } = await sb.from('job_orders').insert({
-      shop_id: SHOP.id, customer_name: cust,
-      customer_contact: $('#fPhone').value.trim() || null,
-      customer_fb: $('#fFb').value.trim() || null,
-      item_type: summary, size: headSize,
-      qty: 1, unit_price: 0, total: 0,
-      downpayment: 0,     // the money arrives as a jo_payments row below; its trigger adds it
-      target_date: $('#fDate').value || null,
-      notes: $('#fNotes').value.trim() || null,
-      rush: $('#fRush').getAttribute('aria-pressed') === 'true',
-      // choosing an artist on the form sends the order straight to them
-      artist_id: $('#fArtist').value || null,
-      status: $('#fArtist').value ? 'layout' : 'new',
-      order_type: OTYPE,
-      gov_account_id: OTYPE === 'government' ? govId : null,
-      po_number: OTYPE === 'government' ? ($('#fPO').value.trim() || null) : null,
-      taken_by: STAFF ? STAFF.id : null
-    }).select('id,jo_no').single();
-    if(error) throw error;
-    orderId = o.id;
-
-    /* One jo_items row per size. line_no runs 1..n across the whole order.
-       An item with two or more sizes gets a group_no (1, 2, 3... per order)
-       shared by its rows; an item with one size stays null, which is exactly
-       the plain line every order had before groups. */
+    /* One jo_items row per size. line_no is the position in this array, set
+       by `jo_create` rather than counted here. An item with two or more sizes
+       gets a group_no (1, 2, 3... per order) shared by its rows; an item with
+       one size stays null, which is exactly the plain line every order had
+       before groups.
+       **Exactly eight keys**, because jo_create refuses any other - on purpose,
+       so that sending `shop_id` or `line_no` out of habit fails loudly instead
+       of being quietly ignored. The id is generated HERE so a retry after a
+       dropped connection is the same order rather than a second one. */
     const rows = []; let gNo = 0;
     good.forEach(b => {
       const g = b.rows.length > 1 ? ++gNo : null;
-      b.firstLine = rows.length + 1;      // the row this item's files will hang on
-      // the item's note rides on its first row only, so a five-size item has one note
-      b.rows.forEach((r, ri) => rows.push({
-        shop_id: SHOP.id, job_order_id: o.id, line_no: rows.length + 1, group_no: g,
-        item_type: nameOf(b),
-        size: (bySqft(itemOf(b)) ? sqftText(r) : r.size) || null,
-        qty: qtyOf(b, r), unit_price: priceOf(b, r),
-        gender: r.gender || null,          // apparel only; null everywhere else
-        notes: ri === 0 ? ((b.note || '').trim() || null) : null
-      }));
+      b.rows.forEach((r, ri) => {
+        const id = newId();
+        if(ri === 0) b.firstLineId = id;  // the line this item's files hang on
+        rows.push({
+          id, group_no: g,
+          item_type: nameOf(b),
+          size: (bySqft(itemOf(b)) ? sqftText(r) : r.size) || null,
+          qty: qtyOf(b, r), unit_price: priceOf(b, r),
+          gender: r.gender || null,        // apparel only; null everywhere else
+          // the item's note rides on its first row only, so a five-size item has one note
+          notes: ri === 0 ? ((b.note || '').trim() || null) : null
+        });
+      });
     });
-    /* The ids come back so a file can point at the item it belongs to -
-       the item's first row, the same row its note rides on. */
-    const { data:madeItems, error:e2 } = await sb.from('jo_items').insert(rows).select('id,line_no');
-    if(e2) throw e2;
-    const lineId = Object.fromEntries((madeItems || []).map(r => [r.line_no, r.id]));
+
+    /* SAVE_ID survives a failed attempt, so pressing Confirm again after a
+       dropped connection sends the SAME order id. jo_create then finds the
+       order it already wrote and answers `created: false` - the counter gets
+       the order they already have rather than a second one with a second JO
+       number. It is cleared only once the save has finished. */
+    if(!SAVE_ID) SAVE_ID = newId();
+    const { data: made, error } = await sb.rpc('jo_create', {
+      p_order_id: SAVE_ID, p_shop: SHOP.id, p_customer_name: cust, p_lines: rows,
+      p_customer_contact: $('#fPhone').value.trim() || null,
+      p_customer_fb: $('#fFb').value.trim() || null,
+      p_item_type: summary, p_size: headSize,   // the header summary the shops on main read
+      p_target_date: $('#fDate').value || null,
+      p_notes: $('#fNotes').value.trim() || null,
+      p_rush: $('#fRush').getAttribute('aria-pressed') === 'true',
+      // choosing an artist on the form sends the order straight to them, and
+      // jo_create derives the status from it rather than taking one
+      p_artist: $('#fArtist').value || null,
+      p_order_type: OTYPE,
+      p_gov_account: OTYPE === 'government' ? govId : null,
+      p_po_number: OTYPE === 'government' ? ($('#fPO').value.trim() || null) : null,
+      p_taken_by: STAFF ? STAFF.id : null });
+    if(error) throw error;
+    const o = Array.isArray(made) ? made[0] : made;
+    if(!o || !o.order_id) throw new Error('The order did not save. Try again.');
+    orderId = o.id = o.order_id; orderNo = o.jo_no;
+    /* `created: false` is jo_create saying it found this order already saved -
+       this press is a retry of one that reached the database. A replay must
+       write NOTHING further: the payment would be added a second time by
+       `tg_jo_payment_apply`, and the file links have no unique key to stop
+       them doubling. It re-reads and shows the order that exists. */
+    const replay = o.created === false;
+    /* Armed only while the order is incomplete. jo_create writes the order AND
+       its lines in one statement, so there is no half-saved order any more -
+       the only step that can still leave one wrong is the downpayment, and
+       once that is in, nothing below is worth destroying an order over. */
+    rollback = down > 0 && !replay;
+
+    /* Files hang on a line id the app already knew before it asked - the
+       read-back that used to turn line_no into an id is gone. */
 
     /* The downpayment is a payment like any other: a jo_payments row with its
        method and receipt. The app never writes job_orders.downpayment. */
-    if(down > 0){
+    /* **Only when the order was actually created.** `created: false` means
+       this call was a replay of one that already committed - the payment went
+       with it, and `tg_jo_payment_apply` ADDS rather than re-summing, so
+       sending it again would double the downpayment on a real order.
+       The id is generated here for the same reason the order's is: if a replay
+       ever does reach this line, the primary key refuses it rather than the
+       trigger applying it twice. */
+    if(down > 0 && !replay){
+      if(!PAY_ID) PAY_ID = newId();
       const { error:e3 } = await sb.from('jo_payments').insert({
+        id: PAY_ID,
         shop_id: SHOP.id, job_order_id: o.id, amount: down, method: FPM.get(),
         receipt_no: rcpt, taken_by: STAFF ? STAFF.id : null });
       if(e3) throw e3;
     }
+    rollback = false;      // the order is whole; nothing below may void it
 
     /* File links go in once the order is safely saved. A link that will not
        save does not undo the order - it is said, and can be added again. */
     let fileErr = null;
     const links = FILES.map(f => ({ ...f, jo_item_id: null }));
     good.forEach(b => (b.files || []).forEach(f =>
-      links.push({ ...f, jo_item_id: lineId[b.firstLine] || null })));
-    if(links.length){
+      links.push({ ...f, jo_item_id: b.firstLineId || null })));
+    if(links.length && !replay){
       const { error:e4 } = await sb.from('jo_files').insert(links.map(f => ({
         shop_id: SHOP.id, job_order_id: o.id, kind: 'link', url: f.url, label: f.label || null,
         jo_item_id: f.jo_item_id, added_by: STAFF ? STAFF.id : null })));
@@ -3831,6 +3879,7 @@ $('#save').onclick = async () => {
       msg.className='msg err';
       msg.textContent += ' The file links did not save (' + fileErr.message + ') - add them from the order.';
     }
+    SAVE_ID = null; PAY_ID = null;    // this attempt is finished either way
     toast('JO ' + fresh.jo_no + ' saved');
     showReceipt(fresh);      // on screen; the claim stub prints only from its button
 
@@ -3838,7 +3887,7 @@ $('#save').onclick = async () => {
        JO number to make the order's folder from. The receipt shows how they
        are getting on; the order is already saved either way. */
     const queued = UPQ.map(f => ({ file: f, item: null }))
-      .concat(...good.map(b => (b.up || []).map(f => ({ file: f, item: lineId[b.firstLine] || null }))));
+      .concat(...good.map(b => (b.up || []).map(f => ({ file: f, item: b.firstLineId || null }))));
     newOrder();
     refresh();
     if(queued.length && DRIVE.connected){
@@ -3860,18 +3909,39 @@ $('#save').onclick = async () => {
         : queued.length + (queued.length === 1 ? ' file is in the job folder' : ' files are in the job folder');
     }
   }catch(e){
-    /* The order row exists but its lines did not save, so it must not sit on
-       the board as a ₱0 job. Voided through jo_void rather than by writing
-       the columns: that is the only door with the empty-reason refusal behind
-       it, and after build18e it is the only door at all - a client will not
-       hold UPDATE on voided or void_reason. If the void itself fails there is
-       nothing further to try from here; the order is left for the owner, and
-       the message below is still shown. */
-    if(orderId){
-      const { error:vErr } = await sb.rpc('jo_void', { p_id: orderId, p_reason: 'line save failed' });
+    /* **Only a half-written order is destroyed**, and since jo_create there is
+       only one way to make one: the order saved and its downpayment did not.
+       The counter is holding the customer's money with nothing recording it,
+       so the order goes and is typed again.
+       Everything after that point - the file links, the read-back, the
+       receipt - is recoverable from the order itself, and voiding a whole job
+       because a receipt would not draw is far worse than not drawing it. This
+       used to void on ANY failure after the insert, which was right when the
+       lines went in separately and stopped being right the day they did not.
+       Voided through jo_void rather than by writing the columns: that is the
+       only door with the empty-reason refusal behind it, and after build18e it
+       is the only door at all. */
+    if(orderId && rollback){
+      const { error:vErr } = await sb.rpc('jo_void', { p_id: orderId, p_reason: 'the downpayment did not save' });
       if(vErr) console.warn('rollback void failed', vErr.message);
+      /* The order was rolled back, so this id must not be retried: jo_create
+         would find the voided row, answer `created: false`, and hand the
+         counter a cancelled order with a receipt. Pressing Confirm again now
+         starts a new order, which is what a voided one deserves.
+         They are kept ONLY when nothing was written - a dropped connection
+         before the commit - because that is the case a replay exists for. */
+      SAVE_ID = null; PAY_ID = null;
     }
-    stopWith(e.message || 'Could not save.', null, 'Could not save');
+    /* The order is saved and something after it failed. Saying "Could not
+       save" here would send a counter to type the whole job again on top of
+       one that is already on the board - the duplicate this build exists to
+       prevent, caused by its own error message. */
+    if(orderId && !rollback)
+      stopWith('JO ' + (orderNo || '') + ' is saved. The app could not finish showing it (' +
+               (e.message || 'no reason given') + ') - open it from the board.',
+               null, 'Saved, but not shown');
+    else
+      stopWith(e.message || 'Could not save.', null, 'Could not save');
   }finally{ $('#save').disabled = false; }
 };
 
