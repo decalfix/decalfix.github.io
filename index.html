@@ -1771,11 +1771,36 @@ $('#aForgot').onclick = async () => {
   if(!email){ msg.className = 'msg err'; msg.textContent = 'Type the shop email first.'; return $('#aEmail').focus(); }
   $('#aForgot').disabled = true;
   msg.className = 'msg'; msg.textContent = 'Sending…';
+  let err = null;
   try{
-    await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/' });
-  }catch(e){ /* fall through: the answer must not depend on what happened */ }
-  /* The same answer either way. "No such account" would turn this box into a
-     way of finding out which addresses have one. */
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/' });
+    err = error || null;
+  }catch(e){ err = e; }
+  /* **An error here is never about whether the account exists.** Supabase
+     answers a reset for an unknown address with success, deliberately, so the
+     box cannot be used to find out which addresses have one - and that is the
+     privacy rule this screen was built around. What is left when it DOES
+     return an error is our own configuration, a rate limit, or the line. None
+     of those is a secret, and staying silent about them is how a shop ends up
+     waiting for a mail the server already refused to send.
+     Until 22 Sep this said "a reset link is on its way" whatever happened. */
+  if(err){
+    const raw = String(err.message || err);
+    msg.className = 'msg err';
+    msg.textContent =
+      /not authorized|not allowed/i.test(raw)
+        /* Supabase's built-in mailer only delivers to the project
+           organisation's team members. A shop's own address is not one, so
+           without custom SMTP this is what every reset answers. */
+        ? 'This shop cannot be sent a reset link yet - the mail service is not set up for it. ' +
+          'Ring Spawn Solutions; they can set the password for you.'
+      : /rate|too many|limit/i.test(raw)
+        ? 'Too many reset requests. Wait an hour and try again, or ring Spawn Solutions.'
+      : 'The reset could not be sent (' + raw + '). Check the connection, or ring Spawn Solutions.';
+    $('#aForgot').disabled = false;
+    return;
+  }
+  /* The same answer whether or not the address has an account - see above. */
   msg.className = 'msg';
   msg.textContent = 'If that address is on this shop, a reset link is on its way. Check the inbox.';
   $('#aForgot').disabled = false;
