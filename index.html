@@ -1250,9 +1250,10 @@ setTimeout(function(){
          where it would fail. -->
     <div class="card" id="dmoCard" style="margin-top:12px" hidden>
       <h2>Clear this demo</h2>
-      <p class="small muted">Deletes every job order on this demo shop and starts the
-        numbering again at 1. The staff list, the price list and the government accounts
-        stay. Files already in Google Drive stay too — only the app's record of them goes.</p>
+      <p class="small muted">Deletes every job order on this demo shop, with its payments and
+        its file records. The staff list, the price list and the government accounts stay, and so
+        does the numbering — the next order carries on from where it was, it does not go back to 1.
+        Files already in Google Drive stay too; only the app's record of them goes.</p>
       <p class="small muted">This asks for the <b>Spawn admin PIN</b>, not a staff PIN — it is
         Spawn's tool, so the shop cannot use it. Five wrong tries locks it for fifteen
         minutes, and that is the same lock as creating a shop.</p>
@@ -3755,9 +3756,9 @@ $('#dmoGo').onclick = async () => {
   const n = ORDERS.length;
   const go = await ask(
     n ? 'This deletes ' + n + (n === 1 ? ' job order' : ' job orders') + ' on ' + SHOP.name +
-        ', and starts the numbering again at 1. The staff, the price list and the government ' +
-        'accounts stay. It cannot be undone.'
-      : 'There are no job orders to delete. This will still reset the numbering to 1.',
+        ', with their payments and file records. The staff, the price list, the government ' +
+        'accounts and the job numbering all stay. It cannot be undone.'
+      : 'There are no job orders to delete on ' + SHOP.name + '.',
     { head: 'Clear this demo?', yes: 'Clear it', no: 'Keep it', danger: true });
   if(!go) return;
 
@@ -3767,18 +3768,28 @@ $('#dmoGo').onclick = async () => {
     const { data, error } = await sb.rpc('shop_reset',
       { p_shop: SHOP.id, p_admin_pin: pin });
     if(error) throw error;
-    /* The contract every PIN gate here uses: a number is the answer, NULL is a
-       wrong PIN with one try burned, a raise is everything else. 0 and null are
-       different answers, which is why a count works as the return. */
+    /* The contract every PIN gate here uses: an answer, NULL for a wrong PIN
+       with one try burned, a raise for everything else. **The answer is a jsonb
+       object** - { shop, orders, payments, files } - not the count the first
+       draft returned; NULL still arrives as null, so the wrong-PIN branch is
+       unchanged. Saying what went is worth more on a demo reset than a bare
+       number, which is why this uses all three figures rather than reducing
+       them back to one. */
     if(data === null){
       msg.className = 'msg err'; msg.textContent = 'That is not the admin PIN.';
       $('#dmoPin').value = ''; $('#dmoPin').focus();
       return;
     }
     $('#dmoPin').value = '';
+    const one = (k, w) => Number(data[k] || 0) + ' ' + w + (Number(data[k] || 0) === 1 ? '' : 's');
     msg.className = 'msg ok';
-    msg.textContent = data + (data === 1 ? ' job order cleared.' : ' job orders cleared.') +
-                      ' Numbering starts again at 1.';
+    /* The numbering is NOT reset - shop_reset leaves shop_counters alone, so a
+       shop carrying a configured start (Decal Fix begins at 1001) cannot have
+       it silently rewound. Said out loud because the counter visibly carries
+       on, and an unexplained jump reads as a fault. */
+    msg.textContent = 'Cleared ' + one('orders', 'job order') + ', ' +
+                      one('payments', 'payment') + ' and ' + one('files', 'file record') +
+                      '. The numbering carries on from where it was.';
     await refresh();
     renderDemoReset();
   }catch(e){
