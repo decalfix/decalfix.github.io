@@ -1650,7 +1650,19 @@ setTimeout(function(){
 <div id="slip"></div>
 
 <script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+/* **Vendored, not fetched.** This used to be
+   `https://esm.sh/@supabase/supabase-js@2`, imported at MODULE level - so a
+   phone's FIRST open, with nothing cached and no service worker yet, depended
+   on a CDN in another country. On a weak signal the module never executed and
+   nothing could fall back, because the thing that would explain the failure
+   was the thing that did not load. That is known gap 6, and on 23 Sep it put
+   "Could not load the app" on a phone being set up for a shop.
+   Same origin now: the service worker caches it like every other file, and a
+   later open works with no network at all. Pinned at 2.117.0 - to move it,
+   re-run `vendor.py`, which fetches the transitive closure and rewrites every
+   absolute esm.sh path. Do not hand-pick the files; the bundle pulls in five
+   node polyfills and the fifth only shows up on a phone. */
+import { createClient } from './vendor/supabase.js';
 
 const URL_  = 'https://ybwmdkemhsdtrbmmtver.supabase.co';
 const ANON  = 'sb_publishable_KG01c0kWK0wOUAMoUWigQA_sUuzVbiq';

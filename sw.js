@@ -2,11 +2,21 @@
    Network-first: always fresh when online, still opens when the line drops.
    API calls are never cached — stale job order data is worse than no data.
    Bump CACHE on every deploy. */
-const CACHE = 'spawn-74';
+const CACHE = 'spawn-75';
 /* '/' only, never '/index.html': Cloudflare answers that with a 308 to
    '/', and a worker that hands a redirected response to a page load
    fails - fine in testing, broken on a counter phone days later. */
-const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+/* The vendored library is in the SHELL for the offline case. The fetch
+   handler is network-first, so an online open fetches it anyway - what this
+   buys is a phone with no line still starting, which is the whole point of
+   moving it off a CDN. */
+const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png',
+               '/vendor/supabase.js',
+               '/vendor/node-buffer.js',
+               '/vendor/node-process.js',
+               '/vendor/node-events.js',
+               '/vendor/node-tty.js',
+               '/vendor/node-async_hooks.js'];
 
 /* cache.addAll() is all-or-nothing: one 404 rejects the whole thing, install
    fails, the worker never activates, and the browser then refuses to offer
