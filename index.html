@@ -1469,7 +1469,14 @@ setTimeout(function(){
     <p class="small muted">This is the shop's own account - the one the device
       signs in with. Everyone shares it, so keep it somewhere you can find it.</p>
     <label class="pwl">New password
-      <input id="pwNew" type="password" autocomplete="new-password" minlength="8">
+      <span class="pwwrap">
+        <input id="pwNew" type="password" autocomplete="new-password" minlength="8">
+        <button type="button" class="pweye" id="pwEye" aria-label="Show password"
+                aria-pressed="false">Show</button>
+      </span>
+    </label>
+    <label class="pwl">Type it again
+      <input id="pwNew2" type="password" autocomplete="new-password" minlength="8">
     </label>
     <div class="msg" id="pwMsg"></div>
   </div>
@@ -1477,6 +1484,17 @@ setTimeout(function(){
     <button class="btn" id="pwSave" style="width:100%">Save password</button>
   </div>
 </dialog>
+
+<style>
+  /* The reveal sits inside the field's box rather than beside it, so the row
+     does not reflow when the word changes between Show and Hide. */
+  .pwwrap{position:relative;display:block}
+  .pwwrap input{width:100%;box-sizing:border-box;padding-right:74px}
+  .pweye{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    border:0;background:none;padding:6px 8px;cursor:pointer;
+    font:inherit;font-size:13px;font-weight:600;color:var(--muted,#6E675C)}
+  .pweye[aria-pressed="true"]{color:var(--red,#A8331F)}
+</style>
 
 <!-- Correcting a line on an order that is already saved. The PIN is asked
      for here rather than trusted from whoever is tapped in, because a phone
@@ -1852,13 +1870,36 @@ sb.auth.onAuthStateChange((event) => {
 // no way out but setting one: dismissing leaves the account unreachable again
 pwDlg.addEventListener('cancel', e => e.preventDefault());
 
+/* Show / Hide on the new-password field only. The confirm box deliberately
+   stays masked: revealing both would let you read one and copy it into the
+   other by eye, which is exactly the mistake the second field exists to catch. */
+$('#pwEye').onclick = () => {
+  const f = $('#pwNew'), on = f.type === 'password';
+  f.type = on ? 'text' : 'password';
+  $('#pwEye').textContent = on ? 'Hide' : 'Show';
+  $('#pwEye').setAttribute('aria-pressed', on ? 'true' : 'false');
+  $('#pwEye').setAttribute('aria-label', on ? 'Hide password' : 'Show password');
+  f.focus();
+};
+
 $('#pwSave').onclick = async () => {
-  const pw = $('#pwNew').value;
+  const pw = $('#pwNew').value, pw2 = $('#pwNew2').value;
   const msg = $('#pwMsg');
   if(pw.length < 8){
     msg.className = 'msg err';
     msg.textContent = 'Use at least 8 characters.';
     return $('#pwNew').focus();
+  }
+  /* **The confirm matters more here than on an ordinary sign-up.** This is the
+     whole shop's password, typed once, on a phone, from a single-use link. A
+     typo does not lock out one person who can try again - it locks out every
+     device, and the way back is another reset mail that lands in spam. There is
+     no "sign in and change it", because signing in is what the typo broke. */
+  if(pw2 !== pw){
+    msg.className = 'msg err';
+    msg.textContent = 'The two do not match. Tap Show to check what you typed.';
+    $('#pwNew2').value = '';
+    return $('#pwNew2').focus();
   }
   $('#pwSave').disabled = true;
   msg.className = 'msg'; msg.textContent = 'Saving…';
@@ -1869,6 +1910,7 @@ $('#pwSave').onclick = async () => {
     msg.textContent = error.message || 'That did not work.';
     return;
   }
+  $('#pwNew').value = ''; $('#pwNew2').value = '';
   pwDlg.close();
   RECOVERING = false;
   // the address carries the recovery token; leaving it there means a reload
