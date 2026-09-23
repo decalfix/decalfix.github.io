@@ -1233,6 +1233,14 @@ setTimeout(function(){
         <a class="btn ghost" id="drvOpen" target="_blank" rel="noopener noreferrer" hidden>Open Job Orders folder</a>
         <button class="btn ghost" id="drvBackup" hidden>Back up old files</button>
       </div>
+      <!-- A repair, not a setup step, so it is a quiet line rather than a
+           button. Deleting the folder in Drive does not disconnect the shop -
+           the token stays good and Connect stays hidden - so without this
+           there is no way back from a folder somebody tidied away. -->
+      <p class="small muted" id="drvFixWrap" hidden style="margin-top:8px">
+        Folder missing or moved?
+        <a href="#" id="drvFix">Make the Job Orders folder again</a>
+      </p>
     </div>
     <!-- The LGUs this shop bills. Any member can add one from the order form;
          renaming and switching off are the owner's, which is what the policy
@@ -3179,6 +3187,10 @@ function paintDrive(){
   $('#drvConnect').hidden = !!DRIVE.connected;
   $('#drvOpen').hidden = !DRIVE.connected;
   $('#drvBackup').hidden = !(DRIVE.connected && ROLE === 'owner');
+  /* Owner only, and only when connected - on a shop that has never connected,
+     Connect is already the answer and two doors to the same place is worse
+     than one. */
+  $('#drvFixWrap').hidden = !(DRIVE.connected && ROLE === 'owner');
   const fu = $('#fUpWrap'); if(fu) fu.hidden = !DRIVE.connected;
   $('#drvBar').hidden = !(DRIVE.connected && DRIVE.limit);
   if(DRIVE.connected){
@@ -3807,6 +3819,22 @@ $('#vNew').addEventListener('change', () => {
   const m = $('#sMsg'); if(m.className.includes('err')){ m.className = 'msg'; m.textContent = ''; }
 }, true);
 okDlg.addEventListener('close', () => { if(okFocus){ okFocus.focus(); okFocus = null; } });
+
+/* Same door as Connect. `connect()` on the Worker checks whether the stored
+   folder is still alive and only makes a new one if it is not - so this is
+   safe to press on a healthy shop, and the folder that comes back is the same
+   one. It asks first because it sends the owner out to Google, which is
+   disorienting if you tapped it by accident. */
+$('#drvFix').onclick = async (e) => {
+  e.preventDefault();
+  const go = await ask(
+    'This sends you to Google to sign in again, and makes a new Job Orders folder ' +
+    'if the old one has been deleted. Files already uploaded stay where they are - ' +
+    'a new folder does not move them, and the orders that point at them are unchanged.',
+    { head: 'Make the folder again?', yes: 'Go to Google', no: 'Cancel' });
+  if(!go) return;
+  $('#drvConnect').click();
+};
 
 $('#dmoGo').onclick = async () => {
   const msg = $('#dmoMsg');
