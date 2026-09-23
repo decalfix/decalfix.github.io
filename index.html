@@ -1953,7 +1953,11 @@ function envStripe(){
 /* A dev copy signed in to a real shop stops here. Not a toast and not a
    banner you learn to scroll past — the app does not open. The way through
    is typing the shop name, so it stays possible and never becomes a habit. */
+/* The fifth door. A dev copy opening a real shop stops here and shows the
+   Stop screen - which is the app working correctly and loudly, so the
+   watchdog has nothing left to warn about. */
 function lockOut(){
+  window.__up && window.__up();
   WRITES_OK = false;
   const where = location.hostname || 'a local file';
   const box = document.createElement('div');
@@ -2125,6 +2129,14 @@ async function resumeTapped(){
 }
 
 async function showPicker(){
+  /* **A door the watchdog did not know about.** `boot()` can end here -
+     session present, roster present, nobody resumed - and it RETURNS, so it
+     never reaches `openShop()` where `__up()` used to be called. Twelve
+     seconds later the "Could not load the app" screen covered a perfectly
+     working PIN pad. Found 23 Sep by a browser agent reading the code after
+     the vendoring release, not by any suite: the pad IS the app working, so
+     nothing looked wrong to a test that checks the app came up. */
+  window.__up && window.__up();
   clearTapped();                         // the pad means nobody is tapped in
   $('#auth').hidden = true; $('#app').hidden = false; $('#hCalc').hidden = false;
   buildPad();
