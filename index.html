@@ -3100,7 +3100,9 @@ async function loadFiles(o){
       (f.kind === 'upload' && f.drive_file_id && !f.backed_up_at)
         ? `<button type="button" class="dl" data-dl="${esc(f.id)}" aria-label="Save ${esc(f.file_name || 'file')} to this device">Save</button>` : ''}${mover(f)}${
       finalBtn(f)}${
-      canTakeOrders() ? `<button type="button" class="x" data-id="${esc(f.id)}" aria-label="Remove link">×</button>` : ''}</div>`;
+      canTakeOrders() ? `<button type="button" class="x" data-id="${esc(f.id)}" data-kind="${esc(f.kind)}"` +
+        ` data-name="${esc(f.file_name || f.label || '')}"` +
+        ` aria-label="Take ${esc(f.file_name || f.label || 'this file')} off the order">×</button>` : ''}</div>`;
   /* Which one prints. Only worth saying when there is more than one upload -
      with a single file there is no question to answer, and repeating it above
      itself is just clutter. Newest wins: no schema change, and it matches how
@@ -3195,10 +3197,25 @@ async function loadFiles(o){
     loadFiles(o);
   }; });
   box.querySelectorAll('button[data-id]').forEach(b => { b.onclick = async () => {
+    /* **It asks, because nothing in the app can undo it.** The file itself is
+       safe - `removed_at` hides the row and the bytes stay in Drive - but no
+       screen here can bring it back, so for the shop it is as final as a
+       void. This button sits beside Save, on a phone, on the artwork the job
+       is waiting for. Everything else irreversible in this app asks first;
+       this did not, and it was found by somebody who declined to press it
+       rather than by somebody who lost a file. */
+    const up = b.dataset.kind === 'upload';
+    const named = b.dataset.name || (up ? 'this file' : 'this link');
+    const go = await ask(
+      up ? 'It comes off this job order. The file itself stays in Google Drive - '
+         + 'but nothing in the app can put it back on the order.'
+         : 'It comes off this job order, and nothing in the app can put it back.',
+      { head: 'Take ' + named + ' off?', yes: 'Take it off', no: 'Keep it', danger: true });
+    if(!go) return;
     try{ assertWritable(); }catch(err){ return toast(err.message); }
     const { error } = await sb.from('jo_files').update({ removed_at: new Date().toISOString() }).eq('id', b.dataset.id);
     if(error) return toast(error.message);
-    toast('Link removed'); loadFiles(o);
+    toast(up ? 'File taken off the order' : 'Link removed'); loadFiles(o);
   }; });
 }
 $('#dLinkBtn').onclick = async () => {
