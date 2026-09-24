@@ -500,15 +500,35 @@
   .fl-add{margin-top:8px}
   .fl-add input{height:46px;font-size:16px}
   .fl-add2{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}
-  .fl{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+  /* Wraps rather than crushing the name: see `.flink` below. */
+  .fl{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+      gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
   .fl .x{width:40px;flex:none}
-  .flink{font-weight:800;color:var(--red-deep);text-decoration:underline;min-width:0;overflow-wrap:anywhere}
+  /* `overflow-wrap:anywhere` is needed so a 40-character filename cannot push
+     the order dialog sideways - but it also drops this element's min-content
+     width to ONE CHARACTER, which is what let the flex row squeeze it until
+     the name printed vertically on a phone. The basis is the floor: below
+     about 12rem the row wraps and the name gets a line to itself. */
+  .flink{font-weight:800;color:var(--red-deep);text-decoration:underline;
+         flex:1 1 12rem;min-width:0;overflow-wrap:anywhere}
   .dfiles:empty{display:none}
   .dfiles{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
   .dfiles .k{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--grey)}
   /* Google Drive: the owner's card, artists' Gmail, the order's folder and uploads */
   .drvrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .drvrow .btn{flex:1;min-width:150px;display:flex;align-items:center;justify-content:center;text-decoration:none}
+  /* Who Google says can open the folder. An address this app did not grant
+     is the whole point of the list, so it is the one that is coloured. */
+  .whorow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;
+          border-bottom:1px solid var(--line)}
+  .whorow .em{flex:1 1 12rem;min-width:0;overflow-wrap:anywhere;font-weight:700}
+  .whorow .tagx{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;
+       letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid}
+  .whorow .tagx.known{border-color:var(--line);color:var(--text-2)}
+  .whorow .tagx.unknown{background:var(--amber-wash);border-color:var(--amber);color:var(--amber)}
+  .whorow .tagx.owner{border-color:var(--line);color:var(--grey)}
+  .whorow button{height:30px;padding:0 10px;border:1px solid var(--line);border-radius:8px;
+                 background:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
   .drvbar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
   .drvbar i{display:block;height:100%;background:#1A1A1A}
   .drvbar.warn i{background:var(--amber)} .drvbar.full i{background:var(--red)}
@@ -969,7 +989,13 @@ setTimeout(function(){
     </div>
     <div class="row">
       <label>Email<input id="aEmail" type="email" autocomplete="email"></label>
-      <label>Password<input id="aPass" type="password" autocomplete="current-password"></label>
+      <label>Password
+        <span class="pwwrap">
+          <input id="aPass" type="password" autocomplete="current-password">
+          <button type="button" class="pweye" id="aEye" aria-label="Show password"
+                  aria-pressed="false">Show</button>
+        </span>
+      </label>
       <label id="wrapName" hidden>Your name<input id="aName" autocomplete="name"></label>
       <label id="wrapCode" hidden>Join code<input id="aCode" placeholder="Code from the owner" autocomplete="off"></label>
     </div>
@@ -1241,6 +1267,14 @@ setTimeout(function(){
         Folder missing or moved?
         <a href="#" id="drvFix">Make the Job Orders folder again</a>
       </p>
+      <!-- Read from Google, not from our own records. The list above the
+           roster says who this app gave the folder to; this says who can
+           actually open it, which is the only one worth trusting when
+           somebody leaves. -->
+      <p class="small muted" id="drvWhoWrap" hidden style="margin-top:6px">
+        <a href="#" id="drvWho">Who can open this folder?</a>
+      </p>
+      <div id="drvWhoList" class="small" hidden style="margin-top:8px"></div>
     </div>
     <!-- The LGUs this shop bills. Any member can add one from the order form;
          renaming and switching off are the owner's, which is what the policy
@@ -1694,7 +1728,23 @@ const BUILD = 19;
 const LIVE_ORIGINS = ['spawn-solutions.pages.dev',
                       'decalfix.pages.dev',
                       'decalfix.github.io'];
-const ENV = LIVE_ORIGINS.includes(location.hostname) ? 'live' : 'dev';
+/* `decalfix.github.io.` and `decalfix.github.io` are the same site and two
+   different ORIGINS - separate session, separate cache, separate worker. A
+   trailing root dot is legal in a URL and browsers keep it, so an address
+   copied from the end of a sentence quietly forks the shop onto a second
+   copy of itself. Strip it before asking whether this is production. */
+const HOST = location.hostname.replace(/\.$/, '').toLowerCase();
+/* And then go there. Normalising the guard alone would open the shop from an
+   origin that can never share a sign-in or an update with the real one, which
+   is a worse bug than the Stop screen it replaces. Before the worker
+   registers, before anything is stored; `replace` so Back does not return to
+   it. Cannot loop - the stripped host has no dot to strip. */
+if(HOST !== location.hostname && LIVE_ORIGINS.includes(HOST)){
+  location.replace(location.protocol + '//' + HOST +
+    (location.port ? ':' + location.port : '') +
+    location.pathname + location.search + location.hash);
+}
+const ENV = LIVE_ORIGINS.includes(HOST) ? 'live' : 'dev';
 /* the convention seed-demo.sql already guards on — the name has to say so */
 const SANDBOX_RE = /\b(demo|sandbox|test)\b/i;
 const isSandbox = s => SANDBOX_RE.test((s && s.name) || '');
@@ -1902,6 +1952,18 @@ $('#pwEye').onclick = () => {
   f.focus();
 };
 
+/* The same control on the sign-in form. The account password is typed once
+   per device, on a phone, off a note - and it is the one password here that
+   the person at the counter cannot recover by themselves. */
+$('#aEye').onclick = () => {
+  const f = $('#aPass'), on = f.type === 'password';
+  f.type = on ? 'text' : 'password';
+  $('#aEye').textContent = on ? 'Hide' : 'Show';
+  $('#aEye').setAttribute('aria-pressed', on ? 'true' : 'false');
+  $('#aEye').setAttribute('aria-label', on ? 'Hide password' : 'Show password');
+  f.focus();
+};
+
 $('#pwSave').onclick = async () => {
   const pw = $('#pwNew').value, pw2 = $('#pwNew2').value;
   const msg = $('#pwMsg');
@@ -2083,7 +2145,10 @@ function showPerson(r){
   $('#lPerson').hidden = false;
   $('#lSearch').hidden = true;
   $('#lName').textContent = r.name;
-  $('#lBench').textContent = (BENCH_NAME[r.bench] || r.bench) + ' · ' + SHOP.name;
+  /* The bench is missing for the moment while the pad is drawn from what
+     the device remembers; the shop's name alone reads fine until it arrives. */
+  const who = BENCH_NAME[r.bench] || r.bench || '';
+  $('#lBench').textContent = who ? who + ' · ' + SHOP.name : SHOP.name;
   $('#lHint').textContent = 'Enter your 4-digit PIN';
   entry = ''; drawDots(); $('#lMsg').textContent = '';
 }
@@ -2146,21 +2211,39 @@ async function showPicker(){
      nothing looked wrong to a test that checks the app came up. */
   window.__up && window.__up();
   clearTapped();                         // the pad means nobody is tapped in
-  $('#auth').hidden = true; $('#app').hidden = false; $('#hCalc').hidden = false;
+  $('#auth').hidden = true; $('#app').hidden = false;
+  $('#hCalc').hidden = true;               // nothing floats over the lock screen
   buildPad();
 
-  /* The device remembers one id. staff_get turns it back into a name, so
-     the only name on this screen is the person who last used the tablet. */
+  /* **The pad goes up before anything is asked of the network.** It used to
+     reveal the shell, then await `staff_get`, and only then cover it - so a
+     refresh showed the inside of the app for the length of a round trip.
+     The device remembers the last person's id AND name, which is everything
+     the pad needs to be usable. */
   const last = readLast();
-  let person = null;
-  if(last && last.id){
-    const { data } = await sb.rpc('staff_get', { p_staff: last.id });
-    person = (data || [])[0] || null;
-  }
-
-  if(person) showPerson(person); else showSearch();
+  if(last && last.id && last.name) showPerson({ id: last.id, name: last.name, bench: '' });
+  else showSearch();
   $('#lock').hidden = false;
-  $('#hCalc').hidden = true;               // nothing floats over the lock screen
+
+  /* Now ask, and correct. `staff_get` fills in the bench line, and returns
+     nothing for somebody switched off in the meantime - who drops back to the
+     search rather than staying on screen as a name to tap.
+     Not awaited by the caller: `boot()` is finished with this screen.
+     **The database still decides either way** - `staff_check` is the gate and
+     filters on `active` itself, so a name painted from the cache is a label,
+     never a permission. */
+  if(last && last.id){
+    try{
+      const { data } = await sb.rpc('staff_get', { p_staff: last.id });
+      const person = (data || [])[0] || null;
+      /* Only if nobody has moved on in the meantime - typing a PIN or tapping
+         "Someone else" while this was in flight must not be undone. */
+      if(!$('#lock').hidden && !entry){
+        if(person) showPerson(person);
+        else if(PICK && PICK.id === last.id) showSearch();
+      }
+    }catch(e){ /* no line: the pad is up and the search still works */ }
+  }
 }
 
 $('#lElse').onclick = () => showSearch();
@@ -2290,7 +2373,6 @@ if($('#stSave')) $('#stSave').onclick = async () => {
     msg.className = 'msg err'; msg.textContent = 'The PIN must be 4 digits.'; return; }
   const why = staffGuard(editing, { active: editing ? editing.active : true, bench: bench });
   if(why){ msg.className = 'msg err'; msg.textContent = why; return; }
-  const wasArtist = !!(editing && editing.bench === 'artist');   // read before the call
 
   $('#stSave').disabled = true;
   const { error } = await sb.rpc('staff_upsert', {
@@ -2299,9 +2381,12 @@ if($('#stSave')) $('#stSave').onclick = async () => {
   $('#stSave').disabled = false;
 
   if(error){ msg.className = 'msg err'; msg.textContent = error.message; return; }
-  // moved off the artist bench: off the Job Orders folder too
-  if(wasArtist && bench !== 'artist' && SHARES[editing.id])
-    await driveUnshare(editing, editing.name + ' is off the artist bench and no longer has the Job Orders folder.');
+  /* A bench change no longer touches Drive access. It used to remove it when
+     somebody left the artist bench, which made sense while artists were the
+     only ones who had it - now every bench can, so moving a counter to the
+     artist bench and back would have quietly taken their folder away.
+     Switching a person OFF still removes it, which is the case that matters
+     for somebody leaving the shop. */
   msg.className = 'msg ok';
   msg.textContent = !editing ? name + " can sign in with that PIN now."
     : pin ? name + "'s PIN was reset. Tell them the new one, and ask them to change it."
@@ -3191,6 +3276,8 @@ function paintDrive(){
      Connect is already the answer and two doors to the same place is worse
      than one. */
   $('#drvFixWrap').hidden = !(DRIVE.connected && ROLE === 'owner');
+  $('#drvWhoWrap').hidden = !(DRIVE.connected && ROLE === 'owner');
+  if(!(DRIVE.connected && ROLE === 'owner')){ $('#drvWhoList').hidden = true; }
   const fu = $('#fUpWrap'); if(fu) fu.hidden = !DRIVE.connected;
   $('#drvBar').hidden = !(DRIVE.connected && DRIVE.limit);
   if(DRIVE.connected){
@@ -3359,8 +3446,15 @@ $('#bakGo').onclick = async () => {
   loadDrive();
 };
 
-/* An artist's Gmail for the Job Orders folder, on the owner's Staff tab. */
-const driveRow = r => (r.bench !== 'artist' || !r.active || !DRIVE.connected) ? '' :
+/* Anyone's Gmail for the Job Orders folder, on the owner's Staff tab.
+   Artist-only until 24 Sep, and the shop asked for all of them: the counter
+   checks what the customer sent, production prints from it, the owner looks
+   at anything. The Worker never cared - `/share` takes a staff id and an
+   address - so this was only ever an app rule.
+   Still only for people who are SWITCHED ON, and only once Drive is
+   connected: an address box that cannot share anything is a box that does
+   nothing when you press it. */
+const driveRow = r => (!r.active || !DRIVE.connected) ? '' :
   '<div class="stdrive"><input type="email" autocomplete="off" placeholder="Gmail for files" value="' + esc(SHARES[r.id] || '') +
   '" aria-label="Gmail for files - ' + esc(r.name) + '">' +
   '<button class="btn ghost" data-act="share" data-id="' + esc(r.id) + '">' + (SHARES[r.id] ? 'Update' : 'Share') + '</button>' +
@@ -3835,6 +3929,74 @@ $('#drvFix').onclick = async (e) => {
   if(!go) return;
   $('#drvConnect').click();
 };
+
+/* WHO CAN ACTUALLY OPEN IT. Asked for after "can we remove access if the
+   gmail is changed?" - it can, and does, but only this list can prove it, and
+   only this list shows an address the app never granted: the shop can share
+   their own folder by hand, and Drive is the only place that knows. */
+async function paintAccess(rows){
+  const box = $('#drvWhoList');
+  box.innerHTML = ''; box.hidden = false;
+  if(!rows.length){
+    box.textContent = 'Nobody but the Google account itself.';
+    return;
+  }
+  rows.forEach(r => {
+    const row = document.createElement('div'); row.className = 'whorow';
+    const em = document.createElement('span'); em.className = 'em';
+    em.textContent = r.email || r.name || '(no address)';
+    const tag = document.createElement('span'); tag.className = 'tagx';
+    /* The staff id is matched in the Worker, where both lists are known; the
+       NAME can only be put on it here, and only for somebody still on the
+       roster - a person switched off keeps their row and is worth naming. */
+    const who = r.staff_id ? (ROSTER.find(x => x.id === r.staff_id) || {}).name : null;
+    if(r.is_owner){ tag.classList.add('owner'); tag.textContent = 'the Drive itself'; }
+    else if(who){ tag.classList.add('known'); tag.textContent = who; }
+    else if(r.staff_id){ tag.classList.add('known'); tag.textContent = 'from this app'; }
+    else { tag.classList.add('unknown'); tag.textContent = 'not from this app'; }
+    row.append(em, tag);
+
+    if(!r.is_owner){
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = 'Remove';
+      b.onclick = async () => {
+        const go = await ask('This takes away their access to every job order file in the shop. '
+          + 'They will not be told.', { head: 'Remove ' + (r.email || 'this access') + '?',
+                                        yes: 'Remove it', no: 'Leave it', danger: true });
+        if(!go) return;
+        try{ assertWritable(); }catch(err){ return toast(err.message); }
+        b.disabled = true;
+        try{
+          await driveCall('POST', '/revoke-access', { permission_id: r.permission_id });
+          toast((r.email || 'That access') + ' can no longer open the folder.');
+          /* The Worker forgets its own record too, so the roster's Gmail
+             boxes have to be re-read or they would still offer Remove. */
+          try{ SHARES = (await driveCall('GET', '/shares')).shares || {}; }catch(e){}
+          renderStaff();
+          await showAccess();
+        }catch(err){ b.disabled = false; toast(err.message); }
+      };
+      row.append(b);
+    }
+    box.append(row);
+  });
+}
+
+async function showAccess(){
+  const box = $('#drvWhoList');
+  box.hidden = false; box.textContent = 'Asking Google…';
+  try{
+    const r = await driveCall('GET', '/access');
+    await paintAccess(r.access || []);
+  }catch(e){
+    box.textContent = '';
+    const w = document.createElement('span'); w.className = 'muted';
+    w.textContent = 'Could not read it: ' + e.message;
+    box.append(w);
+  }
+}
+
+$('#drvWho').onclick = e => { e.preventDefault(); showAccess(); };
 
 $('#dmoGo').onclick = async () => {
   const msg = $('#dmoMsg');
