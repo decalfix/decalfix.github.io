@@ -2238,9 +2238,13 @@ async function showPicker(){
       const person = (data || [])[0] || null;
       /* Only if nobody has moved on in the meantime - typing a PIN or tapping
          "Someone else" while this was in flight must not be undone. */
-      if(!$('#lock').hidden && !entry){
-        if(person) showPerson(person);
-        else if(PICK && PICK.id === last.id) showSearch();
+      /* Only refine what is still the remembered person, untouched. If they
+         tapped "Someone else" (PICK null) or picked somebody else, the late
+         answer is about a screen that is no longer there - and snapping back
+         to the old name while a thumb is moving is worse than never refining
+         at all. */
+      if(!$('#lock').hidden && !entry && PICK && PICK.id === last.id){
+        if(person) showPerson(person); else showSearch();
       }
     }catch(e){ /* no line: the pad is up and the search still works */ }
   }
@@ -3277,7 +3281,13 @@ function paintDrive(){
      than one. */
   $('#drvFixWrap').hidden = !(DRIVE.connected && ROLE === 'owner');
   $('#drvWhoWrap').hidden = !(DRIVE.connected && ROLE === 'owner');
-  if(!(DRIVE.connected && ROLE === 'owner')){ $('#drvWhoList').hidden = true; }
+  /* Emptied, not merely hidden - the same rule the board's tab strip keeps.
+     This list holds people's email addresses, and an owner who looks at it
+     and then hands the phone over with "Someone else" would otherwise leave
+     them sitting in the page. */
+  if(!(DRIVE.connected && ROLE === 'owner')){
+    $('#drvWhoList').hidden = true; $('#drvWhoList').textContent = '';
+  }
   const fu = $('#fUpWrap'); if(fu) fu.hidden = !DRIVE.connected;
   $('#drvBar').hidden = !(DRIVE.connected && DRIVE.limit);
   if(DRIVE.connected){
@@ -3944,13 +3954,17 @@ async function paintAccess(rows){
   rows.forEach(r => {
     const row = document.createElement('div'); row.className = 'whorow';
     const em = document.createElement('span'); em.className = 'em';
-    em.textContent = r.email || r.name || '(no address)';
+    em.textContent = r.email || r.name || (r.type === 'anyone' ? 'Anyone with the link' : '(no address)');
     const tag = document.createElement('span'); tag.className = 'tagx';
     /* The staff id is matched in the Worker, where both lists are known; the
        NAME can only be put on it here, and only for somebody still on the
        roster - a person switched off keeps their row and is worth naming. */
     const who = r.staff_id ? (ROSTER.find(x => x.id === r.staff_id) || {}).name : null;
+    /* `type: 'anyone'` is a link share: no address, and anybody who has the
+       link can open every job order. It is the most dangerous row on this
+       list and would otherwise read as the blandest - "(no address)". */
     if(r.is_owner){ tag.classList.add('owner'); tag.textContent = 'the Drive itself'; }
+    else if(r.type === 'anyone'){ tag.classList.add('unknown'); tag.textContent = 'anyone with the link'; }
     else if(who){ tag.classList.add('known'); tag.textContent = who; }
     else if(r.staff_id){ tag.classList.add('known'); tag.textContent = 'from this app'; }
     else { tag.classList.add('unknown'); tag.textContent = 'not from this app'; }
