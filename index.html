@@ -504,6 +504,13 @@
   .fl{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
       gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
   .fl .x{width:40px;flex:none}
+  /* Which upload is which, so the shop has a word for it over Messenger.
+     1 is always the newest - numbering the other way would change what a
+     number means every time another draft arrives. */
+  .fnum{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:800;
+        letter-spacing:.04em;text-transform:uppercase;color:var(--text-2);
+        border:1px solid var(--line);border-radius:999px;padding:2px 8px;flex:none}
+  .fnum.one{background:var(--black);border-color:var(--black);color:#fff}
   /* `overflow-wrap:anywhere` is needed so a 40-character filename cannot push
      the order dialog sideways - but it also drops this element's min-content
      width to ONE CHARACTER, which is what let the flex row squeeze it until
@@ -529,6 +536,19 @@
   .whorow .tagx.owner{border-color:var(--line);color:var(--grey)}
   .whorow button{height:30px;padding:0 10px;border:1px solid var(--line);border-radius:8px;
                  background:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+  /* Work waiting on the person reading the screen. Only drawn when there is
+     some, so an empty one never teaches anybody to ignore it. */
+  .alerts:empty{display:none}
+  .alerts{margin:0 0 10px}
+  .alert{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+         font:inherit;font-weight:800;font-size:13.5px;cursor:pointer;
+         padding:11px 13px;border-radius:11px;border:1px solid;margin-bottom:7px}
+  .alert .cnt{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:800;
+              min-width:26px;height:26px;border-radius:999px;display:grid;place-items:center;
+              background:#fff;flex:none}
+  .alert .go{margin-left:auto;font-weight:700;font-size:12px;opacity:.75;flex:none}
+  .alert.redo{background:var(--red-wash);border-color:var(--red);color:var(--red-deep)}
+  .alert.appr{background:var(--amber-wash);border-color:var(--amber);color:var(--amber)}
   .drvbar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
   .drvbar i{display:block;height:100%;background:#1A1A1A}
   .drvbar.warn i{background:var(--amber)} .drvbar.full i{background:var(--red)}
@@ -1150,6 +1170,7 @@ setTimeout(function(){
   <!-- board -->
   <section class="view" id="vDash">
     <div class="dash">
+      <div id="alertsDash" class="alerts"></div>
       <div class="top">
         <i class="bullet" style="background:#1A1A1A"></i>
         <span class="eyebrow" id="dDay"></span>
@@ -1204,6 +1225,8 @@ setTimeout(function(){
   </section>
 
   <section class="view" id="vBoard" hidden>
+    <!-- work waiting on whoever is looking: drawn by paintAlerts() -->
+    <div id="alertsBoard" class="alerts"></div>
     <!-- Only for the benches that run the whole shop; an artist and
          production already see nothing but their own work. -->
     <div id="boardTabs" class="btabs" role="tablist" aria-label="Board" hidden></div>
@@ -1291,7 +1314,7 @@ setTimeout(function(){
          the owner is the client. This is here so the button does not exist
          where it would fail. -->
     <div class="card" id="dmoCard" style="margin-top:12px" hidden>
-      <h2>Clear this demo</h2>
+      <h2 id="dmoTitle">Clear this demo</h2>
       <p class="small muted">Deletes every job order on this demo shop, with its payments and
         its file records. The staff list, the price list and the government accounts stay, and so
         does the numbering — the next order carries on from where it was, it does not go back to 1.
@@ -1299,6 +1322,7 @@ setTimeout(function(){
       <p class="small muted">This asks for the <b>Spawn admin PIN</b>, not a staff PIN — it is
         Spawn's tool, so the shop cannot use it. Five wrong tries locks it for fifteen
         minutes, and that is the same lock as creating a shop.</p>
+      <p class="warnline" id="dmoWarn" hidden style="margin:10px 0 0"></p>
       <div id="dmoCount" class="small muted" style="margin-bottom:8px"></div>
       <label id="dmoPinRow" class="wide">Spawn admin PIN<input id="dmoPin" type="password"
         inputmode="numeric" maxlength="4" autocomplete="off" placeholder="····"></label>
@@ -1357,7 +1381,16 @@ setTimeout(function(){
       <h3 class="ach">Change my PIN</h3>
       <div class="grid2">
         <label class="wide">Current PIN<input id="pOld" type="password" inputmode="numeric" maxlength="4" placeholder="0000"></label>
-        <label class="wide">New PIN<input id="pNew" type="password" inputmode="numeric" maxlength="4" placeholder="0000"></label>
+        <label class="wide">New PIN
+          <span class="pwwrap">
+            <input id="pNew" type="password" inputmode="numeric" maxlength="4" placeholder="0000">
+            <button type="button" class="pweye" id="pinEye" aria-label="Show the new PIN"
+                    aria-pressed="false">Show</button>
+          </span>
+        </label>
+        <!-- The second box stays masked on purpose, the same as the password
+             dialog: revealing both lets you read one and copy it into the
+             other by eye, which is exactly the mistake it exists to catch. -->
         <label class="wide">New PIN again<input id="pNew2" type="password" inputmode="numeric" maxlength="4" placeholder="0000"></label>
       </div>
       <p class="small muted" style="margin:10px 0 0">The owner set your first PIN, so until you change it the
@@ -2452,6 +2485,14 @@ async function openShop(){
   $('#nvStaff').hidden = ROLE !== 'owner';
   renderStaff();
 
+  /* The tab goes up BEFORE anything is fetched. Read it first: showTab writes
+     the tab down, so placing the dashboard first would overwrite the very
+     thing being restored. `quiet`, because the fetches are on the next line.
+     A tab this bench cannot see falls back to the dashboard. */
+  TAB_HIST = [];                       // a fresh open starts with nowhere back
+  const wanted = openedWorth() ? readTab() : '';
+  if(!restoreTab(wanted, true) ) showTab('nvDash', true, true);
+
   await loadItems();
   await loadArtists();
   await loadGovs();
@@ -2462,13 +2503,6 @@ async function openShop(){
   $('#dUnpaidTile').hidden = !canSeeMoney();
   $('#dMoney').hidden = !canSeeMoney();
   $('#dNew').hidden = !canTakeOrders();
-  /* The dashboard is where a fresh open lands; a reload goes back to the tab
-     the counter was actually on. Read it BEFORE clicking Dashboard - that
-     click runs the handler, which writes the tab down and would overwrite
-     the very thing being restored. */
-  const wanted = openedWorth() ? readTab() : '';        // an opening worth nothing starts on the dashboard
-  $('#nvDash').click();
-  restoreTab(wanted);
   $('#hLock').hidden = !onRoster().length;
   loadDrive();          // not awaited: the Drive card and tools fill in when the Worker answers
   dropSplash();         // there is a board to look at now; the mark has said its piece
@@ -3095,7 +3129,15 @@ async function loadFiles(o){
       ` aria-pressed="${f.final_at ? 'true' : 'false'}"` +
       ` aria-label="${f.final_at ? 'This is the final design' : 'Mark ' + esc(f.file_name || 'this file') + ' as the final design'}">` +
       `${f.final_at ? '★ Final' : 'Mark final'}</button>`;
-  const row = f => `<div class="fl">${
+  /* Newest first, 1 at the top. Built once here so every list that draws a
+     row - the item's, the whole order's, the final box and the newest-file
+     header - says the same number for the same file. */
+  const upOrder = rows.filter(f => f.kind === 'upload')
+                      .slice().sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  const NUM = new Map(); upOrder.forEach((f, i) => NUM.set(f.id, i + 1));
+  const numOf = f => NUM.has(f.id) && upOrder.length > 1
+    ? `<span class="fnum${NUM.get(f.id) === 1 ? ' one' : ''}">File ${NUM.get(f.id)}</span>` : '';
+  const row = f => `<div class="fl">${numOf(f)}${
       f.url ? fileLink(f) : `<span class="flink off">${esc(f.label)}</span>`}${
       (f.kind === 'upload' && f.drive_file_id && !f.backed_up_at)
         ? `<button type="button" class="dl" data-dl="${esc(f.id)}" aria-label="Save ${esc(f.file_name || 'file')} to this device">Save</button>` : ''}${mover(f)}${
@@ -3111,6 +3153,15 @@ async function loadFiles(o){
      earns a flag - not before. */
   const ups = rows.filter(f => f.kind === 'upload' && f.drive_file_id && !f.backed_up_at);
   const latest = ups.length > 1 ? ups[ups.length - 1] : null;
+  /* Newest upload first in every list, then the links in the order they were
+     pasted. Asked for 24 Sep - an artist sending a redraw wants their latest
+     at the top, not at the bottom of four. */
+  const newestFirst = list => list.slice().sort((a, b) => {
+    const au = a.kind === 'upload', bu = b.kind === 'upload';
+    if(au !== bu) return au ? -1 : 1;                       // uploads above links
+    if(!au) return 0;                                       // links keep their order
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+  });
   const itemOfFile = f => {
     if(!f.jo_item_id) return 'the whole order';
     const g = groups.find(x => x.id === f.jo_item_id);
@@ -3126,7 +3177,7 @@ async function loadFiles(o){
   const fin = rows.find(f => f.final_at);
   const finHead = fin ? `<div class="finalbox"><div class="k">Final design</div>` + row(fin) + `</div>` : '';
 
-  const whole = rows.filter(f => !f.jo_item_id);
+  const whole = newestFirst(rows.filter(f => !f.jo_item_id));
   box.innerHTML = finHead + head +
     (whole.length ? '<div class="k">For the whole order</div>' + whole.map(row).join('') : '');
 
@@ -3135,7 +3186,7 @@ async function loadFiles(o){
      form, because the order's Drive folder only exists once it has a number. */
   document.querySelectorAll('#dLines .dif').forEach(box2 => {
     const id = box2.dataset.item;
-    const mine = rows.filter(f => f.jo_item_id === id);
+    const mine = newestFirst(rows.filter(f => f.jo_item_id === id));
     box2.innerHTML = mine.map(row).join('');
     if(o.voided || !id) return;
     if(canTakeOrders()){
@@ -3593,10 +3644,41 @@ async function uploadFileTo(o, file, joItemId, bar){
    decides whether to draw the card; `shop_reset` decides whether it works, and
    it goes by shop id because a name is editable by the person it guards. */
 const isDemoShop = () => /\b(demo|sandbox|test)\b/i.test((SHOP && SHOP.name) || '');
+/* Shops that may be emptied from the app although their NAME does not say
+   demo. It mirrors `shop_reset`'s own array, which is the wall; this is only
+   the door. A shop on one and not the other means the button is drawn and
+   refused, or simply not drawn - never that something is emptied by surprise.
+   **Empty on purpose**, and adding to it is a decision, not a default. */
+const RESET_IDS = [
+  /* Decal Fix Printing Services, while it is the shop Wendell demonstrates on.
+     `build19t` (applied 24 Sep as 20260924081046) put the same id on
+     `shop_reset`'s own array. **Both come back out with `build19u`, before
+     28 Sep**, when their trial on real orders starts - the reversal is
+     already written, because a promise you have to remember to keep is not
+     a promise. */
+  '78d8f495-d67f-4f69-9b21-5d46d87b7222'
+];
+const canResetShop = () => ROLE === 'owner' &&
+  (RESET_IDS.includes(SHOP && SHOP.id) || isDemoShop());
 
 function renderDemoReset(){
   const box = $('#dmoCard');
-  box.hidden = !(ROLE === 'owner' && isDemoShop());
+  box.hidden = !canResetShop();
+  /* **On a shop that is not named as a demo, this card is pointed at a real
+     client's books**, and "Clear this demo" is the wrong four words for that.
+     Said plainly rather than styled loudly: the count is already in the
+     question, and a red card people scroll past is worse than a plain one
+     they read. */
+  const demoName = isDemoShop();
+  const t = $('#dmoTitle'), w = $('#dmoWarn');
+  if(t) t.textContent = demoName ? 'Clear this demo' : 'Clear ' + SHOP.name;
+  if(w){
+    w.hidden = demoName;
+    w.textContent = demoName ? '' :
+      'This is not a demo shop. Everything below is this shop\u2019s own job '
+      + 'orders and payments, and there is no undo. It is here only while the '
+      + 'shop is being demonstrated.';
+  }
   if(box.hidden) return;
   /* The count is the honest part of the question. ORDERS is the board's
      newest-300 window, so say "at least" rather than claim a total the app
@@ -4623,8 +4705,24 @@ $('#pSave').onclick = async () => {
     return;
   }
 
-  msg.className='msg ok'; msg.textContent='PIN changed.';
+  /* **Locks straight away, and that is a check rather than a courtesy.**
+     The only proof a new PIN took is typing it - so you find out in five
+     seconds, at a desk, instead of at the counter tomorrow morning. Asked for
+     24 Sep: "when the PIN is changed it should automatically lock and go back
+     to the PIN log in". */
+  msg.className='msg ok'; msg.textContent='PIN changed - sign back in with it.';
   ['#pOld','#pNew','#pNew2'].forEach(s => { $(s).value = ''; });
+  setTimeout(() => { try{ $('#acctDlg').close(); }catch(e){} showPicker(); }, 900);
+};
+
+/* Show on the new PIN only, the same control as the password dialog. */
+$('#pinEye').onclick = () => {
+  const f = $('#pNew'), on = f.type === 'password';
+  f.type = on ? 'text' : 'password';
+  $('#pinEye').textContent = on ? 'Hide' : 'Show';
+  $('#pinEye').setAttribute('aria-pressed', on ? 'true' : 'false');
+  $('#pinEye').setAttribute('aria-label', on ? 'Hide the new PIN' : 'Show the new PIN');
+  f.focus();
 };
 
 $('#dNew').onclick = () => $('#nvNew').click();
@@ -4797,11 +4895,54 @@ function renderDepts(live, t){
   });
 }
 
+/* WORK WAITING ON WHOEVER IS LOOKING. Asked for from both ends on 24 Sep:
+   the artist must know a design came back "immediately so he can change it
+   immediately", and approval must be visible "so the owner and counter can
+   know that it is urgent".
+   A chip on a card only speaks once you have found the card, and a tab count
+   only once you have read the strip. This is drawn above both the board and
+   the dashboard, and only when there is something to say. */
+function paintAlerts(seen){
+  const rows = [];
+  if(BENCH === 'artist'){
+    const n = seen.filter(cameBack).length;
+    if(n) rows.push({ cls:'redo', tab:'redo', n,
+      what: n === 1 ? 'design came back' : 'designs came back',
+      go: 'Redo these first' });
+  }
+  /* The other end of the same loop. Not for the artist - they are waiting to
+     be told, not doing the telling - and not for production or office, who
+     are waiting on neither. */
+  if(canTakeOrders()){
+    const n = seen.filter(o => o.status === 'for_approval').length;
+    if(n) rows.push({ cls:'appr', tab:'artist', n,
+      what: n === 1 ? 'design is waiting for you' : 'designs are waiting for you',
+      go: 'Approve or send back' });
+  }
+  ['#alertsBoard', '#alertsDash'].forEach(sel => {
+    const box = $(sel); if(!box) return;
+    box.textContent = '';
+    rows.forEach(r => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'alert ' + r.cls;
+      const c = document.createElement('span'); c.className = 'cnt'; c.textContent = r.n;
+      const t = document.createElement('span'); t.textContent = r.what;
+      const g = document.createElement('span'); g.className = 'go'; g.textContent = r.go + ' \u203a';
+      b.append(c, t, g);
+      /* Tapping it takes you to the work, not just to the board - the whole
+         point is that nobody has to go looking. */
+      b.onclick = () => { BOARD_TAB = r.tab; showTab('nvBoard'); };
+      box.append(b);
+    });
+  });
+}
+
 function renderBoard(){
   const mine = SEES[BENCH] || SEES.counter;
   /* Every tab reads from here, so a bench can never be shown work that is not
      its own - the tabs ask a different question of the same set. */
   const seen = ORDERS.filter(o => !o.voided && o.status !== 'cancelled' && forMe(o));
+  paintAlerts(seen);            // from the same set, so it can never over-count
 
   const set = tabsFor();
   const tabsOn = !!set;
@@ -5048,6 +5189,22 @@ async function loadHands(o){
   if(took) bits.push(['Taken by', took]);
   const art = o.artist_id ? await staffName(o.artist_id) : '';
   if(art) bits.push(['Artist', art]);
+
+  /* WHO TOOK THE MONEY, for every bench (24 Sep, asked for by the shop).
+     A name is not a figure: the artist's rule is that they see the work and
+     never the amounts, and "Cora" is not an amount. The payments block below
+     - amounts, methods, receipt numbers - stays gated exactly as it was.
+     `taken_by` is selected ALONE, so no figure is even fetched to a device
+     that must not show one. Distinct, in the order they first collected. */
+  try{
+    const { data: pays } = await sb.from('jo_payments')
+      .select('taken_by,paid_at').eq('job_order_id', o.id).order('paid_at');
+    const ids = [];
+    (pays || []).forEach(x => { if(x.taken_by && !ids.includes(x.taken_by)) ids.push(x.taken_by); });
+    const who = (await Promise.all(ids.map(staffName))).filter(Boolean);
+    if(who.length) bits.push([who.length > 1 ? 'Collected by' : 'Collected by', who.join(', ')]);
+  }catch(e){ /* the hands line is worth having without this */ }
+
   if(CUR !== o) return;                       // a faster tap opened another order
   box.innerHTML = bits.map(([k, v]) =>
     '<span class="hand"><span class="k">' + esc(k) + '</span>' +
@@ -6048,7 +6205,21 @@ function backStep(){
   if(open.length){ open[open.length - 1].close(); return true; }
   if($('#lock') && !$('#lock').hidden) return false;   // locked: let it close
   const here = Object.keys(views).find(k => $('#'+k).getAttribute('aria-selected') === 'true');
-  if(here && here !== 'nvDash' && !$('#nvDash').hidden){ $('#nvDash').click(); return true; }
+  /* **The tabs you actually visited, newest first** - asked for 24 Sep:
+     "make it return to the last tab that was open, like it is truly a back
+     button". It used to go straight to the dashboard from anywhere, which is
+     a rule rather than a history and reads like a Home key.
+     Skip anything this bench can no longer see, and never go back to the
+     new-order form: a half-typed order is gone, and landing on an empty one
+     looks like it saved. */
+  while(TAB_HIST.length){
+    const prev = TAB_HIST.pop();
+    if(prev === here || prev === 'nvNew') continue;
+    const btn = $('#' + prev);
+    if(btn && !btn.hidden && views[prev]){ showTab(prev, false, true); return true; }
+  }
+  /* Nowhere left to go back to. Deliberately NOT a trap: from here the press
+     closes the app, which is what a back button is for. */
   return false;
 }
 function armBack(){
@@ -6060,28 +6231,39 @@ addEventListener('popstate', () => {
 
 /* ── tabs ── */
 const views = { nvDash:'vDash', nvNew:'vNew', nvBoard:'vBoard', nvSales:'vSales', nvStaff:'vStaff' };
-Object.keys(views).forEach(id=>{
-  $('#'+id).onclick = () => {
-    Object.keys(views).forEach(k=>{
-      $('#'+k).setAttribute('aria-selected', k===id);
-      $('#'+views[k]).hidden = k!==id;
-    });
-    // not on Staff: its roster buttons sit where the button floats
-    $('#fab').hidden = id==='nvNew' || id==='nvStaff' || !canTakeOrders();
-    markTab(id);
-    if(id!=='nvNew') refresh();
-  };
-});
+/* `quiet` puts the tab up WITHOUT fetching. Used for the opening placement,
+   where openShop is about to fetch everything anyway - two refreshes racing
+   is how a board flickers. */
+/* Where the back button goes. Capped, because a counter switching tabs all
+   day should not build an unbounded list of presses to work through. */
+let TAB_HIST = [];
+function showTab(id, quiet, noHist){
+  if(!views[id]) return false;
+  const now = Object.keys(views).find(k => $('#'+k).getAttribute('aria-selected') === 'true');
+  if(!noHist && now && now !== id){
+    TAB_HIST.push(now);
+    if(TAB_HIST.length > 12) TAB_HIST.shift();
+  }
+  Object.keys(views).forEach(k=>{
+    $('#'+k).setAttribute('aria-selected', k===id);
+    $('#'+views[k]).hidden = k!==id;
+  });
+  // not on Staff: its roster buttons sit where the button floats
+  $('#fab').hidden = id==='nvNew' || id==='nvStaff' || !canTakeOrders();
+  markTab(id);
+  if(!quiet && id!=='nvNew') refresh();
+  return true;
+}
+Object.keys(views).forEach(id=>{ $('#'+id).onclick = () => showTab(id); });
 
 /* Put the counter back on the tab they were on. Never the new-order form - a
    half-typed order is gone after a reload, and landing on an empty one looks
    like the order was saved. A tab this bench cannot see is ignored. */
-function restoreTab(id){
+function restoreTab(id, quiet){
   if(!id || id === 'nvNew' || !views[id]) return false;
   const btn = $('#' + id);
   if(!btn || btn.hidden) return false;
-  btn.click();
-  return true;
+  return showTab(id, quiet);
 }
 $('#fab').onclick = ()=>$('#nvNew').click();
 
@@ -6099,6 +6281,15 @@ $('#fab').onclick = ()=>$('#nvNew').click();
    it must not do is announce a reload that nobody asked to be told about. */
 if(openedWorth() && readTapped(openedWorth())){
   $('#app').hidden = false;
+  /* **And on the tab they were on, in the first frame.** The restore used to
+     happen at the end of openShop, after four fetches - so a reload on Sales
+     showed the DASHBOARD for about four seconds and then jumped. The shop
+     reported it as "it glitches for like 4 secs to the dashboard then go to
+     sales", which is exactly what it was.
+     Safe to do before the bench is known: this runs only when the same person
+     is resuming, and they were on that tab a moment ago, so their bench
+     allows it. openShop corrects it either way. */
+  try{ restoreTab(readTab(), true); }catch(e){}
 }
 
 boot().catch(e => {
