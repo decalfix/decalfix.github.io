@@ -1315,7 +1315,7 @@ setTimeout(function(){
          where it would fail. -->
     <div class="card" id="dmoCard" style="margin-top:12px" hidden>
       <h2 id="dmoTitle">Clear this demo</h2>
-      <p class="small muted">Deletes every job order on this demo shop, with its payments and
+      <p class="small muted" id="dmoBlurb">Deletes every job order on this demo shop, with its payments and
         its file records. The staff list, the price list and the government accounts stay, and so
         does the numbering — the next order carries on from where it was, it does not go back to 1.
         Files already in Google Drive stay too; only the app's record of them goes.</p>
@@ -1326,7 +1326,7 @@ setTimeout(function(){
       <div id="dmoCount" class="small muted" style="margin-bottom:8px"></div>
       <label id="dmoPinRow" class="wide">Spawn admin PIN<input id="dmoPin" type="password"
         inputmode="numeric" maxlength="4" autocomplete="off" placeholder="····"></label>
-      <button type="button" class="btn danger" id="dmoGo">Clear the demo</button>
+      <button type="button" class="btn danger" id="dmoGo">Clear the demo</button><!-- relabelled per shop -->
       <div class="msg" id="dmoMsg"></div>
     </div>
     <div class="card" style="margin-top:12px">
@@ -3672,6 +3672,17 @@ function renderDemoReset(){
   const demoName = isDemoShop();
   const t = $('#dmoTitle'), w = $('#dmoWarn');
   if(t) t.textContent = demoName ? 'Clear this demo' : 'Clear ' + SHOP.name;
+  /* The button and the blurb have to move with the title. A card headed
+     "Clear Decal Fix Printing Services" whose button still says "Clear the
+     demo" is telling somebody two different things about the same tap. */
+  const go = $('#dmoGo'), bl = $('#dmoBlurb');
+  if(go) go.textContent = demoName ? 'Clear the demo' : 'Clear this shop';
+  if(bl) bl.textContent = 'Deletes every job order on this '
+    + (demoName ? 'demo shop' : 'shop')
+    + ', with its payments and its file records. The staff list, the price list and the '
+    + 'government accounts stay, and so does the numbering — the next order carries on '
+    + 'from where it was, it does not go back to 1. Files already in Google Drive stay too; '
+    + 'only the app’s record of them goes.';
   if(w){
     w.hidden = demoName;
     w.textContent = demoName ? '' :
