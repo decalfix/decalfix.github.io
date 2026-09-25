@@ -419,6 +419,15 @@
   /* Say something. One line, an attach and a Send - the shape of the box at
      the bottom of every messaging app, put at the TOP because this thread is
      newest-first and that is where the message will land. */
+  /* The artist's box. Bordered so it reads as a place rather than a line,
+     amber-edged because it is the thing the shop is waiting on them for. */
+  .artbox{border:1px solid var(--amber);background:var(--amber-wash);
+          border-radius:11px;padding:11px 13px;margin:10px 0}
+  .artbox .k{margin:0 0 8px}
+  .artbox .upl{display:inline-block;font-size:14px;margin-right:14px}
+  .artbox .addlink{display:inline-flex}
+  .artbox .fl-add{margin-top:8px}
+  .artbox .small{margin-top:7px}
   .say{margin:4px 0 10px}
   .say input{width:100%;font:inherit;font-size:16px;padding:9px 11px;
              border:1px solid var(--line);border-radius:8px;background:#fff}
@@ -1859,6 +1868,23 @@ setTimeout(function(){
          artist - which is the commonest thing anyone wants to say.
          It sits ABOVE the thread because the thread is newest-first, so this
          is where the message will appear. -->
+    <!-- THE ARTIST'S OWN BOX. Their upload used to be the same quiet "or
+         upload a file" every bench gets, at the bottom under Open job folder -
+         a footnote, for the single most important thing anyone on that bench
+         does. Named, bordered, and above the conversation. -->
+    <div class="artbox" id="dArtBox" hidden>
+      <div class="k" id="dArtBoxK">Attach your design for approval</div>
+      <label class="upl" id="dArtUpWrap">Upload the design file<input type="file" id="dArtUp" hidden></label>
+      <button type="button" class="addlink" id="dArtLinkOpen">or paste a Drive link</button>
+      <div class="fl-add" id="dArtLinkRow" hidden>
+        <input id="dArtUrl" inputmode="url" autocomplete="off" placeholder="Paste a Google Drive link">
+        <div class="fl-add2">
+          <input id="dArtLabel" maxlength="80" autocomplete="off" placeholder="Label">
+          <button type="button" class="btn ghost" id="dArtAdd">Add link</button>
+        </div>
+      </div>
+      <div class="small muted" id="dArtHint"></div>
+    </div>
     <div class="say" id="dSay" hidden>
       <input id="dSayText" maxlength="500" autocomplete="off"
              placeholder="Say something about this job order" aria-label="Message about this job order">
@@ -1890,7 +1916,13 @@ setTimeout(function(){
     <!-- Why it came back, when it did. The artist's first question on
          opening a redesign is "what was wrong with it". -->
     <div class="sentback" id="dSentBack" hidden></div>
-    <div class="trail" id="dTrail"></div>
+    <!-- The status trail lived here from build 17 and was made redundant on
+         25 Sep by the thread, which draws every bench move as its own line
+         AND says who and what around it. The photograph that settled it shows
+         "WITH ARTIST - SEP 25, 10:08 PM" with "Sep 25, 10:08 PM - With
+         artist" two lines below: the same fact, twice, on every bench.
+         `loadTrail` and its query go with it - jo_status_log is read by the
+         thread instead, in the same call that reads the files. -->
   </div>
   <div class="df">
     <button class="btn ghost" id="dClose">Close</button>
@@ -3538,8 +3570,27 @@ async function loadFiles(o){
      phone puts between two messages. `jo_status_log.changed_by` is the shop's
      one shared account, so it can never name a person - which is why this is
      a line about the JOB rather than a message from anyone. */
+  /* **WHO MOVED IT, where that can be known.** `jo_status_log.changed_by` is
+     `default auth.uid()` and there is one auth account per shop, so that
+     column names the SHOP on every row and can never answer this. But a
+     verdict carries `reviewed_by`, a real shop_staff id - and the app writes
+     the move and then the verdict inside the same second, so a move takes the
+     name of a verdict within ten seconds of it.
+     **It is a heuristic, said out loud rather than hidden.** The column that
+     would make it a fact is `build19y`. A move with nobody to name says
+     nothing: a blank is honest, a wrong name is not. */
+  const verdicts = (revRes.data || [])
+    .filter(r => r.reviewed_by && r.reviewed_at)
+    .map(r => ({ t: new Date(r.reviewed_at).getTime(), who: r.reviewed_by }));
+  const movedBy = at => {
+    if(!at) return null;
+    const t = new Date(at).getTime();
+    let best = null, gap = 10000;
+    verdicts.forEach(v => { const d = Math.abs(v.t - t); if(d <= gap){ gap = d; best = v.who; } });
+    return best;
+  };
   (logRes.data || []).forEach(r => evs.push({ at: r.changed_at || '', kind: 'move',
-    text: LABEL[r.to_status] || r.to_status }));
+    who: movedBy(r.changed_at), text: LABEL[r.to_status] || r.to_status }));
 
   /* **A TIE IS NOT A COIN TOSS.** Sending back writes three things inside one
      second - the move, then the note, then the upload - so they arrive with
@@ -3579,6 +3630,7 @@ async function loadFiles(o){
 
   /* One `staff_get` per person, cached across the session by staffName(), so
      a thread of twenty files asks for at most a handful of names. */
+  /* Movers are in here too now, so a move's name costs no extra call. */
   const ids = [...new Set(merged.map(e => e.who).filter(Boolean))];
   const named = {};
   (await Promise.all(ids.map(staffName))).forEach((n, i) => { named[ids[i]] = n; });
@@ -3587,7 +3639,8 @@ async function loadFiles(o){
   const when = t => t ? new Date(t).toLocaleString('en-PH',
     { timeZone:'Asia/Manila', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '';
   const thread = merged.map(e => e.kind === 'move'
-    ? `<div class="sysl">${esc(e.text)} \u00b7 ${esc(when(e.at))}</div>`
+    ? `<div class="sysl">${esc(e.text)}${named[e.who] ? ' \u00b7 ' + esc(named[e.who]) : ''}` +
+      ` \u00b7 ${esc(when(e.at))}</div>`
     : `<div class="msg${e.mine ? ' mine' : ''}">` +
       `<div class="msgw"><span>${esc(named[e.who] || e.fallback)}</span>` +
       `<span class="t">${esc(when(e.at))}</span></div>` +
@@ -3596,9 +3649,10 @@ async function loadFiles(o){
         ? `<span class="when">on ${esc(itemOfFile(f))}</span>` : '')).join('') +
       `</div>`).join('');
 
+  const anySent = merged.some(e => e.kind !== 'move');
   box.innerHTML = finHead + head +
-    (merged.length ? `<div class="thr">${thread}</div>`
-                   : '<div class="thrmt">Nothing has been sent on this job order yet.</div>');
+    (anySent ? '' : '<div class="thrmt">Nothing has been sent on this job order yet.</div>') +
+    (merged.length ? `<div class="thr">${thread}</div>` : '');
   /* Nothing there and nothing to add: say nothing at all. */
 
   /* Each item's own files, under the item on the detail - the same order the
@@ -3616,6 +3670,7 @@ async function loadFiles(o){
        controls below are its whole purpose now. */
     box2.innerHTML = '';
     if(o.voided || !id) return;
+    if(BENCH === 'artist' && o.status === 'layout') return;
     /* **The artist can paste a link too**, from 25 Sep. The sketch puts
        "Add link" and "Add file" side by side in the artist's own box, and it
        is right: plenty of finished art is a Drive link to a folder, not a
@@ -5813,8 +5868,14 @@ function openDetail(o){
   $('#dRush').setAttribute('aria-pressed', String(!!o.rush));
   $('#dPoRow').hidden = o.order_type !== 'government' || !canTakeOrders() || o.voided;
   $('#dPo').value = o.po_number || '';
-  $('#dCust').textContent = o.customer_name + (o.customer_contact ? ' · ' + o.customer_contact : '') +
-                            (o.customer_fb ? ' · FB ' + o.customer_fb : '');
+  /* **THE ARTIST'S SCREEN IS DETAILS AND FILES.** The customer's number and
+     Facebook name are there so the COUNTER can find the thread again; an
+     artist does not ring anybody and production does not either. The name
+     stays, because it is how the job is spoken about in the shop. */
+  const paper = canTakeOrders();
+  $('#dCust').textContent = o.customer_name +
+    (paper && o.customer_contact ? ' \u00b7 ' + o.customer_contact : '') +
+    (paper && o.customer_fb ? ' \u00b7 FB ' + o.customer_fb : '');
   $('#dMeta').textContent = metaText(o);
   const gs = lineGroups(o);
   // every priced row, by id, so the edit dialog can find the one tapped
@@ -5882,6 +5943,9 @@ function openDetail(o){
   /* Voiding belongs to the people who take orders, because they are the
      ones who mistype them. An artist or a production hand should not be
      able to cancel a job. A released order is history - leave it alone. */
+  /* The claim stub is the customer's paper, handed over at the counter. On
+     an artist's phone it is a button that prints somebody else's job. */
+  $('#dPrint').hidden = !canTakeOrders();
   $('#dVoid').hidden = !canTakeOrders() || o.voided || o.status === 'claimed';
   $('#dPay').hidden = !money;
   $('#dPay').disabled = Number(o.balance) <= 0 || !canTakeOrders();
@@ -5894,7 +5958,6 @@ function openDetail(o){
   /* Never on a voided order, for the same reason Edit is not: a voided order
      is a record of what was cancelled, not a thing to keep adding to. */
   $('#dAddLine').hidden = !canTakeOrders() || o.voided;
-  loadTrail(o.id);
   loadReview(o);
   loadHands(o);
   loadPays(o);
@@ -5903,11 +5966,36 @@ function openDetail(o){
   /* Anyone on the shop may say something - that is the point of it - but not
      on a voided order, which is a record of what was cancelled rather than a
      conversation still going on. */
+  /* **Only the artist, only while the job is theirs.** At `for_approval` it
+     is with the counter and there is nothing for them to attach; after that
+     it is being made. */
+  const artBox = BENCH === 'artist' && o.status === 'layout' && !o.voided;
+  $('#dArtBox').hidden = !artBox;
+  if(artBox){
+    /* A redesign is a different sentence from a first draft, and the artist
+       opening it already knows which one they are in - the box should agree
+       with them rather than say the same thing both times. */
+    $('#dArtBoxK').textContent = cameBack(o)
+      ? 'Attach the corrected design for approval'
+      : 'Attach your design for approval';
+    $('#dArtHint').textContent = DRIVE.connected
+      ? 'It goes to the counter when you press Send for approval, below.'
+      : 'Google Drive is not connected, so a link is the only way today.';
+    $('#dArtUpWrap').hidden = !DRIVE.connected;
+    $('#dArtLinkRow').hidden = true;
+    $('#dArtLinkOpen').hidden = false;
+    $('#dArtUrl').value = ''; $('#dArtLabel').value = '';
+  }
   $('#dSay').hidden = !!o.voided;
   $('#dSayUpWrap').hidden = !DRIVE.connected || !!o.voided;
   $('#dSayText').value = ''; SAY_FILE = null;
   $('#dSayName').hidden = true; $('#dSayName').textContent = '';
   $('#dDriveTools').hidden = !DRIVE.connected || !!o.voided;
+  /* The generic upload comes off the artist's screen while their own box is
+     up: two ways to do one thing is the complaint that started today. Open
+     job folder stays - it is a different action. */
+  const genericUp = $('#dDriveTools').querySelector('label.upl');
+  if(genericUp) genericUp.hidden = artBox;
   /* **Opening it is reading it.** Marked here rather than on the board, so
      scrolling past an order never counts as having seen what is on it. The
      board behind repaints on the next refresh; the chip and the banner go
@@ -5953,14 +6041,6 @@ async function loadHands(o){
   box.hidden = !bits.length;
 }
 
-async function loadTrail(id){
-  const { data } = await sb.from('jo_status_log')
-    .select('from_status,to_status,changed_at').eq('job_order_id', id)
-    .order('changed_at');
-  $('#dTrail').innerHTML = (data||[]).map(r=>
-    `${new Date(r.changed_at).toLocaleString('en-PH',{timeZone:'Asia/Manila',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} — ${esc(LABEL[r.to_status]||r.to_status)}`
-  ).join('<br>') || 'No history yet.';
-}
 $('#dClose').onclick = ()=>dlg.close();
 function nextLabel(){
   const o = CUR, nx = FLOW[FLOW.indexOf(o.status)+1];
@@ -6155,6 +6235,31 @@ async function recordReview(verdict, note){
 /* The file picked on the compose box, cleared whenever an order opens so one
    order's attachment can never ride along to the next. */
 let SAY_FILE = null;
+$('#dArtLinkOpen').onclick = () => {
+  $('#dArtLinkRow').hidden = false; $('#dArtLinkOpen').hidden = true; $('#dArtUrl').focus();
+};
+$('#dArtUp').onchange = () => {
+  const f = $('#dArtUp').files[0]; $('#dArtUp').value = '';
+  /* `null` for the item: a design covers the job, and an artist should not be
+     asked which line it belongs to before they can send it. It can be moved
+     onto one afterwards from its row, like any other file. */
+  if(f) uploadFile(f, null);
+};
+$('#dArtAdd').onclick = async () => {
+  const url = driveUrl($('#dArtUrl').value);
+  if(!url) return toast(NOT_DRIVE);
+  try{ assertWritable(); }catch(err){ return toast(err.message); }
+  const { data, error } = await sb.from('jo_files').insert({ shop_id: SHOP.id, job_order_id: CUR.id,
+    kind: 'link', url, label: $('#dArtLabel').value.trim().slice(0, 80) || null,
+    added_by: STAFF ? STAFF.id : null }).select('id').single();
+  if(error) return toast(error.message);
+  /* A pasted design is a design: it takes the same mark an upload takes, so
+     Send for approval does not stop to ask which file is meant. */
+  await markSent(CUR, data ? data.id : null);
+  $('#dArtUrl').value = ''; $('#dArtLabel').value = '';
+  toast('Design added'); loadFiles(CUR);
+};
+
 $('#dSayFile').onchange = () => {
   SAY_FILE = $('#dSayFile').files[0] || null;
   $('#dSayName').hidden = !SAY_FILE;
