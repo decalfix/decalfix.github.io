@@ -442,6 +442,12 @@
              border:1px solid var(--line);border-radius:6px;background:var(--paper);
              color:var(--text-2);cursor:pointer;white-space:nowrap}
   .markfinal[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff}
+  /* Amber while it is a submission waiting on somebody, red once it is the
+     thing production prints. */
+  .finalbox.awaiting{border-color:var(--amber);background:var(--amber-wash)}
+  .finalbox.awaiting .k{color:var(--amber)}
+  .finalbox.none{border-style:dashed;border-color:var(--amber)}
+  .finalbox.none .k{color:var(--amber)}
   .hands{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px}
   .hand{display:inline-flex;align-items:baseline;gap:5px;font-size:11.5px;
         background:var(--surface-2);border:1px solid var(--line);
@@ -550,6 +556,14 @@
                  background:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
   /* Work waiting on the person reading the screen. Only drawn when there is
      some, so an empty one never teaches anybody to ignore it. */
+  /* A row that leads somewhere looks like it does. */
+  .arow.go{width:100%;text-align:left;font:inherit;cursor:pointer;border:0;background:none;padding:inherit}
+  .arow.go:active{background:var(--line)}
+  .artonly{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:var(--card);border:1px solid var(--line);border-left:3px solid var(--black);
+    border-radius:10px;padding:9px 12px;margin:0 0 10px;font-size:13px;font-weight:700}
+  .artonly button{margin-left:auto;font:inherit;font-size:12px;font-weight:800;
+    border:1px solid var(--line);border-radius:8px;background:#fff;padding:5px 10px;cursor:pointer}
   .alerts:empty{display:none}
   .alerts{margin:0 0 10px}
   .alert{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
@@ -561,6 +575,9 @@
   .alert .go{margin-left:auto;font-weight:700;font-size:12px;opacity:.75;flex:none}
   .alert.redo{background:var(--red-wash);border-color:var(--red);color:var(--red-deep)}
   .alert.appr{background:var(--amber-wash);border-color:var(--amber);color:var(--amber)}
+  /* Green: unlike the other two this is good news - work finished, money
+     collectable - and it should not read as an alarm. */
+  .alert.claim{background:var(--green-wash);border-color:var(--green);color:var(--green)}
   .drvbar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
   .drvbar i{display:block;height:100%;background:#1A1A1A}
   .drvbar.warn i{background:var(--amber)} .drvbar.full i{background:var(--red)}
@@ -617,6 +634,14 @@
   dialog{border:0;border-radius:var(--r-lg);padding:0;width:min(560px,calc(100% - 24px));
          background:var(--card);color:var(--text);overflow:hidden;
          box-shadow:0 24px 70px rgba(0,0,0,.32)}
+  /* **The buttons must never leave the screen.** An open dialog is a column
+     bounded by the viewport: header pinned at the top, footer pinned at the
+     bottom, and only the middle scrolls. It used to be header + up to 62dvh
+     of body + a footer that wraps to three rows on a narrow phone - taller
+     than the screen, with `overflow:hidden` on the dialog, so the last button
+     was simply unreachable. The last button is Move on, and on a design
+     waiting for a verdict it says Approve. */
+  dialog[open]{display:flex;flex-direction:column;max-height:calc(100dvh - 20px)}
   /* The whole app sits on a hexagon field; a flat grey scrim in front of it
      read as a different product. */
   dialog::backdrop{background:rgba(10,10,10,.6);backdrop-filter:blur(2px)}
@@ -639,9 +664,16 @@
   .dh .chip{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.16);color:#fff}
   /* dvh, not vh: on a phone the address bar is counted in vh and a footer
      can end up under it. */
-  .db{padding:16px;max-height:min(62dvh,62vh);overflow:auto;
+  /* `min-height:0` is the load-bearing half: without it a flex child refuses
+     to shrink below its content, the column grows past the viewport again and
+     the footer goes back off-screen. Same family as the file-row fault - a
+     flex child needs its floor stated. */
+  .db{padding:16px;flex:1 1 auto;min-height:0;overflow:auto;
       overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-  .df{padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  /* Never shrinks, and scrolls itself in the extreme case - a very short
+     screen in landscape with five wrapped buttons. */
+  .df{flex:none;max-height:50dvh;overflow:auto;
+      padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
       border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;
       justify-content:flex-end;background:var(--card)}
   /* At 360px a row of small buttons is a row of small targets - but one per
@@ -693,7 +725,12 @@
   .updbar button:active{background:var(--red-deep)}
 
   /* PIN pad - light, because this is stared at for a full shift */
-  #lock{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;
+  /* `place-items:center` overflows equally in both directions on a short
+     screen, so the top of the pad is clipped and unreachable. `start` plus
+     `overflow:auto` keeps it scrollable; the box still looks centred on any
+     ordinary phone because it is shorter than the screen there. */
+  #lock{position:fixed;inset:0;z-index:50;display:grid;place-items:start center;
+        overflow:auto;-webkit-overflow-scrolling:touch;padding:24px;
         background-color:var(--paper);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96'%3E%3Cg fill='none' stroke='%23000000' stroke-opacity='.07' stroke-width='1.5'%3E%3Cpath d='M28,0L56,16L56,48L28,64L0,48L0,16Z'/%3E%3Cpath d='M0,48L28,64L28,96L0,112L-28,96L-28,64Z'/%3E%3Cpath d='M56,48L84,64L84,96L56,112L28,96L28,64Z'/%3E%3C/g%3E%3C/svg%3E")}
   #lock .lbox{width:100%;max-width:340px;text-align:center;color:var(--text)}
   #lock .muted{color:var(--text-2);font-weight:700;font-size:12px;letter-spacing:.06em}
@@ -1230,7 +1267,7 @@ setTimeout(function(){
     </div>
     <div id="dOpen"></div>
     <div class="dsec">
-      <span class="t">Due today</span>
+      <span class="t" id="dDueT">Due today</span>
       <button class="more" id="dAll">See all</button>
     </div>
     <div id="dList"></div>
@@ -1239,6 +1276,8 @@ setTimeout(function(){
   <section class="view" id="vBoard" hidden>
     <!-- work waiting on whoever is looking: drawn by paintAlerts() -->
     <div id="alertsBoard" class="alerts"></div>
+    <!-- set by the owner's "Work by artist" card; carries its own way out -->
+    <div id="artOnly" class="artonly" hidden></div>
     <!-- Only for the benches that run the whole shop; an artist and
          production already see nothing but their own work. -->
     <div id="boardTabs" class="btabs" role="tablist" aria-label="Board" hidden></div>
@@ -1710,7 +1749,7 @@ setTimeout(function(){
          job orders". It never meant that. It means THIS order, not tied to one
          item - a layout covering the whole job, a reference photo, the signed
          quote. The name is the fix; the fold is the tidy. -->
-    <button type="button" class="addlink" id="dAddWhole" hidden>Add a file for this order</button>
+    <button type="button" class="addlink" id="dAddWhole" hidden>Add a file for all items</button>
     <div class="fl-add" id="dLinkRow" hidden>
       <input id="dLinkUrl" inputmode="url" autocomplete="off" placeholder="Paste a Google Drive link">
       <div class="fl-add2">
@@ -2520,6 +2559,11 @@ async function openShop(){
   $('#dUnpaidTile').hidden = !canSeeMoney();
   $('#dMoney').hidden = !canSeeMoney();
   $('#dNew').hidden = !canTakeOrders();
+  /* FOR CLAIM is a counter's tile: it is the queue of people coming to the
+     shop. An artist and production cannot release anything, so a number they
+     cannot act on is one more thing between them and the work. */
+  const claimTile = $('#dClaim') && $('#dClaim').closest('.stat');
+  if(claimTile) claimTile.hidden = !canTakeOrders();
   $('#hLock').hidden = !onRoster().length;
   loadDrive();          // not awaited: the Drive card and tools fill in when the Worker answers
   dropSplash();         // there is a board to look at now; the mark has said its piece
@@ -3099,7 +3143,14 @@ async function loadFiles(o){
   /* Folded by default. The boxes are used once per file and read every time
      the order is opened, so the quiet link is the resting state. */
   $('#dLinkRow').hidden = true;
-  $('#dAddWhole').hidden = !!o.voided;
+  /* **New files go on an ITEM.** Asked for 25 Sep: "each item in job order
+     will have a file only, remove the whole files, it makes the job order
+     confusing." The section itself STAYS, because files already attached
+     there would otherwise become invisible - and a file you cannot see is
+     worse than a section you rarely use. What goes is the invitation to add
+     more of them. Anything sitting there can still be moved onto an item
+     with the picker on its own row. */
+  $('#dAddWhole').hidden = true;
   $('#dLinkUrl').value = ''; $('#dLinkLabel').value = '';
   const { data } = await sb.from('jo_files').select('id,kind,url,label,created_at,drive_file_id,file_name,size_bytes,backed_up_at,jo_item_id,final_at')
     .eq('job_order_id', o.id).is('removed_at', null).order('created_at');
@@ -3144,19 +3195,31 @@ async function loadFiles(o){
      "the final design" is singular and two of them is the muddle this exists
      to end. */
   const canFinal = (BENCH === 'artist' || canTakeOrders()) && !o.voided;
+  /* BEFORE a verdict this is the artist's submission; AFTER one it is what
+     production prints. Same flag, same row, different question being
+     answered - so it gets a different word rather than a different column. */
+  const awaiting = ['layout','for_approval'].includes(o.status);
+  const finWord  = awaiting ? 'For approval' : 'Final';
+  const markWord = awaiting ? 'Send this one' : 'Mark final';
   const finalBtn = f => (!canFinal || f.kind !== 'upload' || !f.drive_file_id || f.backed_up_at) ? ''
     : `<button type="button" class="markfinal" data-final="${esc(f.id)}"` +
       ` aria-pressed="${f.final_at ? 'true' : 'false'}"` +
-      ` aria-label="${f.final_at ? 'This is the final design' : 'Mark ' + esc(f.file_name || 'this file') + ' as the final design'}">` +
-      `${f.final_at ? '★ Final' : 'Mark final'}</button>`;
+      ` aria-label="${f.final_at ? 'This is the design being sent' : 'Send ' + esc(f.file_name || 'this file') + ' for approval'}">` +
+      `${f.final_at ? '\u2605 ' + finWord : markWord}</button>`;
   /* Newest first, 1 at the top. Built once here so every list that draws a
      row - the item's, the whole order's, the final box and the newest-file
      header - says the same number for the same file. */
+  /* OLDEST FIRST, so File 1 is the first thing ever sent and stays File 1
+     for ever. Numbering from the newest made every number change meaning the
+     moment another draft arrived, which is useless for saying "look at file
+     2" to somebody a week later. */
   const upOrder = rows.filter(f => f.kind === 'upload')
-                      .slice().sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+                      .slice().sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')));
   const NUM = new Map(); upOrder.forEach((f, i) => NUM.set(f.id, i + 1));
+  /* The LATEST is the one marked out, not file 1 - "which do I print" is the
+     question a badge can answer at a glance, and it is always the last one. */
   const numOf = f => NUM.has(f.id) && upOrder.length > 1
-    ? `<span class="fnum${NUM.get(f.id) === 1 ? ' one' : ''}">File ${NUM.get(f.id)}</span>` : '';
+    ? `<span class="fnum${NUM.get(f.id) === upOrder.length ? ' one' : ''}">File ${NUM.get(f.id)}</span>` : '';
   const row = f => `<div class="fl">${numOf(f)}${
       f.url ? fileLink(f) : `<span class="flink off">${esc(f.label)}</span>`}${
       (f.kind === 'upload' && f.drive_file_id && !f.backed_up_at)
@@ -3176,11 +3239,13 @@ async function loadFiles(o){
   /* Newest upload first in every list, then the links in the order they were
      pasted. Asked for 24 Sep - an artist sending a redraw wants their latest
      at the top, not at the bottom of four. */
+  /* Uploads read as a history: File 1 at the top, the latest at the bottom,
+     the way the job actually went. Links keep the order they were pasted. */
   const newestFirst = list => list.slice().sort((a, b) => {
     const au = a.kind === 'upload', bu = b.kind === 'upload';
     if(au !== bu) return au ? -1 : 1;                       // uploads above links
     if(!au) return 0;                                       // links keep their order
-    return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    return String(a.created_at || '').localeCompare(String(b.created_at || ''));
   });
   const itemOfFile = f => {
     if(!f.jo_item_id) return 'the whole order';
@@ -3194,12 +3259,26 @@ async function loadFiles(o){
 
   /* The declared final design leads everything, above even the newest file:
      one is a statement, the other a guess from a timestamp. */
+  /* THE ONE THE SHOP IS ACTING ON, above everything else. A counter opening
+     an order that is waiting on them sees the submitted design first and the
+     rest as history - which is the whole point of the round trip. */
   const fin = rows.find(f => f.final_at);
-  const finHead = fin ? `<div class="finalbox"><div class="k">Final design</div>` + row(fin) + `</div>` : '';
+  const finHead = fin
+    ? `<div class="finalbox${awaiting ? ' awaiting' : ''}"><div class="k">` +
+      (awaiting ? 'Design sent for approval' : 'Final design \u2014 this is what production prints') +
+      `</div>` + row(fin) + `</div>`
+    /* Production cannot start without one, so say so where they will look
+       rather than leaving an empty space to interpret. */
+    : (BENCH === 'production'
+        ? `<div class="finalbox none"><div class="k">No final design yet</div>` +
+          `<span class="small muted">Nothing has been marked as the one to print. ` +
+          `Ask the artist or the counter before starting.</span></div>`
+        : '');
 
   const whole = newestFirst(rows.filter(f => !f.jo_item_id));
   box.innerHTML = finHead + head +
-    (whole.length ? '<div class="k">Not tied to one item</div>' + whole.map(row).join('') : '');
+    (whole.length ? '<div class="k">Files applicable to all items</div>' + whole.map(row).join('') : '');
+  /* Nothing there and nothing to add: say nothing at all. */
 
   /* Each item's own files, under the item on the detail - the same order the
      counter worked in when taking the job. Uploading is here and not on the
@@ -4160,10 +4239,23 @@ $('#drvWho').onclick = e => { e.preventDefault(); showAccess(); };
 $('#dmoGo').onclick = async () => {
   const msg = $('#dmoMsg');
   msg.className = 'msg'; msg.textContent = '';
-  if(!isDemoShop()){ msg.className = 'msg err'; msg.textContent = 'This is not a demo shop.'; return; }
+  /* **The same gate the card is drawn by.** This checked `isDemoShop()` while
+     the card checked `canResetShop()` - so on a shop that is on RESET_IDS but
+     not NAMED demo, the button drew, was pressed, and refused into a message
+     at the bottom of the card. From the shop: "when I click clear this shop
+     nothing happens". One gate changed on 24 Sep and its twin did not.
+     Two tests of the same thing in two places is how they drift; there is one
+     now, and `canResetShop()` is it. */
+  if(!canResetShop()){
+    msg.className = 'msg err';
+    msg.textContent = 'This shop cannot be cleared from the app.';
+    msg.scrollIntoView({ block: 'nearest' });
+    return;
+  }
   const pin = $('#dmoPin').value.trim();
   if(pin.length !== 4){
-    msg.className = 'msg err'; msg.textContent = 'Type the 4-digit Spawn admin PIN.'; return;
+    msg.className = 'msg err'; msg.textContent = 'Type the 4-digit Spawn admin PIN.';
+    msg.scrollIntoView({ block: 'nearest' }); return;
   }
   /* The count goes in the question. "Clear the demo" and "delete the fourteen
      orders I typed this morning" are the same tap and feel like different
@@ -4566,14 +4658,24 @@ function renderDash(){
   const t = today();
   const live = ORDERS.filter(o=>!o.voided && o.status!=='cancelled' && forMe(o));
   // rush first, then the earliest date
-  const due  = live.filter(o=>o.target_date && o.target_date <= t && o.status !== 'claimed')
-                   .sort((a,b)=> (!!b.rush - !!a.rush) || (a.target_date < b.target_date ? -1 : a.target_date > b.target_date ? 1 : 0));
+  /* The lower list, per bench. Production's question is not "what is late",
+     it is "what is finished and waiting to go out" - a different queue that
+     they, and only they, can shorten. Everyone else gets what is due. */
+  const due = (BENCH === 'production'
+      ? live.filter(o => o.status === 'ready')
+      : live.filter(o => o.target_date && o.target_date <= t && o.status !== 'claimed'))
+    .sort((a,b)=> (!!b.rush - !!a.rush) ||
+                  (String(a.target_date||'') < String(b.target_date||'') ? -1
+                 : String(a.target_date||'') > String(b.target_date||'') ? 1 : 0));
+
+  $('#dDueT').textContent = dueTitle() + (due.length ? ' \u00b7 ' + due.length : '');
 
   $('#dAll').textContent = due.length > 3 ? 'See all ' + due.length : 'See all';
   $('#dAll').hidden = !due.length;
   const box = $('#dList');
   box.innerHTML = due.length ? due.slice(0,3).map(drowHTML).join('')
-                             : '<div class="empty">Nothing due today.</div>';
+    : '<div class="empty">' + (BENCH === 'production' ? 'Nothing waiting to go out.'
+       : BENCH === 'artist' ? 'Nothing of yours is due.' : 'Nothing due today.') + '</div>';
   bindRows(box);
 
   /* TODAY'S WORK, newest first (21 Sep). This slot used to hold "Open
@@ -4592,13 +4694,35 @@ function renderDash(){
      fallback the list would be empty at precisely the moment this section
      exists for: the counter looking to see that what they typed landed.
      Same pattern the row renderer already uses. */
-  const taken = live.filter(o => String(o.order_date || t) === t && mine.includes(o.status))
-                    .sort((a,b) => b.jo_no - a.jo_no);
-  $('#dOpenT').textContent = 'Taken today' + (taken.length ? ' · ' + taken.length : '');
+  /* THE TOP LIST, per bench.
+     An artist did not take any orders today - "taken today" answers nobody's
+     question on that bench. What they want is the work in front of them, in
+     the order it should be done: rush first, then the oldest due date, then
+     the oldest job. **Sorted so nobody has to decide** - asked for on 25 Sep:
+     "automatic organizing so less time to think more to work".
+     Production wants what is on the press and what is finished.
+     A counter keeps the receipt for their day, which is what this list was
+     built for and still is. */
+  const taken = BENCH === 'artist'
+    ? live.filter(o => ['layout','for_approval'].includes(o.status))
+          .sort((a,b) => (!!b.rush - !!a.rush) ||
+                         (String(a.target_date||'9999') < String(b.target_date||'9999') ? -1
+                        : String(a.target_date||'9999') > String(b.target_date||'9999') ? 1 : 0) ||
+                         (a.jo_no - b.jo_no))
+    : BENCH === 'production'
+    ? live.filter(o => ['printing','ready'].includes(o.status))
+          .sort((a,b) => (!!b.rush - !!a.rush) ||
+                         (a.status === b.status ? a.jo_no - b.jo_no
+                          : a.status === 'printing' ? -1 : 1))
+    : live.filter(o => String(o.order_date || t) === t && mine.includes(o.status))
+          .sort((a,b) => b.jo_no - a.jo_no);
+  $('#dOpenT').textContent = openTitle() + (taken.length ? ' · ' + taken.length : '');
   $('#dOpenAll').hidden = taken.length <= 5;
   const ob = $('#dOpen');
   ob.innerHTML = taken.length ? taken.slice(0,5).map(drowHTML).join('')
-                              : '<div class="empty">Nothing taken today yet.</div>';
+    : '<div class="empty">' + (BENCH === 'artist' ? 'Nothing with you right now.'
+       : BENCH === 'production' ? 'Nothing to print right now.'
+       : 'Nothing taken today yet.') + '</div>';
   bindRows(ob);
 
   renderArtists(live, t);
@@ -4629,7 +4753,7 @@ function renderArtists(live, t){
 
   const rows = ARTISTS.map(a => {
     const theirs = held.filter(o => o.artist_id === a.id);
-    return { name: a.name,
+    return { name: a.name, id: a.id,
              due:  theirs.filter(o => o.target_date && String(o.target_date) <= t).length,
              with: theirs.length };
   });
@@ -4644,13 +4768,37 @@ function renderArtists(live, t){
   rows.sort((a,b) => (b.due - a.due) || (b.with - a.with) ||
                      (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
-  $('#dArtList').innerHTML = rows.length
-    ? rows.map(r => `<div class="arow">
-         <span class="nm${r.none ? ' none' : ''}">${esc(r.name)}</span>
-         <span class="fig due${r.due ? '' : ' zero'}"><b>${r.due}</b><small>Due</small></span>
-         <span class="fig"><b>${r.with}</b><small>With them</small></span>
-       </div>`).join('')
-    : '<div class="empty">No artists switched on yet.</div>';
+  /* `box` is already the card up there; this is the list inside it. */
+  const list = $('#dArtList');
+  list.textContent = '';
+  if(!rows.length){
+    const e = document.createElement('div'); e.className = 'empty';
+    e.textContent = 'No artists switched on yet.'; list.append(e); return;
+  }
+  /* Each row opens that person's work on the board. A button rather than a
+     div: it is a control now, and a counter tapping a name expects something
+     to happen. Rows with nothing to show are not tappable - an empty row is
+     still worth seeing (it is how you spot who is free) and still worth not
+     leading anywhere. */
+  rows.forEach(r => {
+    const el = document.createElement(r.with ? 'button' : 'div');
+    el.className = 'arow' + (r.with ? ' go' : '');
+    if(r.with){
+      el.type = 'button';
+      el.onclick = () => showArtistWork(r.none ? 'none' : r.id, r.none ? '' : r.name);
+      el.setAttribute('aria-label', r.name + ', ' + r.with + ' with them, open their work');
+    }
+    const nm = document.createElement('span');
+    nm.className = 'nm' + (r.none ? ' none' : ''); nm.textContent = r.name;
+    const d = document.createElement('span'); d.className = 'fig due' + (r.due ? '' : ' zero');
+    const db = document.createElement('b'); db.textContent = r.due;
+    const ds = document.createElement('small'); ds.textContent = 'Due'; d.append(db, ds);
+    const w = document.createElement('span'); w.className = 'fig';
+    const wb = document.createElement('b'); wb.textContent = r.with;
+    const ws = document.createElement('small'); ws.textContent = 'With them'; w.append(wb, ws);
+    el.append(nm, d, w);
+    list.append(el);
+  });
 }
 
 /* Staff set their own PIN. The owner picked the first one, so until this
@@ -4948,6 +5096,32 @@ function renderDepts(live, t){
    A chip on a card only speaks once you have found the card, and a tab count
    only once you have read the strip. This is drawn above both the board and
    the dashboard, and only when there is something to say. */
+/* Tapping an artist's row on the owner's dashboard opens their work, rather
+   than leaving the owner to find it on the board and filter by eye. Asked for
+   25 Sep: "when work by artist, if artist is clicked there will be a pop up of
+   the job orders under him." Not a pop-up - the BOARD, filtered to them, which
+   is the screen that already answers every other question about work. */
+/* null = off. A uuid = that artist. The string 'none' = work nobody has
+   picked up, which is the row an owner is most often looking for. */
+let ARTIST_ONLY = null;
+function showArtistWork(id, name){
+  ARTIST_ONLY = id;
+  BOARD_TAB = 'all';
+  showTab('nvBoard');
+  toast(name ? 'Showing ' + name + "'s work" : 'Showing unassigned work');
+}
+
+/* WHAT THIS BENCH CAME TO THE DASHBOARD TO ASK. The lists are the same
+   bench-filtered work, relabelled and re-sorted - never a wider set. */
+const openTitle = () =>
+    BENCH === 'artist'     ? 'Job orders for you today'
+  : BENCH === 'production' ? 'To print today'
+  :                          'Taken today';
+const dueTitle = () =>
+    BENCH === 'artist'     ? 'Your oldest and most urgent'
+  : BENCH === 'production' ? 'Waiting to go out'
+  :                          'Due today';
+
 function paintAlerts(seen){
   const rows = [];
   if(BENCH === 'artist'){
@@ -4964,6 +5138,17 @@ function paintAlerts(seen){
     if(n) rows.push({ cls:'appr', tab:'artist', n,
       what: n === 1 ? 'design is waiting for you' : 'designs are waiting for you',
       go: 'Approve or send back' });
+    /* READY TO HAND OVER. Asked for 25 Sep: "there should be a banner for
+       claim so the counter can know the released and done by production."
+       Production finishes a job on their own screen and the counter has no
+       reason to look at the board until somebody walks in - so the shop only
+       finds out when the customer asks. Green, because unlike the other two
+       this is good news: the work is done and the money is collectable. */
+    const r = seen.filter(o => o.status === 'ready').length;
+    if(r) rows.push({ cls:'claim', tab:'ready', n:r,
+      what: r === 1 ? 'job is finished and waiting for the customer'
+                    : 'jobs are finished and waiting for customers',
+      go: 'Hand over and collect' });
   }
   ['#alertsBoard', '#alertsDash'].forEach(sel => {
     const box = $(sel); if(!box) return;
@@ -4987,8 +5172,32 @@ function renderBoard(){
   const mine = SEES[BENCH] || SEES.counter;
   /* Every tab reads from here, so a bench can never be shown work that is not
      its own - the tabs ask a different question of the same set. */
-  const seen = ORDERS.filter(o => !o.voided && o.status !== 'cancelled' && forMe(o));
+  let seen = ORDERS.filter(o => !o.voided && o.status !== 'cancelled' && forMe(o));
   paintAlerts(seen);            // from the same set, so it can never over-count
+  /* Narrowed from the owner's "Work by artist" card. Applied AFTER the bench
+     filter and after the alerts, so it can only ever show less - it is a lens
+     on this bench's work, never a way around it. */
+  if(ARTIST_ONLY) seen = seen.filter(o =>
+    ARTIST_ONLY === 'none' ? !o.artist_id : o.artist_id === ARTIST_ONLY);
+
+  /* A filtered board must say so and offer the way out, or it reads as
+     orders having gone missing. */
+  const note = $('#artOnly');
+  if(note){
+    note.hidden = !ARTIST_ONLY;
+    if(ARTIST_ONLY){
+      const who = ARTIST_ONLY === 'none' ? 'nobody'
+        : (ARTISTS.find(a => a.id === ARTIST_ONLY) || {}).name || 'one artist';
+      note.textContent = '';
+      const t = document.createElement('span');
+      t.textContent = ARTIST_ONLY === 'none' ? 'Showing work nobody has picked up'
+                                             : 'Showing ' + who + "'s work";
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = 'Show everything';
+      b.onclick = () => { ARTIST_ONLY = null; renderBoard(); };
+      note.append(t, b);
+    }
+  }
 
   const set = tabsFor();
   const tabsOn = !!set;
