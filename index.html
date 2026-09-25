@@ -367,6 +367,56 @@
   .latest .fl{margin:0}
   .latest .when{display:block;color:var(--text-2);font-size:12px;font-weight:600;
                 margin-top:5px}
+  /* ── THE THREAD ──
+     "the file transferring receiving and attaching should be simple continuous
+     and easy to manage like sending a sms" (25 Sep). Files, notes and bench
+     moves in one list, oldest at the top, newest at the bottom - the way a
+     phone shows a conversation, and the way the job actually went.
+     Sides are by DIRECTION, not by author: on a counter's screen the artist is
+     on the left and the counter on the right; on the artist's screen it is the
+     other way round. Each person sees their own side on the right, which is
+     what every messaging app has taught everyone to read. */
+  .thr{margin:2px 0 4px;display:flex;flex-direction:column;gap:9px}
+  .msg{max-width:88%;align-self:flex-start;border:1px solid var(--line);
+       border-radius:10px 10px 10px 3px;padding:8px 10px;background:#fff}
+  .msg.mine{align-self:flex-end;border-radius:10px 10px 3px 10px;background:#FAFAF8}
+  .msgw{display:flex;gap:6px;align-items:baseline;font-size:11.5px;font-weight:700;
+        color:var(--text-2);letter-spacing:.02em;margin:0 0 5px}
+  .msgw .t{font-weight:600;letter-spacing:0}
+  .msgt{font-size:13.5px;line-height:1.45;margin:0 0 4px;overflow-wrap:anywhere}
+  /* A file row inside a message is the message's body, so it loses the top
+     margin it carries when it is one of a list. */
+  .msg .fl{margin:3px 0 0;gap:6px}
+  .msg .fl:first-of-type{margin-top:0}
+  /* **A MESSAGE IS FOR READING; THE ITEM'S OWN LIST IS FOR MANAGING.**
+     Every file row carries four controls - Save, which-item, mark-final and
+     the x - and inside a bubble on a 360px phone they stack, so one file took
+     half the screen and a conversation of six was unreadable. That is the
+     opposite of what this is for.
+     The two that are FILING rather than reading come off: which-item and the
+     x. Neither is lost - the same row is drawn under the item below, where
+     filing belongs and where both still are. Save and the final mark stay,
+     because "let me keep that" and "this is the one" are things you do while
+     reading. */
+  .msg .fmove, .msg .x{display:none}
+  .msg .dl, .msg .markfinal{font-size:11.5px;padding:3px 8px}
+  /* A bench move is not somebody speaking. Centred, quiet and small - the way
+     a phone shows "missed call" between two messages. */
+  .sysl{align-self:center;font-size:11.5px;font-weight:700;color:var(--text-2);
+        letter-spacing:.04em;text-transform:uppercase;padding:1px 0}
+  .thrmt{color:var(--text-2);font-size:13px;padding:2px 0 4px}
+  /* Say something. One line, an attach and a Send - the shape of the box at
+     the bottom of every messaging app, put at the TOP because this thread is
+     newest-first and that is where the message will land. */
+  .say{margin:4px 0 10px}
+  .say input{width:100%;font:inherit;font-size:16px;padding:9px 11px;
+             border:1px solid var(--line);border-radius:8px;background:#fff}
+  .sayrow{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
+  .sayrow .upl{flex:0 0 auto}
+  /* The picked name takes the middle and may be long, so it gets an explicit
+     floor rather than being squeezed to one character - hard rule 9. */
+  .sayrow .small{flex:1 1 8rem;min-width:0;overflow-wrap:anywhere}
+  .sayrow .btn{flex:0 0 auto;margin-left:auto;height:38px;padding:0 18px}
   /* Eight questions do not fit across 360px, so the strip scrolls sideways
      rather than wrapping into a block that pushes the board off the screen. */
   /* The red tile is a pale wash, not a red block - so these are white cards
@@ -509,6 +559,13 @@
            background:none;border:0;padding:6px 0;cursor:pointer;display:inline-flex;
            align-items:center;gap:6px}
   .addlink:hover{color:var(--red-deep)}
+  /* The two ways to attach sit side by side under an item, and they ran into
+     each other - "+ Add a fileor upload a file" on a 360px phone, because one
+     is an inline-flex button and the other an inline label with no space
+     between them in the markup. A gap rather than a space: the artist's box
+     now draws both for every bench, so this is the common case and not the
+     odd one. */
+  .dif .addlink{margin-right:14px}
   .addlink::before{content:'+';font-family:'IBM Plex Mono',monospace;font-size:14px;line-height:1}
   .fl-add{margin-top:8px}
   .fl-add input{height:46px;font-size:16px}
@@ -578,6 +635,29 @@
   /* Green: unlike the other two this is good news - work finished, money
      collectable - and it should not read as an alarm. */
   .alert.claim{background:var(--green-wash);border-color:var(--green);color:var(--green)}
+  /* **The new-message banner.** Violet, because red, amber and green are
+     spoken for and this is a fourth KIND of thing - not an alarm, not a
+     warning, not money: somebody sent you something.
+     It is the one banner that is allowed to catch the eye on arrival, so it
+     carries a soft ring and a single slow pulse that settles - a banner that
+     never stops moving is one people cover with their thumb. */
+  .alert.fresh{background:linear-gradient(180deg,#F6F0FF 0%,#F2EAFC 100%);
+               border-color:#C9B2ED;color:#4B2489;
+               box-shadow:0 1px 0 #fff inset, 0 2px 10px rgba(91,46,158,.13);
+               animation:freshin .5s ease-out 1}
+  .alert.fresh .cnt{background:#5B2E9E;color:#fff}
+  .alert.fresh .go{opacity:.85}
+  @keyframes freshin{
+    from{transform:translateY(-3px);box-shadow:0 0 0 0 rgba(91,46,158,.30)}
+    60%{box-shadow:0 0 0 7px rgba(91,46,158,0)}
+    to{transform:none;box-shadow:0 1px 0 #fff inset, 0 2px 10px rgba(91,46,158,.13)}
+  }
+  /* A phone set to reduce motion gets the colour and none of the movement. */
+  @media (prefers-reduced-motion: reduce){ .alert.fresh{animation:none} }
+  /* **`fresh`, not `new`** - `.chip.new` is already the Received status and
+     styling would have collided silently. It says WHICH order the banner is
+     counting, so nobody opens six to find one. */
+  .chip.fresh{background:#F3EDFC;border-color:#D8C6F0;color:#5B2E9E;font-weight:800}
   .drvbar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
   .drvbar i{display:block;height:100%;background:#1A1A1A}
   .drvbar.warn i{background:var(--amber)} .drvbar.full i{background:var(--red)}
@@ -1143,17 +1223,25 @@ setTimeout(function(){
     <div id="lines"></div>
     <button class="btn ghost" id="addLine" style="width:100%">+ Add item</button>
 
-    <!-- the order's files: Google Drive links, each with a label -->
-    <h2>Files</h2>
-    <div class="fl-add">
-      <input id="fLinkUrl" inputmode="url" autocomplete="off" placeholder="Paste a Google Drive link">
-      <div class="fl-add2">
-        <input id="fLinkLabel" maxlength="80" autocomplete="off" placeholder="Label, e.g. PNG files">
-        <button type="button" class="btn ghost" id="fLinkAdd">+ Add link</button>
+    <!-- The order-level Files box lived here until 25 Sep and was a second
+         way to do what every LINE on this form already does: each item has
+         its own Drive link, its own label and its own + Add file. Two ways
+         to attach a file, one of which could not say which item it belonged
+         to, on a form that is typed beside a waiting customer.
+         The controls are kept, hidden and unreachable, so the handlers below
+         and the "goes up when the order is saved" queue keep working for any
+         path that still holds a reference. -->
+    <div id="fOrderFiles" hidden>
+      <div class="fl-add">
+        <input id="fLinkUrl" inputmode="url" autocomplete="off" placeholder="Paste a Google Drive link">
+        <div class="fl-add2">
+          <input id="fLinkLabel" maxlength="80" autocomplete="off" placeholder="Label">
+          <button type="button" class="btn ghost" id="fLinkAdd">+ Add link</button>
+        </div>
       </div>
+      <label class="upl" id="fUpWrap">+ Add file<input type="file" id="fUpload" multiple hidden></label>
+      <div id="fFileList"></div>
     </div>
-    <label class="upl" id="fUpWrap" hidden>+ Add file<input type="file" id="fUpload" multiple hidden></label>
-    <div id="fFileList"></div>
 
     <div class="mblock">
       <div class="mtot">
@@ -1578,6 +1666,11 @@ setTimeout(function(){
     <p id="askText"></p>
     <label id="askWrap" hidden><span id="askLabel"></span>
       <input id="askInput" maxlength="120" autocomplete="off"></label>
+    <!-- A note says what is wrong; a picture shows it. Drawn only when the
+         caller asks for it AND Drive is connected, because an attach button
+         that cannot attach is worse than none. -->
+    <label class="upl" id="askFileWrap" hidden>+ Attach a file<input type="file" id="askFile" hidden></label>
+    <div class="small muted" id="askFileName" hidden></div>
     <div class="msg" id="askMsg"></div>
   </div>
   <div class="df">
@@ -1740,10 +1833,30 @@ setTimeout(function(){
     </div>
     <div style="margin-top:12px" id="dLines"></div>
     <button type="button" class="btn ghost addline" id="dAddLine" hidden>+ Add a line</button>
-    <div class="totrow" style="margin-top:8px"><span class="muted">Total</span><span id="dTotal"></span></div>
-    <div class="totrow"><span class="muted">Paid</span><span id="dPaid"></span></div>
-    <div class="totrow big"><span>Balance</span><span id="dBal"></span></div>
+    <!-- Hidden outright for a bench that may not see money. It used to draw
+         three em-dashes, which is three rows of screen saying nothing and
+         inviting "why is this blank?" every time an artist opened an order. -->
+    <div id="dMoneyRows">
+      <div class="totrow" style="margin-top:8px"><span class="muted">Total</span><span id="dTotal"></span></div>
+      <div class="totrow"><span class="muted">Paid</span><span id="dPaid"></span></div>
+      <div class="totrow big"><span>Balance</span><span id="dBal"></span></div>
+    </div>
     <div class="pays" id="dPays"></div>
+    <!-- SAY SOMETHING. Until 25 Sep the only way to write a note on a job
+         order was to approve or send back a design, so there was nowhere to
+         say "the customer changed the colour to navy" while it is with the
+         artist - which is the commonest thing anyone wants to say.
+         It sits ABOVE the thread because the thread is newest-first, so this
+         is where the message will appear. -->
+    <div class="say" id="dSay" hidden>
+      <input id="dSayText" maxlength="500" autocomplete="off"
+             placeholder="Say something about this job order" aria-label="Message about this job order">
+      <div class="sayrow">
+        <label class="upl" id="dSayUpWrap" hidden>+ Attach<input type="file" id="dSayFile" hidden></label>
+        <span class="small muted" id="dSayName" hidden></span>
+        <button type="button" class="btn ghost" id="dSaySend">Send</button>
+      </div>
+    </div>
     <div class="dfiles" id="dFiles"></div>
     <!-- "For the whole order" was read on 25 Sep as "files that apply to ALL
          job orders". It never meant that. It means THIS order, not tied to one
@@ -1868,6 +1981,53 @@ let LINES_BY_ID = {}, EDITING = null;
    An order sent back, redone and approved leaves `layout`, so pairing this
    with the status is enough - no need to ask which verdict was the latest. */
 let SENT_BACK = new Set();
+/* THE NEWEST THING ON EACH ORDER THAT SOMEBODY ELSE DID. A file or a note by
+   the person tapped in is not news to them, so it never reaches this map. */
+let LAST_MSG = new Map();
+/* When THIS DEVICE last opened each order. Per device and per person, which
+   is what "have I seen it" actually is - a read receipt in the database would
+   be a table, a grant and a policy to record something that is nobody else's
+   business. Same store and the same reasoning as `df_tapped`. */
+const SEEN_KEY = 'df_seen';
+/* **PER PERSON, NOT PER DEVICE**, and the difference is the whole point on a
+   shop phone. One device is the whole shop's - the counter, the artist and
+   production all tap in on it - so a device-wide map meant the counter
+   opening an order silently cleared the artist's banner for the same order.
+   Found by the suite, which tapped in as one person and read the other's
+   board. With nobody tapped in there is one shared bucket, which is correct:
+   there is nobody for it to belong to. */
+const seenKey = () => (STAFF && STAFF.id) ? STAFF.id : '_';
+function seenAll(){
+  try{ return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+function seenMap(){ const a = seenAll(); return a[seenKey()] || {}; }
+function markSeen(id){
+  try{
+    const all = seenAll();
+    const m = all[seenKey()] = all[seenKey()] || {};
+    m[id] = new Date().toISOString();
+    /* Trimmed so one counter phone cannot grow this for ever: the newest 400
+       orders is far more than anybody scrolls, and an order dropping out
+       simply reads as unseen again. */
+    const ks = Object.keys(m);
+    if(ks.length > 400){
+      ks.sort((a, b) => String(m[a]).localeCompare(String(m[b])));
+      ks.slice(0, ks.length - 400).forEach(k => delete m[k]);
+    }
+    localStorage.setItem(SEEN_KEY, JSON.stringify(all));
+  }catch(e){ /* a full or blocked store only costs the chip, never the order */ }
+}
+/* Never seen at all still counts as new, but only once there is something to
+   have missed - otherwise every order in the shop would wear the chip on the
+   day this shipped. */
+const hasNew = o => {
+  const at = LAST_MSG.get(o.id);
+  if(!at) return false;
+  const seen = SEEN_CACHE[o.id];
+  return !seen || String(seen) < String(at);
+};
+let SEEN_CACHE = {};
 let ITEMS = [], LINES = [], ORDERS = [], CUR = null;
 
 // What each bench is allowed to see and move.
@@ -3152,7 +3312,15 @@ async function loadFiles(o){
      with the picker on its own row. */
   $('#dAddWhole').hidden = true;
   $('#dLinkUrl').value = ''; $('#dLinkLabel').value = '';
-  const { data } = await sb.from('jo_files').select('id,kind,url,label,created_at,drive_file_id,file_name,size_bytes,backed_up_at,jo_item_id,final_at')
+  /* **`*`, SO THE ORDER OF DEPLOYMENT CANNOT MATTER.** Naming `jo_review_id`
+     here would make this read fail outright until `build19w` runs - and this
+     read draws the whole files area, so shipping the app first would empty
+     every order's files on every phone. `build19a` had to run before its
+     release for exactly that reason and it is a bad thing to need twice.
+     `*` returns the column when it exists and simply does not when it does
+     not, so the app is correct either side of the migration. `jo_files` holds
+     table-level SELECT, so `*` needs no grant, and the row is small. */
+  const { data } = await sb.from('jo_files').select('*')
     .eq('job_order_id', o.id).is('removed_at', null).order('created_at');
   if(CUR !== o) return;
   // an uploaded file opens as its Drive file; the artist reaches it through the shared folder
@@ -3161,6 +3329,19 @@ async function loadFiles(o){
           label: (f.label || f.file_name || 'File') + (f.size_bytes ? ' (' + sizeText(Number(f.size_bytes)) + ')' : '') +
                  (f.backed_up_at ? ' - backed up ' + String(f.backed_up_at).slice(0, 10) + ', no longer in Drive' : '') }
       : f).filter(f => f.url || f.backed_up_at);
+  /* **WHICH WAY THE FILE WENT.** Either the counter sent it to the artist -
+     the photo, the logo, how the name is spelt - or the artist sent a design
+     back. They land in one list today, so an artist opening an order with six
+     files has to work out which two are theirs.
+     No column and no query: `added_by` is written on every insert already,
+     and ARTISTS is on the device from openShop(). */
+  const fromArtist = f => !!f.added_by && ARTISTS.some(a => a.id === f.added_by);
+  /* **And the split appears only once there is something to split.** A shop
+     with an empty roster writes `added_by` null on everything, and every file
+     from before this existed is null too - so on those orders the rule cannot
+     see who sent what, and relabelling them all "sent with the job order"
+     would be a confident lie. They get the single list they have always had. */
+  const split = rows.some(fromArtist);
   /* Where a file can be moved to. jo_files has a unique index on
      drive_file_id, so an upload put on the wrong item cannot be removed and
      added again - the bytes would have to go up a second time. Moving is the
@@ -3213,7 +3394,12 @@ async function loadFiles(o){
      for ever. Numbering from the newest made every number change meaning the
      moment another draft arrived, which is useless for saying "look at file
      2" to somebody a week later. */
-  const upOrder = rows.filter(f => f.kind === 'upload')
+  /* "Previous files history: 1, 2, 3" on the sketch is the ARTIST's history -
+     draft, redraw, final. Once the direction is known the counter's reference
+     photos stop being numbered along with it, because "look at file 2" has to
+     mean one of the designs. Where it is not known, everything is numbered,
+     exactly as before. */
+  const upOrder = rows.filter(f => f.kind === 'upload' && (!split || fromArtist(f)))
                       .slice().sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')));
   const NUM = new Map(); upOrder.forEach((f, i) => NUM.set(f.id, i + 1));
   /* The LATEST is the one marked out, not file 1 - "which do I print" is the
@@ -3235,7 +3421,8 @@ async function loadFiles(o){
      an artist actually works, sending a draft and then the finished art. If
      drafts and finals ever get muddled in practice, that is when jo_files
      earns a flag - not before. */
-  const ups = rows.filter(f => f.kind === 'upload' && f.drive_file_id && !f.backed_up_at);
+  const ups = rows.filter(f => f.kind === 'upload' && f.drive_file_id && !f.backed_up_at
+                              && (!split || fromArtist(f)));
   const latest = ups.length > 1 ? ups[ups.length - 1] : null;
   /* Newest upload first in every list, then the links in the order they were
      pasted. Asked for 24 Sep - an artist sending a redraw wants their latest
@@ -3276,9 +3463,124 @@ async function loadFiles(o){
           `Ask the artist or the counter before starting.</span></div>`
         : '');
 
-  const whole = newestFirst(rows.filter(f => !f.jo_item_id));
+  /* THE TWO BOXES FROM THE SKETCH, and they gather the WHOLE order rather
+     than only the files nobody filed under an item. That is the correction
+     the suite forced: a counter attaches the customer's logo under the item
+     it is for, so a box showing only unfiled files was empty exactly when the
+     artist opened the order to find it - while the artist's own designs,
+     gathered the other way, were all there. One side was answering "what was
+     sent to me" and the other "what was sent to me and not filed".
+     A file listed here still appears under its own item below: a pointer, not
+     a move, the rule the newest-file header has kept since 15 Sep - and each
+     row says which item it is on, so the repeat reads as a summary. */
+  /* ── ONE THREAD, NOT TWO BOXES ──
+     The two direction boxes answered "what came from whom"; a conversation
+     answers "what happened, in order". The shop asked for the second:
+     *"the file transferring receiving and attaching should be simple
+     continuous and easy to manage like sending a sms."*
+     Two more reads, both already made elsewhere in this dialog for other
+     reasons, and both scoped by RLS to this shop. */
+  const [revRes, logRes] = await Promise.all([
+    sb.from('jo_reviews').select('verdict,note,reviewed_at,reviewed_by')
+      .eq('job_order_id', o.id).order('reviewed_at'),
+    sb.from('jo_status_log').select('to_status,changed_at')
+      .eq('job_order_id', o.id).order('changed_at')
+  ]);
+  if(CUR !== o) return;                        // a faster tap opened another order
+
+  /* **Sides are by DIRECTION, not by author.** Everyone reads their own side
+     on the right, which is what every messaging app has taught them - so the
+     artist sits right on the artist's phone and left on the counter's. */
+  const artistSide = BENCH === 'artist';
+  const evs = [];
+  /* A file attached to a message is not a message of its own - it is that
+     message's picture. Held aside here and hung on its note below. */
+  const byReview = {};
+  rows.forEach(f => { if(f.jo_review_id) (byReview[f.jo_review_id] = byReview[f.jo_review_id] || []).push(f); });
+  rows.forEach(f => { if(f.jo_review_id) return;
+    evs.push({ at: f.created_at || '', kind: 'file', who: f.added_by || null,
+      mine: fromArtist(f) === artistSide, fallback: 'The shop', files: [f] }); });
+  /* A verdict with no note says nothing the status move below does not
+     already say, so it is not drawn twice. A verdict WITH a note is somebody
+     speaking, and that is a message. */
+  (revRes.data || []).forEach(r => {
+    const got = byReview[r.id] || [];
+    if(!r.note && !got.length) return;
+    /* A plain 'note' has no side of its own - it is whoever typed it. The app
+       cannot cheaply know a stranger's bench, so it takes the side of the
+       person reading only when they sent it themselves. */
+    const fromArt = r.verdict === 'submitted' ||
+      (r.verdict === 'note' && !!STAFF && r.reviewed_by === STAFF.id && artistSide);
+    evs.push({ at: r.reviewed_at || '', kind: 'note', who: r.reviewed_by || null,
+      mine: r.verdict === 'note'
+        ? (!!STAFF && r.reviewed_by === STAFF.id)
+        : (fromArt === artistSide),
+      fallback: r.verdict === 'submitted' ? 'The artist'
+              : r.verdict === 'note' ? 'The shop' : 'The counter',
+      text: r.note || '', files: got }); });
+  /* A bench move is not somebody speaking. It is the quiet centred line a
+     phone puts between two messages. `jo_status_log.changed_by` is the shop's
+     one shared account, so it can never name a person - which is why this is
+     a line about the JOB rather than a message from anyone. */
+  (logRes.data || []).forEach(r => evs.push({ at: r.changed_at || '', kind: 'move',
+    text: LABEL[r.to_status] || r.to_status }));
+
+  /* **A TIE IS NOT A COIN TOSS.** Sending back writes three things inside one
+     second - the move, then the note, then the upload - so they arrive with
+     timestamps that can be identical to the millisecond, and a sort with no
+     tie-break puts them in whatever order they were pushed. The rank is the
+     order the app actually performs them, so the conversation reads the way
+     it happened rather than the way the arrays were built. */
+  const rank = { move: 0, note: 1, file: 2 };
+  evs.sort((a, b) => String(a.at).localeCompare(String(b.at)) || (rank[a.kind] - rank[b.kind]));
+  /* Four files picked at once are one act, so they read as one message - the
+     same way a phone groups a burst of photos. Only CONSECUTIVE files, only
+     from the same person, only within two minutes: anything looser would
+     merge two people's work into one bubble. */
+  const merged = [];
+  evs.forEach(e => {
+    const prev = merged[merged.length - 1];
+    if(prev && prev.kind === 'file' && e.kind === 'file' && prev.who === e.who &&
+       Math.abs(new Date(e.at) - new Date(prev.at)) <= 120000){
+      prev.files.push(e.files[0]);
+    }else merged.push(e);
+  });
+
+  /* **NEWEST AT THE TOP.** SMS puts the newest at the bottom and gets away
+     with it because a chat app opens scrolled to the bottom. This thread is a
+     section partway down a dialog that opens at the TOP, so newest-last put
+     the one thing somebody opened the order to see furthest from them - and
+     further every time another file arrives. Every other list in this app is
+     newest-first for the same reason: the board, today's takings.
+     **Built ascending and reversed at the end, deliberately.** The grouping
+     above merges consecutive files from one person, and doing that on a
+     descending list would put a burst of four photos inside its bubble
+     backwards. Ascending to merge, reversed to read.
+     `File 1` is unaffected: it is numbered from `created_at`, oldest first, so
+     that a number is permanent. Numbering and display order are separate
+     questions and only one of them changed. */
+  merged.reverse();
+
+  /* One `staff_get` per person, cached across the session by staffName(), so
+     a thread of twenty files asks for at most a handful of names. */
+  const ids = [...new Set(merged.map(e => e.who).filter(Boolean))];
+  const named = {};
+  (await Promise.all(ids.map(staffName))).forEach((n, i) => { named[ids[i]] = n; });
+  if(CUR !== o) return;
+
+  const when = t => t ? new Date(t).toLocaleString('en-PH',
+    { timeZone:'Asia/Manila', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '';
+  const thread = merged.map(e => e.kind === 'move'
+    ? `<div class="sysl">${esc(e.text)} \u00b7 ${esc(when(e.at))}</div>`
+    : `<div class="msg${e.mine ? ' mine' : ''}">` +
+      `<div class="msgw"><span>${esc(named[e.who] || e.fallback)}</span>` +
+      `<span class="t">${esc(when(e.at))}</span></div>` +
+      (e.text ? `<div class="msgt">${esc(e.text)}</div>` : '') +
+      (e.files || []).map(row).join('') + `</div>`).join('');
+
   box.innerHTML = finHead + head +
-    (whole.length ? '<div class="k">Files applicable to all items</div>' + whole.map(row).join('') : '');
+    (merged.length ? `<div class="thr">${thread}</div>`
+                   : '<div class="thrmt">Nothing has been sent on this job order yet.</div>');
   /* Nothing there and nothing to add: say nothing at all. */
 
   /* Each item's own files, under the item on the detail - the same order the
@@ -3289,7 +3591,12 @@ async function loadFiles(o){
     const mine = newestFirst(rows.filter(f => f.jo_item_id === id));
     box2.innerHTML = mine.map(row).join('');
     if(o.voided || !id) return;
-    if(canTakeOrders()){
+    /* **The artist can paste a link too**, from 25 Sep. The sketch puts
+       "Add link" and "Add file" side by side in the artist's own box, and it
+       is right: plenty of finished art is a Drive link to a folder, not a
+       file to upload twice. Nothing in the Worker or the database was ever
+       counter-only about a link - this was one condition. */
+    if(canTakeOrders() || BENCH === 'artist'){
       /* One quiet link per item instead of three inputs. An order with three
          items showed four of these areas at once, which is a wall on a phone
          and is used once per file. */
@@ -3493,7 +3800,8 @@ function paintDrive(){
   if(!(DRIVE.connected && ROLE === 'owner')){
     $('#drvWhoList').hidden = true; $('#drvWhoList').textContent = '';
   }
-  const fu = $('#fUpWrap'); if(fu) fu.hidden = !DRIVE.connected;
+  /* The order-level box stays hidden whatever Drive says: files belong to
+     items now, and each line carries its own. */
   $('#drvBar').hidden = !(DRIVE.connected && DRIVE.limit);
   if(DRIVE.connected){
     const pct = DRIVE.limit ? Math.min(100, DRIVE.used / DRIVE.limit * 100) : 0;
@@ -3724,7 +4032,7 @@ async function uploadFile(file, joItemId){ return uploadFileTo(CUR, file, joItem
 /* Used twice: from the order detail, and straight after a new order is saved
    for the files the counter picked on the form. The bars are different
    elements, so the caller says which one to paint. */
-async function uploadFileTo(o, file, joItemId, bar){
+async function uploadFileTo(o, file, joItemId, bar, reviewId){
   try{ assertWritable(); }catch(err){ toast(err.message); return null; }
   const prog = $(bar + 'Prog');
   const show = (done, text) => {
@@ -3756,7 +4064,11 @@ async function uploadFileTo(o, file, joItemId, bar){
     }
     const { error } = await sb.from('jo_files').insert({ shop_id: SHOP.id, job_order_id: o.id, kind: 'upload',
       drive_file_id: got.id, file_name: got.name, size_bytes: got.size, mime: got.mime, label: got.name,
-      jo_item_id: joItemId || null, added_by: STAFF ? STAFF.id : null });
+      jo_item_id: joItemId || null, added_by: STAFF ? STAFF.id : null,
+      /* Only sent when there is one: before `build19w` the column does not
+         exist, and naming a column that does not exist fails the whole insert
+         - the same trap `build19a` had to run ahead of the app for. */
+      ...(reviewId ? { jo_review_id: reviewId } : {}) });
     if(error) throw error;
     toast(got.name + ' is in the job folder.');
     if(CUR === o) loadFiles(o);
@@ -4105,6 +4417,15 @@ function voidFailed(error){
    buttons look like the rest of the app. */
 const askDlg = $('#askDlg');
 let askDone = null;
+/* The file picked on the question, read by whoever asked it. Cleared at the
+   top of every ask(), so one dialog's attachment can never ride along to the
+   next question somebody answers. */
+let ASK_FILE = null;
+$('#askFile').onchange = () => {
+  ASK_FILE = $('#askFile').files[0] || null;
+  $('#askFileName').hidden = !ASK_FILE;
+  $('#askFileName').textContent = ASK_FILE ? ASK_FILE.name + ' - goes up when it is sent back' : '';
+};
 function ask(text, opt){
   const o = opt || {};
   $('#askHead').textContent = o.head || 'Are you sure?';
@@ -4122,6 +4443,15 @@ function ask(text, opt){
      that asks who is standing there rather than what they want to say. Reset
      every time - a box left as a password field would silently mask the next
      void reason somebody typed. */
+  /* `file` (25 Sep): "the counter and owner can attach file then it can
+     reach to the artist". The file is held here rather than resolved through
+     the promise, because every caller of ask() reads one answer and changing
+     that shape would touch every question in the app. */
+  ASK_FILE = null;
+  const wantFile = !!o.file && DRIVE.connected;
+  $('#askFileWrap').hidden = !wantFile;
+  $('#askFile').value = '';
+  $('#askFileName').hidden = true; $('#askFileName').textContent = '';
   const pin = !!o.pin;
   $('#askInput').type = pin ? 'password' : 'text';
   $('#askInput').inputMode = pin ? 'numeric' : 'text';
@@ -4965,9 +5295,25 @@ async function refresh(){
   /* One extra query per refresh, ids only. RLS scopes it to this shop, and a
      bench that cannot see the board does not reach here anyway. */
   try{
+    /* One query, two answers. It used to filter on `verdict = 'sent_back'`
+       and select the id alone; it now takes every verdict with its time and
+       its author, because the same rows are the conversation. */
     const { data: rv } = await sb.from('jo_reviews')
-      .select('job_order_id').eq('verdict', 'sent_back').limit(2000);
-    SENT_BACK = new Set((rv || []).map(r => r.job_order_id));
+      .select('job_order_id,verdict,reviewed_at,reviewed_by').limit(2000);
+    SENT_BACK = new Set((rv || []).filter(r => r.verdict === 'sent_back')
+                                  .map(r => r.job_order_id));
+    const me = STAFF ? STAFF.id : null;
+    const bump = (id, at, who) => {
+      if(!id || !at || (me && who === me)) return;       // your own is not news
+      const cur = LAST_MSG.get(id);
+      if(!cur || String(cur) < String(at)) LAST_MSG.set(id, at);
+    };
+    LAST_MSG = new Map();
+    (rv || []).forEach(r => bump(r.job_order_id, r.reviewed_at, r.reviewed_by));
+    const { data: ff } = await sb.from('jo_files')
+      .select('job_order_id,created_at,added_by').is('removed_at', null).limit(2000);
+    (ff || []).forEach(f => bump(f.job_order_id, f.created_at, f.added_by));
+    SEEN_CACHE = seenMap();
   }catch(e){ /* the board is still worth drawing without it */ }
   SYNCED = Date.now();
   renderBoard(); await renderSales();
@@ -5155,8 +5501,26 @@ const dueTitle = () =>
   : BENCH === 'production' ? 'Waiting to go out'
   :                          'Due today';
 
-function paintAlerts(seen){
+function paintAlerts(seen, mine){
   const rows = [];
+  /* **THE ONE EVERY BENCH GETS.** A file or a message arriving is the only
+     thing in this app that happens to you rather than because of you, and
+     until 25 Sep nothing said so - the artist had to open an order to find
+     out the counter had sent the artwork. First, because it is the newest
+     news on the screen. */
+  /* **COUNTED AGAINST WHAT THE BOARD WILL ACTUALLY SHOW.** `seen` is the
+     bench's work by `forMe`, which for an artist includes unassigned orders
+     still at Received - and no tab on an artist's strip shows Received,
+     because `SEES.artist` does not list it. So the first version counted an
+     order that tapping the banner could never take anybody to. The other
+     three banners filter by status themselves and were never exposed to it.
+     Found by a suite that compared WHICH orders against the banner's number
+     instead of trusting the number. */
+  const onBoard = mine ? seen.filter(o => mine.includes(o.status)) : seen;
+  const fresh = onBoard.filter(hasNew).length;
+  if(fresh) rows.push({ cls:'fresh', tab:'all', n:fresh,
+    what: fresh === 1 ? 'job order has something new' : 'job orders have something new',
+    go: 'See what arrived' });
   if(BENCH === 'artist'){
     const n = seen.filter(cameBack).length;
     if(n) rows.push({ cls:'redo', tab:'redo', n,
@@ -5206,7 +5570,7 @@ function renderBoard(){
   /* Every tab reads from here, so a bench can never be shown work that is not
      its own - the tabs ask a different question of the same set. */
   let seen = ORDERS.filter(o => !o.voided && o.status !== 'cancelled' && forMe(o));
-  paintAlerts(seen);            // from the same set, so it can never over-count
+  paintAlerts(seen, mine);      // from the same set, so it can never over-count
   /* Narrowed from the owner's "Work by artist" card. Applied AFTER the bench
      filter and after the alerts, so it can only ever show less - it is a lens
      on this bench's work, never a way around it. */
@@ -5319,6 +5683,7 @@ function renderBoard(){
            <div class="items">${esc(lineText(o))}</div>
            <div class="b">
              ${o.rush ? '<span class="chip rush">Rush</span>' : ''}
+             ${hasNew(o) ? '<span class="chip fresh">Unread</span>' : ''}
              ${cameBack(o) ? '<span class="chip redo">Came back</span>' : ''}
              ${paper ? (o.order_type === 'government' ? `<span class="chip gov">${esc(govName(o.gov_account_id) || 'Government')}</span>` : '') : ''}
              ${paper && poMissing(o) ? '<span class="chip nopo">PO missing</span>' : ''}
@@ -5399,10 +5764,16 @@ function openDetail(o){
   const edit = l => (!canEdit || !l.id) ? '' :
     `<button type="button" class="edit" data-edit="${esc(l.id)}"` +
     ` aria-label="Correct the quantity or rate for ${esc(l.item_type || l.size || 'this line')}">Edit</button>`;
+  /* **What to make, not what it costs.** An artist and production need the
+     item, the size, the gender and how many; the rate and the line total are
+     a counter's business. This was the last place a peso still reached them -
+     the tiles, the board card and the dashboard were closed in build 19 and
+     this row was missed because it reads as part of the work. */
+  const money = canSeeMoney() || BENCH === 'counter';
   const plain = l => `<div class="lrow"><div class="d">${esc(l.item_type)}${l.size?` · ${esc(l.size)}`:''}
         ${l.notes?`<div class="small inote">${esc(l.notes)}</div>`:''}
-        <div class="muted small">${l.qty} × ${peso(l.unit_price)} ${edit(l)}</div></div>
-        <div class="money">${peso(l.line_total)}</div></div>`;
+        <div class="muted small">${money ? `${l.qty} × ${peso(l.unit_price)}` : `${l.qty} to make`} ${edit(l)}</div></div>
+        ${money ? `<div class="money">${peso(l.line_total)}</div>` : ''}</div>`;
   const filesBox = g => `<div class="dif" data-item="${esc(g.id || '')}"></div>`;
   $('#dLines').innerHTML = gs.length
     ? gs.map(g => (!g.grouped ? plain(g.rows[0]) :
@@ -5412,18 +5783,25 @@ function openDetail(o){
         manifest(g) +
         g.rows.map(l=>`<div class="lrow lsub"><div class="d">${esc(l.size||'—')}${
            l.gender ? ` · ${l.gender === 'male' ? 'Male' : 'Female'}` : ''}
-           <div class="muted small">${l.qty} × ${peso(l.unit_price)} ${edit(l)}</div></div>
-           <div class="money">${peso(l.line_total)}</div></div>`).join('') +
-        `<div class="lrow lsubt"><div class="d">Subtotal</div><div class="money">${peso(g.total)}</div></div>`)
+           <div class="muted small">${money ? `${l.qty} × ${peso(l.unit_price)}` : `${l.qty} to make`} ${edit(l)}</div></div>
+           ${money ? `<div class="money">${peso(l.line_total)}</div>` : ''}</div>`).join('') +
+        /* No subtotal without the prices it is a subtotal OF. */
+        (money ? `<div class="lrow lsubt"><div class="d">Subtotal</div><div class="money">${peso(g.total)}</div></div>` : ''))
         + filesBox(g)
       ).join('')
     : `<div class="lrow"><div class="d">${esc(o.item_type||'—')}${o.size?` · ${esc(o.size)}`:''}
-        <div class="muted small">${o.qty} × ${peso(o.unit_price)}</div></div>
-        <div class="money">${peso(o.total)}</div></div>`;
-  const money = canSeeMoney() || BENCH === 'counter';
-  $('#dTotal').textContent = money ? peso(o.total) : '—';
-  $('#dPaid').textContent  = money ? peso(o.downpayment) : '—';
-  $('#dBal').textContent   = money ? peso(o.balance) : '—';
+        <div class="muted small">${money ? `${o.qty} × ${peso(o.unit_price)}` : `${o.qty} to make`}</div></div>
+        ${money ? `<div class="money">${peso(o.total)}</div>` : ''}</div>`;
+  $('#dMoneyRows').hidden = !money;
+  if(money){
+    $('#dTotal').textContent = peso(o.total);
+    $('#dPaid').textContent  = peso(o.downpayment);
+    $('#dBal').textContent   = peso(o.balance);
+  }else{
+    /* Emptied, not only hidden - the same rule the board's tab strip keeps.
+       A figure left in the DOM is still a figure on that device. */
+    $('#dTotal').textContent = ''; $('#dPaid').textContent = ''; $('#dBal').textContent = '';
+  }
 
   /* Who the order is sent to. Before it leaves Received, choosing an artist
      turns Move into "Send to ..."; after that, a change reassigns it. */
@@ -5460,7 +5838,20 @@ function openDetail(o){
   loadPays(o);
   loadFiles(o);
   // the folder and upload only once the shop's Drive is connected
+  /* Anyone on the shop may say something - that is the point of it - but not
+     on a voided order, which is a record of what was cancelled rather than a
+     conversation still going on. */
+  $('#dSay').hidden = !!o.voided;
+  $('#dSayUpWrap').hidden = !DRIVE.connected || !!o.voided;
+  $('#dSayText').value = ''; SAY_FILE = null;
+  $('#dSayName').hidden = true; $('#dSayName').textContent = '';
   $('#dDriveTools').hidden = !DRIVE.connected || !!o.voided;
+  /* **Opening it is reading it.** Marked here rather than on the board, so
+     scrolling past an order never counts as having seen what is on it. The
+     board behind repaints on the next refresh; the chip and the banner go
+     then, which is also when anything that arrived WHILE it was open would
+     show up. */
+  markSeen(o.id); SEEN_CACHE = seenMap();
   dlg.showModal();
 }
 /* Whose hands the order passed through. `taken_by` is the person at the
@@ -5667,7 +6058,7 @@ $('#dNext').onclick = async () => {
      CHECK: the insert is refused, the catch swallows it, and the order still
      goes for approval. */
   if(submitting){
-    try{ await recordReview('submitted', SUBMIT_NOTE); }catch(e){}
+    try{ await recordReview('submitted', SUBMIT_NOTE); }catch(e){}   // still swallowed: the MOVE is the fact
     SUBMIT_NOTE = '';
   }
   // moving off for_approval IS the approval, so it is recorded as one
@@ -5685,19 +6076,59 @@ $('#dNext').onclick = async () => {
    design can go round three times and the artist needs the note that applies
    to THIS round, while the owner needs to see that it went round three
    times. */
+/* Returns `{ error, id }`. The id matters from 25 Sep: a file attached to a
+   message carries `jo_review_id` so the thread draws them as one thing
+   instead of two rows a second apart.
+   **The app cannot make that id.** `build19e` granted INSERT on this table's
+   columns and `id` is not one of them, so it is read back rather than
+   generated - the opposite of `jo_create`, where the app owns the ids. */
 async function recordReview(verdict, note){
-  const { error } = await sb.from('jo_reviews').insert({
+  const { data, error } = await sb.from('jo_reviews').insert({
     shop_id: SHOP.id, job_order_id: CUR.id, verdict,
     note: note ? String(note).trim().slice(0, 500) : null,
-    reviewed_by: STAFF ? STAFF.id : null });
-  return error;
+    reviewed_by: STAFF ? STAFF.id : null }).select('id').single();
+  return { error, id: data ? data.id : null };
 }
+
+/* The file picked on the compose box, cleared whenever an order opens so one
+   order's attachment can never ride along to the next. */
+let SAY_FILE = null;
+$('#dSayFile').onchange = () => {
+  SAY_FILE = $('#dSayFile').files[0] || null;
+  $('#dSayName').hidden = !SAY_FILE;
+  $('#dSayName').textContent = SAY_FILE ? SAY_FILE.name : '';
+};
+$('#dSaySend').onclick = async () => {
+  const text = $('#dSayText').value.trim().slice(0, 500);
+  if(!text && !SAY_FILE) return toast('Type something, or attach a file.');
+  try{ assertWritable(); }catch(err){ return toast(err.message); }
+  /* **The message IS the thing here**, so a refusal is said out loud and what
+     was typed is left in the box. That is the opposite of the submitted note,
+     where the MOVE was the fact and a lost note was recoverable by telling
+     somebody - and it is why this one does not swallow.
+     Before `build19w` widens the CHECK the insert is refused and the sentence
+     below is what a person sees. */
+  const rev = await recordReview('note', text || null);
+  if(rev.error) return toast('Could not send it: ' + rev.error.message);
+  const f = SAY_FILE; SAY_FILE = null;
+  $('#dSayText').value = '';
+  $('#dSayFile').value = '';
+  $('#dSayName').hidden = true; $('#dSayName').textContent = '';
+  /* The file goes up after the message exists, so it can point at it. A
+     failed upload leaves the message standing, which is right: what was said
+     still happened. */
+  if(f) await uploadFileTo(CUR, f, null, '#dUp', rev.id);
+  toast('Sent');
+  loadFiles(CUR);
+};
 
 $('#dSendBack').onclick = async () => {
   try{ assertWritable(); }catch(err){ return toast(err.message); }
   const why = await ask('Send JO ' + CUR.jo_no + ' back to the artist. What needs changing?',
-    { head: 'Send back', input: 'What needs changing', yes: 'Send it back', no: 'Keep it here' });
+    { head: 'Send back', input: 'What needs changing', yes: 'Send it back', no: 'Keep it here',
+      file: true });
   if(why === null || why === false) return;
+  const back = ASK_FILE; ASK_FILE = null;
 
   const to = ($('#dArtist') && !$('#dArtWrap').hidden) ? ($('#dArtist').value || null) : undefined;
   const patch = { status: 'layout', updated_at: new Date().toISOString() };
@@ -5709,7 +6140,19 @@ $('#dSendBack').onclick = async () => {
      order has not come back and a note saying why would be a lie; if the note
      fails the order is still correctly with the artist, and a missing note is
      recoverable by telling them. The move is the fact. */
-  const e2 = await recordReview('sent_back', why);
+  const rev = await recordReview('sent_back', why);
+  const e2 = rev.error;
+  /* The file goes up LAST and while the order is still open, so the progress
+     bar has somewhere to draw. It is attached to the whole order rather than
+     to an item: what is wrong with a design is rarely one line of it.
+     It cannot undo the move - the order is already back with the artist, the
+     note is already recorded, and an upload that fails is a file to send
+     again, not a job to put right. uploadFileTo says so itself if it does. */
+  /* The photo carries the note's id, so the thread shows "Reg: the logo is
+     the old one" WITH the picture under it rather than as two messages. If
+     `build19w` has not run the id is null and it still uploads - one message
+     becomes two, which is exactly how it read yesterday. */
+  if(back) await uploadFileTo(CUR, back, null, '#dUp', rev.id);
   dlg.close();
   toast(e2 ? 'Sent back, but the note did not save: ' + e2.message
            : 'JO ' + CUR.jo_no + ' sent back to the artist');
@@ -6372,6 +6815,14 @@ async function renderSales(){
         ${a.os.sort((x,y)=>x.jo_no-y.jo_no).map(o => `<div class="gl">JO ${esc(o.jo_no)} · ${o.po_number ? esc(poText(o.po_number)) : 'no PO yet'} · ${peso(o.balance)} · ${esc(LABEL[o.status] || o.status)}</div>`).join('')}</div>`).join('')
     : '<div class="muted">No government account owes anything.</div>';
 }
+/* The shop's own name in the filename, not "decalfix". The hard-coded one was
+   right while there was one shop and wrong the moment there are two - and a
+   folder of files all called `decalfix-sales-...` is unsortable for whoever
+   ends up holding several shops' books. Letters, digits and single hyphens
+   only, because this becomes a filename on somebody's Windows desktop. */
+const slugOf = s => String(s || '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'sales';
+
 $('#btnCsv').onclick = () => {
   const head = ['JO','Date','Customer','FB name','Item','Size','Qty','Unit price','Line total','Order total','Paid','Balance','Status'];
   const rows = [head];
@@ -6392,11 +6843,25 @@ $('#btnCsv').onclick = () => {
     if(typeof c === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return '"' + s.replace(/"/g,'""') + '"';
   };
-  const csv = rows.map(r=>r.map(cell).join(',')).join('\n');
+  /* A BOM, so Excel opens it as UTF-8. Without it a customer named Ñuñez or
+     a peso sign in a future column arrives as mojibake in the one program
+     this file exists to be opened in. */
+  const csv = '﻿' + rows.map(r=>r.map(cell).join(',')).join('\n');
+  /* **Downloaded the same way `saveFile()` does it**, and the difference is
+     not style. This used to click a DETACHED anchor and revoke the blob URL
+     on the very next statement - so the browser was asked to fetch a URL that
+     had already been thrown away. Desktop Chrome usually wins that race; an
+     Android phone does not always, and the failure is silent: no error, no
+     file, a counter tapping the button again. The Save button on a Drive file
+     twenty lines from here has always appended, clicked, removed and revoked
+     late. Two download paths in one file disagreeing meant one of them was
+     wrong, and it was this one. */
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download = 'decalfix-sales-' + today() + '.csv';
-  a.click(); URL.revokeObjectURL(a.href);
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download = (SHOP && SHOP.name ? slugOf(SHOP.name) : 'sales') + '-sales-' + today() + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 20000);
+  toast('Saved ' + a.download);
 };
 
 /* -- PIN pad --
