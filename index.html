@@ -1851,6 +1851,10 @@ setTimeout(function(){
       <input id="dPo" maxlength="60" autocomplete="off" placeholder="PO number">
       <button type="button" class="btn ghost" id="dPoSave">Save PO</button>
     </div>
+    <!-- PRODUCTION'S FIRST LINE. "make it the final file then the sizes": the
+         file to print leads, above what to print it on. Empty on every other
+         bench, which read the files in the conversation below. -->
+    <div id="dPrintFile"></div>
     <div style="margin-top:12px" id="dLines"></div>
     <button type="button" class="btn ghost addline" id="dAddLine" hidden>+ Add a line</button>
     <!-- Hidden outright for a bench that may not see money. It used to draw
@@ -1872,6 +1876,10 @@ setTimeout(function(){
          upload a file" every bench gets, at the bottom under Open job folder -
          a footnote, for the single most important thing anyone on that bench
          does. Named, bordered, and above the conversation. -->
+    <!-- Moved up 25 Sep. It sat below every file and every history line, so
+         an artist opening a redesign scrolled past the rejected design to
+         find out what was wrong with it. -->
+    <div class="sentback" id="dSentBack" hidden></div>
     <div class="artbox" id="dArtBox" hidden>
       <div class="k" id="dArtBoxK">Attach your design for approval</div>
       <label class="upl" id="dArtUpWrap">Upload the design file<input type="file" id="dArtUp" hidden></label>
@@ -1915,7 +1923,6 @@ setTimeout(function(){
     </div>
     <!-- Why it came back, when it did. The artist's first question on
          opening a redesign is "what was wrong with it". -->
-    <div class="sentback" id="dSentBack" hidden></div>
     <!-- The status trail lived here from build 17 and was made redundant on
          25 Sep by the thread, which draws every bench move as its own line
          AND says who and what around it. The photograph that settled it shows
@@ -2094,7 +2101,10 @@ const SEES = {
   owner:      ['new','layout','for_approval','printing','ready','claimed']
 };
 const MOVES = {
-  counter:    ['new','ready'],
+  /* for_approval added 25 Sep. The counter was sent the "waiting for you"
+     banner and a Send back button and then told "Not your bench" - a
+     browser agent needed the owner's PIN to finish one order. */
+  counter:    ['new','for_approval','ready'],
   artist:     ['layout'],
   production: ['printing'],
   office:     ['new','layout','for_approval','printing','ready'],
@@ -3428,12 +3438,21 @@ async function loadFiles(o){
      different things and only two of them send anything.
      This one is not a send: it CHOOSES which file the shop is working from.
      So it says what it does, and the chosen one states rather than offers. */
-  const finWord  = awaiting ? 'Being sent' : 'Final';
+  /* The words follow the order, not the flag. At `layout` nothing has been
+     sent yet - the old "Being sent" told an artist it had gone before they
+     pressed anything, and they could not tell whether pressing would send it
+     twice. At `for_approval` it has gone and is waiting. */
+  const atLayout = o.status === 'layout';
+  const finWord  = atLayout ? 'Chosen' : awaiting ? 'Waiting for approval' : 'Final';
   const markWord = awaiting ? 'Use this' : 'Mark final';
-  const finalBtn = f => (!canFinal || f.kind !== 'upload' || !f.drive_file_id || f.backed_up_at) ? ''
+  /* **Only on a design.** "Use this" appeared on the customer's reference
+     photo, where it meant "send the customer's photo for approval" - nobody
+     means that. Where the direction is known, only an artist's file offers it. */
+  const finalBtn = f => (!canFinal || f.kind !== 'upload' || !f.drive_file_id || f.backed_up_at ||
+                         (split && !fromArtist(f))) ? ''
     : `<button type="button" class="markfinal" data-final="${esc(f.id)}"` +
       ` aria-pressed="${f.final_at ? 'true' : 'false'}"` +
-      ` aria-label="${f.final_at ? 'This is the design being sent' : 'Send ' + esc(f.file_name || 'this file') + ' for approval'}">` +
+      ` aria-label="${f.final_at ? 'This is the chosen design' : 'Choose ' + esc(f.file_name || 'this file') + ' as the design'}">` +
       `${f.final_at ? '\u2605 ' + finWord : markWord}</button>`;
   /* Newest first, 1 at the top. Built once here so every list that draws a
      row - the item's, the whole order's, the final box and the newest-file
@@ -3488,7 +3507,11 @@ async function loadFiles(o){
     const g = groups.find(x => x.id === f.jo_item_id);
     return g ? g.item : 'an item';
   };
-  const head = latest ? `<div class="latest"><div class="k">Newest file — this is the one to print</div>` +
+  /* ONLY WHEN NOTHING IS DECLARED. With a final design marked, a second box
+     guessing from timestamps is at best a repeat and at worst a contradiction
+     - on the live shop it named a different file from the final box, under a
+     heading telling production to print it. */
+  const head = (latest && !rows.some(f => f.final_at)) ? `<div class="latest"><div class="k">Newest file — this is the one to print</div>` +
       row(latest) +
       `<span class="when">${esc(String(latest.created_at || '').slice(0, 10))} · on ${esc(itemOfFile(latest))}` +
       `${ups.length > 1 ? ` · ${ups.length} files on this order` : ''}</span></div>` : '';
@@ -3501,7 +3524,9 @@ async function loadFiles(o){
   const fin = rows.find(f => f.final_at);
   const finHead = fin
     ? `<div class="finalbox${awaiting ? ' awaiting' : ''}"><div class="k">` +
-      (awaiting ? 'Design sent for approval' : 'Final design \u2014 this is what production prints') +
+      (atLayout ? 'Design ready to send for approval'
+        : awaiting ? 'Design waiting for approval'
+        : 'Final design \u2014 this is what production prints') +
       `</div>` + row(fin) + `</div>`
     /* Production cannot start without one, so say so where they will look
        rather than leaving an empty space to interpret. */
@@ -3529,7 +3554,12 @@ async function loadFiles(o){
      Two more reads, both already made elsewhere in this dialog for other
      reasons, and both scoped by RLS to this shop. */
   const [revRes, logRes] = await Promise.all([
-    sb.from('jo_reviews').select('verdict,note,reviewed_at,reviewed_by')
+    /* `id` IS LOAD-BEARING. Without it a photo attached to a note cannot find
+       the note, and was drawn nowhere - found on the live shop, where the
+       artist read "make the logo bigger, see photo" and there was no photo.
+       The stub returns whole rows whatever this list says, which is why no
+       suite could see it. */
+    sb.from('jo_reviews').select('id,verdict,note,reviewed_at,reviewed_by')
       .eq('job_order_id', o.id).order('reviewed_at'),
     sb.from('jo_status_log').select('to_status,changed_at')
       .eq('job_order_id', o.id).order('changed_at')
@@ -3545,7 +3575,11 @@ async function loadFiles(o){
      message's picture. Held aside here and hung on its note below. */
   const byReview = {};
   rows.forEach(f => { if(f.jo_review_id) (byReview[f.jo_review_id] = byReview[f.jo_review_id] || []).push(f); });
-  rows.forEach(f => { if(f.jo_review_id) return;
+  /* **A file is never dropped.** One that points at a note is drawn under the
+     note - but only if that note is actually here to draw it. A missing or
+     unreadable note must not make its picture vanish with it. */
+  const reviewIds = new Set((revRes.data || []).map(r => r.id));
+  rows.forEach(f => { if(f.jo_review_id && reviewIds.has(f.jo_review_id)) return;
     evs.push({ at: f.created_at || '', kind: 'file', who: f.added_by || null,
       mine: fromArtist(f) === artistSide, fallback: 'The shop', files: [f] }); });
   /* A verdict with no note says nothing the status move below does not
@@ -3650,9 +3684,26 @@ async function loadFiles(o){
       `</div>`).join('');
 
   const anySent = merged.some(e => e.kind !== 'move');
-  box.innerHTML = finHead + head +
-    (anySent ? '' : '<div class="thrmt">Nothing has been sent on this job order yet.</div>') +
-    (merged.length ? `<div class="thr">${thread}</div>` : '');
+  /* **PRODUCTION GETS THE FINAL FILE, THEN THE SIZES** - *"production even
+     sees so many files that they will become confuse what to print."* The
+     final design goes ABOVE the lines, where they look first, and the
+     drafts, the customer's photos and the rejected versions do not reach
+     their screen at all. What they are owed is one file and a size sheet.
+     Messages still reach them, without their attachments: "the printer is
+     down" is theirs to read; draft 2 is not theirs to print. */
+  if(BENCH === 'production'){
+    $('#dPrintFile').innerHTML = finHead;
+    const talk = merged.filter(e => e.kind === 'move' || (e.kind === 'note' && e.text));
+    box.innerHTML = talk.length ? `<div class="thr">${talk.map(e => e.kind === 'move'
+        ? `<div class="sysl">${esc(e.text)}${named[e.who] ? ' \u00b7 ' + esc(named[e.who]) : ''} \u00b7 ${esc(when(e.at))}</div>`
+        : `<div class="msg"><div class="msgw"><span>${esc(named[e.who] || e.fallback)}</span>` +
+          `<span class="t">${esc(when(e.at))}</span></div><div class="msgt">${esc(e.text)}</div></div>`).join('')}</div>` : '';
+  }else{
+    $('#dPrintFile').innerHTML = '';
+    box.innerHTML = finHead + head +
+      (anySent ? '' : '<div class="thrmt">Nothing has been sent on this job order yet.</div>') +
+      (merged.length ? `<div class="thr">${thread}</div>` : '');
+  }
   /* Nothing there and nothing to add: say nothing at all. */
 
   /* Each item's own files, under the item on the detail - the same order the
@@ -3671,6 +3722,7 @@ async function loadFiles(o){
     box2.innerHTML = '';
     if(o.voided || !id) return;
     if(BENCH === 'artist' && o.status === 'layout') return;
+    if(BENCH === 'production') return;   // production prints; it does not attach
     /* **The artist can paste a link too**, from 25 Sep. The sketch puts
        "Add link" and "Add file" side by side in the artist's own box, and it
        is right: plenty of finished art is a Drive link to a folder, not a
@@ -5995,7 +6047,7 @@ function openDetail(o){
      up: two ways to do one thing is the complaint that started today. Open
      job folder stays - it is a different action. */
   const genericUp = $('#dDriveTools').querySelector('label.upl');
-  if(genericUp) genericUp.hidden = artBox;
+  if(genericUp) genericUp.hidden = artBox || BENCH === 'production';
   /* **Opening it is reading it.** Marked here rather than on the board, so
      scrolling past an order never counts as having seen what is on it. The
      board behind repaints on the next refresh; the chip and the banner go
@@ -6309,6 +6361,13 @@ $('#dSendBack').onclick = async () => {
      recoverable by telling them. The move is the fact. */
   const rev = await recordReview('sent_back', why);
   const e2 = rev.error;
+  /* **A REJECTED DESIGN IS NOT THE CHOSEN ONE ANY MORE.** It kept its star
+     and kept saying it was being sent, on both benches, after the counter had
+     said no to it. The next design the artist attaches marks itself. */
+  try{
+    await sb.from('jo_files').update({ final_at: null })
+      .eq('job_order_id', CUR.id).not('final_at', 'is', null);
+  }catch(e){ console.error('could not clear the rejected design:', e); }
   /* The file goes up LAST and while the order is still open, so the progress
      bar has somewhere to draw. It is attached to the whole order rather than
      to an item: what is wrong with a design is rarely one line of it.
