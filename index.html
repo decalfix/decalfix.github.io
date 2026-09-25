@@ -343,7 +343,7 @@
          border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text-2)}
   .dif{padding:0 0 10px 12px;border-left:2px solid var(--line);margin:0 0 8px 2px}
   .dif .fl-add input{height:40px;font-size:15px}
-  .dif .flink{font-size:14px}
+  .dif .flink{font-size:13px}
   /* M / F rather than a dropdown: one tap instead of three, and it fits a
      column where a select would not. Tapping the one already on turns it off,
      because plenty of apparel is ordered without a split. */
@@ -495,8 +495,15 @@
   .ifiles .fl-add{margin-top:0}
   .ifiles .fl-add input{height:40px;font-size:15px}
   .ifiles .fl-add2{margin-top:6px}
-  .ifiles .flink{font-size:14px}
+  .ifiles .flink{font-size:13px}
   .ifnote{margin-top:6px;font-size:12px}
+  /* Folded away until wanted. An order is read far more often than it is
+     added to, so the boxes are the exception and the work is the rule. */
+  .addlink{font:inherit;font-size:12.5px;font-weight:700;color:var(--text-2);
+           background:none;border:0;padding:6px 0;cursor:pointer;display:inline-flex;
+           align-items:center;gap:6px}
+  .addlink:hover{color:var(--red-deep)}
+  .addlink::before{content:'+';font-family:'IBM Plex Mono',monospace;font-size:14px;line-height:1}
   .fl-add{margin-top:8px}
   .fl-add input{height:46px;font-size:16px}
   .fl-add2{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}
@@ -516,7 +523,12 @@
      width to ONE CHARACTER, which is what let the flex row squeeze it until
      the name printed vertically on a phone. The basis is the floor: below
      about 12rem the row wraps and the name gets a line to itself. */
-  .flink{font-weight:800;color:var(--red-deep);text-decoration:underline;
+  /* Quieter: it was 800-weight underlined red, which on a row that also
+     holds Save, a which-item picker and an x read as a wall rather than a
+     file name. Still a link, still tappable, no longer the loudest thing on
+     the order. */
+  .flink{font-weight:600;font-size:13px;color:var(--red-deep);text-decoration:underline;
+         text-decoration-color:var(--line);text-underline-offset:2px;
          flex:1 1 12rem;min-width:0;overflow-wrap:anywhere}
   .dfiles:empty{display:none}
   .dfiles{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
@@ -1694,6 +1706,11 @@ setTimeout(function(){
     <div class="totrow big"><span>Balance</span><span id="dBal"></span></div>
     <div class="pays" id="dPays"></div>
     <div class="dfiles" id="dFiles"></div>
+    <!-- "For the whole order" was read on 25 Sep as "files that apply to ALL
+         job orders". It never meant that. It means THIS order, not tied to one
+         item - a layout covering the whole job, a reference photo, the signed
+         quote. The name is the fix; the fold is the tidy. -->
+    <button type="button" class="addlink" id="dAddWhole" hidden>Add a file for this order</button>
     <div class="fl-add" id="dLinkRow" hidden>
       <input id="dLinkUrl" inputmode="url" autocomplete="off" placeholder="Paste a Google Drive link">
       <div class="fl-add2">
@@ -3079,7 +3096,10 @@ $('#fLinkAdd').onclick = () => {
    hides it, never deletes it. */
 async function loadFiles(o){
   const box = $('#dFiles'); box.innerHTML = '';
-  $('#dLinkRow').hidden = !!o.voided;
+  /* Folded by default. The boxes are used once per file and read every time
+     the order is opened, so the quiet link is the resting state. */
+  $('#dLinkRow').hidden = true;
+  $('#dAddWhole').hidden = !!o.voided;
   $('#dLinkUrl').value = ''; $('#dLinkLabel').value = '';
   const { data } = await sb.from('jo_files').select('id,kind,url,label,created_at,drive_file_id,file_name,size_bytes,backed_up_at,jo_item_id,final_at')
     .eq('job_order_id', o.id).is('removed_at', null).order('created_at');
@@ -3179,7 +3199,7 @@ async function loadFiles(o){
 
   const whole = newestFirst(rows.filter(f => !f.jo_item_id));
   box.innerHTML = finHead + head +
-    (whole.length ? '<div class="k">For the whole order</div>' + whole.map(row).join('') : '');
+    (whole.length ? '<div class="k">Not tied to one item</div>' + whole.map(row).join('') : '');
 
   /* Each item's own files, under the item on the detail - the same order the
      counter worked in when taking the job. Uploading is here and not on the
@@ -3190,7 +3210,16 @@ async function loadFiles(o){
     box2.innerHTML = mine.map(row).join('');
     if(o.voided || !id) return;
     if(canTakeOrders()){
+      /* One quiet link per item instead of three inputs. An order with three
+         items showed four of these areas at once, which is a wall on a phone
+         and is used once per file. */
+      const open = document.createElement('button');
+      open.type = 'button'; open.className = 'addlink'; open.textContent = 'Add a file';
+      box2.appendChild(open);
+
       const add = document.createElement('div'); add.className = 'fl-add';
+      add.hidden = true;
+      open.onclick = () => { add.hidden = false; open.hidden = true; url.focus(); };
       const url = document.createElement('input');
       url.inputMode = 'url'; url.autocomplete = 'off'; url.placeholder = 'Drive link for this item';
       url.setAttribute('aria-label', 'Google Drive link for this item');
@@ -3269,6 +3298,12 @@ async function loadFiles(o){
     toast(up ? 'File taken off the order' : 'Link removed'); loadFiles(o);
   }; });
 }
+$('#dAddWhole').onclick = () => {
+  $('#dLinkRow').hidden = false;
+  $('#dAddWhole').hidden = true;
+  const u = $('#dLinkUrl'); if(u) u.focus();
+};
+
 $('#dLinkBtn').onclick = async () => {
   const url = driveUrl($('#dLinkUrl').value);
   if(!url) return toast(NOT_DRIVE);
