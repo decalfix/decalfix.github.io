@@ -3226,6 +3226,7 @@ async function loadFiles(o){
         ? `<button type="button" class="dl" data-dl="${esc(f.id)}" aria-label="Save ${esc(f.file_name || 'file')} to this device">Save</button>` : ''}${mover(f)}${
       finalBtn(f)}${
       canTakeOrders() ? `<button type="button" class="x" data-id="${esc(f.id)}" data-kind="${esc(f.kind)}"` +
+        ` data-final="${f.final_at ? '1' : '0'}"` +
         ` data-name="${esc(f.file_name || f.label || '')}"` +
         ` aria-label="Take ${esc(f.file_name || f.label || 'this file')} off the order">×</button>` : ''}</div>`;
   /* Which one prints. Only worth saying when there is more than one upload -
@@ -3365,12 +3366,34 @@ async function loadFiles(o){
        rather than by somebody who lost a file. */
     const up = b.dataset.kind === 'upload';
     const named = b.dataset.name || (up ? 'this file' : 'this link');
+    /* The marked file is the one the artist submitted, or the one production
+       is printing from. Taking it off stops a job, so it asks for a PIN as
+       well - a real one, checked by the database. Everything else is one of
+       several drafts and the question is enough. */
+    const marked = b.dataset.final === '1';
+    const havePin = !!(onRoster().length && STAFF);
     const go = await ask(
-      up ? 'It comes off this job order. The file itself stays in Google Drive - '
-         + 'but nothing in the app can put it back on the order.'
-         : 'It comes off this job order, and nothing in the app can put it back.',
-      { head: 'Take ' + named + ' off?', yes: 'Take it off', no: 'Keep it', danger: true });
-    if(!go) return;
+      marked
+        ? 'This is the file the shop is working from' +
+          (up ? '. The file itself stays in Google Drive, but nothing in the app can put it back on the order.'
+              : ', and nothing in the app can put it back.')
+        : up ? 'It comes off this job order. The file itself stays in Google Drive - '
+             + 'but nothing in the app can put it back on the order.'
+             : 'It comes off this job order, and nothing in the app can put it back.',
+      { head: 'Take ' + named + ' off?', yes: 'Take it off', no: 'Keep it', danger: true,
+        ...(marked && havePin ? { input: 'Your 4-digit PIN', pin: true } : {}) });
+    if(go === false || go === null) return;
+    if(marked && havePin){
+      const pin = String(go || '').replace(/[^0-9]/g, '');
+      if(pin.length !== 4) return toast('That PIN is four digits.');
+      /* Checked where the caller cannot reach it: bcrypt, server-side, and
+         five wrong tries locks the person out for fifteen minutes. */
+      let who;
+      try{ who = await sb.rpc('staff_check', { p_staff: STAFF.id, p_pin: pin }); }
+      catch(e){ return toast(e.message); }
+      if(who.error) return toast(who.error.message);
+      if(!(who.data || []).length) return toast('That is not your PIN.');
+    }
     try{ assertWritable(); }catch(err){ return toast(err.message); }
     const { error } = await sb.from('jo_files').update({ removed_at: new Date().toISOString() }).eq('id', b.dataset.id);
     if(error) return toast(error.message);
@@ -4095,6 +4118,16 @@ function ask(text, opt){
   $('#askLabel').textContent = o.input || '';
   $('#askInput').value = '';
   $('#askInput').placeholder = o.placeholder || '';
+  /* `pin` (25 Sep): the same box, masked and numeric, for the one question
+     that asks who is standing there rather than what they want to say. Reset
+     every time - a box left as a password field would silently mask the next
+     void reason somebody typed. */
+  const pin = !!o.pin;
+  $('#askInput').type = pin ? 'password' : 'text';
+  $('#askInput').inputMode = pin ? 'numeric' : 'text';
+  if(pin) $('#askInput').setAttribute('maxlength', '4');
+  else $('#askInput').removeAttribute('maxlength');
+  $('#askInput').autocomplete = 'off';
   askDlg.showModal();
   if(asking) setTimeout(() => $('#askInput').focus(), 50);
   /* `optional` (21 Sep): an input that may be left empty. Until now every
@@ -5562,7 +5595,12 @@ function paintRushWhy(){
   el.hidden = !why;
   el.textContent = why;
 }
+/* Carried from the question to just after the move. Cleared every time, so
+   a note typed on one order can never ride along to the next. */
+let SUBMIT_NOTE = '';
+
 $('#dNext').onclick = async () => {
+  SUBMIT_NOTE = '';
   const nx = FLOW[FLOW.indexOf(CUR.status)+1]; if(!nx) return;
   try{ assertWritable(); }catch(err){ return toast(err.message); }
 
@@ -5582,10 +5620,26 @@ $('#dNext').onclick = async () => {
       .select('final_at').eq('job_order_id', CUR.id).is('removed_at', null)
       .eq('kind', 'upload');
     const files = ups || [];
-    if(files.length && !files.some(f => f.final_at)){
-      const go = await ask('No file on JO ' + CUR.jo_no + ' is marked as the final design. ' +
+    if(!files.length){
+      /* NOTHING ATTACHED AT ALL. The old rule only spoke when there were
+         files and none was marked, so the emptiest case - the one where the
+         counter is about to be handed nothing - passed in silence.
+         The note is OPTIONAL, and that is the point: plenty of work has no
+         file (a plate number, a re-run of last month's job), and a box that
+         must be filled gets filled with a full stop, which looks like an
+         answer and is not. */
+      const note = await ask('Nothing has been uploaded to JO ' + CUR.jo_no + '. ' +
+        'Send it for approval anyway? If it needs saying, leave a note for the ' +
+        'counter and production.',
+        { head: 'No file attached', yes: 'Send it anyway', no: 'Go back and add one',
+          input: 'Why, or what to expect (optional)', optional: true });
+      if(note === null || note === false) return;
+      SUBMIT_NOTE = typeof note === 'string' ? note.trim() : '';
+    }
+    else if(!files.some(f => f.final_at)){
+      const go = await ask('No file on JO ' + CUR.jo_no + ' is marked as the one being sent. ' +
         'Send it for approval anyway?',
-        { head: 'No final design', yes: 'Send it anyway', no: 'Go back and mark one' });
+        { head: 'Nothing marked', yes: 'Send it anyway', no: 'Go back and mark one' });
       if(!go) return;
     }
   }
@@ -5603,9 +5657,19 @@ $('#dNext').onclick = async () => {
   // leaving Received for With artist carries the artist chosen, if any
   const to = (nx === 'layout' && canTakeOrders()) ? ($('#dArtist').value || null) : undefined;
   if(to !== undefined) patch.artist_id = to;
+  const submitting = nx === 'for_approval' && CUR.status === 'layout';
   const approving = CUR.status === 'for_approval';
   const { error } = await sb.from('job_orders').update(patch).eq('id', CUR.id);
   if(error) return toast(error.message);
+  /* THE MOVE IS THE FACT; the note is a description of it. Written after,
+     and never allowed to fail the move - the same rule the send-back note
+     keeps. It also means this degrades safely before `build19v` widens the
+     CHECK: the insert is refused, the catch swallows it, and the order still
+     goes for approval. */
+  if(submitting){
+    try{ await recordReview('submitted', SUBMIT_NOTE); }catch(e){}
+    SUBMIT_NOTE = '';
+  }
   // moving off for_approval IS the approval, so it is recorded as one
   if(approving) await recordReview('approved', null);
   dlg.close();
