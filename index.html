@@ -398,7 +398,18 @@
      filing belongs and where both still are. Save and the final mark stay,
      because "let me keep that" and "this is the one" are things you do while
      reading. */
-  .msg .fmove, .msg .x{display:none}
+  /* **THESE CAME BACK ON 25 Sep, and the reason is a lesson.** They were
+     hidden here because a file row carried four controls and was drawn TWICE
+     - once in the thread and once under its item - so six files meant twelve
+     rows of buttons. I treated the symptom: hide two controls in one of the
+     two copies.
+     The real fault was the duplication, and removing that halved the screen
+     by itself. Hiding these as well took the which-item picker and the x out
+     of the app ENTIRELY once the item list stopped listing - and the picker
+     is the only repair for a file put on the wrong item, because `jo_files`
+     has a unique index on `drive_file_id` and removing it means uploading the
+     bytes again. `itemfiles.mjs` went red on both within a minute.
+     **Fix the cause, then look again before hiding anything.** */
   .msg .dl, .msg .markfinal{font-size:11.5px;padding:3px 8px}
   /* A bench move is not somebody speaking. Centred, quiet and small - the way
      a phone shows "missed call" between two messages. */
@@ -3380,8 +3391,13 @@ async function loadFiles(o){
      production prints. Same flag, same row, different question being
      answered - so it gets a different word rather than a different column. */
   const awaiting = ['layout','for_approval'].includes(o.status);
-  const finWord  = awaiting ? 'For approval' : 'Final';
-  const markWord = awaiting ? 'Send this one' : 'Mark final';
+  /* **FOUR BUTTONS SAID "SEND".** This one, the message box, the move to
+     For approval, and the dialog that asks before it. They mean four
+     different things and only two of them send anything.
+     This one is not a send: it CHOOSES which file the shop is working from.
+     So it says what it does, and the chosen one states rather than offers. */
+  const finWord  = awaiting ? 'Being sent' : 'Final';
+  const markWord = awaiting ? 'Use this' : 'Mark final';
   const finalBtn = f => (!canFinal || f.kind !== 'upload' || !f.drive_file_id || f.backed_up_at) ? ''
     : `<button type="button" class="markfinal" data-final="${esc(f.id)}"` +
       ` aria-pressed="${f.final_at ? 'true' : 'false'}"` +
@@ -3576,7 +3592,9 @@ async function loadFiles(o){
       `<div class="msgw"><span>${esc(named[e.who] || e.fallback)}</span>` +
       `<span class="t">${esc(when(e.at))}</span></div>` +
       (e.text ? `<div class="msgt">${esc(e.text)}</div>` : '') +
-      (e.files || []).map(row).join('') + `</div>`).join('');
+      (e.files || []).map(f => row(f) + (groups.length > 1
+        ? `<span class="when">on ${esc(itemOfFile(f))}</span>` : '')).join('') +
+      `</div>`).join('');
 
   box.innerHTML = finHead + head +
     (merged.length ? `<div class="thr">${thread}</div>`
@@ -3589,7 +3607,14 @@ async function loadFiles(o){
   document.querySelectorAll('#dLines .dif').forEach(box2 => {
     const id = box2.dataset.item;
     const mine = newestFirst(rows.filter(f => f.jo_item_id === id));
-    box2.innerHTML = mine.map(row).join('');
+    /* **NOT LISTED HERE ANY MORE.** Every file was drawn twice - once under
+       its item and again in the thread - so an order with three files showed
+       six rows and twelve buttons. *"this is redundant the one is already on
+       the top."* The thread is the one list, and each row there says which
+       item it is on, so nothing is lost but the repetition.
+       The box stays because it is where a file is ADDED to this item: the
+       controls below are its whole purpose now. */
+    box2.innerHTML = '';
     if(o.voided || !id) return;
     /* **The artist can paste a link too**, from 25 Sep. The sketch puts
        "Add link" and "Add file" side by side in the artist's own box, and it
@@ -4032,6 +4057,41 @@ async function uploadFile(file, joItemId){ return uploadFileTo(CUR, file, joItem
 /* Used twice: from the order detail, and straight after a new order is saved
    for the files the counter picked on the form. The bars are different
    elements, so the caller says which one to paint. */
+/* **AN ARTIST'S UPLOAD MARKS ITSELF** while the job is with them (25 Sep).
+   Attaching a design during layout already says which file you mean - asking
+   again afterwards is a question with one possible answer, and it fired on
+   the commonest move in the shop: *"the artist can see the sent file then add
+   something then attach the file for approval that simple."*
+   Only an ARTIST, only while the order is at layout or awaiting a verdict,
+   and only an upload - a pasted link is not a design being submitted.
+   Best effort: if the mark fails the file is still attached and the old
+   "Nothing marked" dialog still catches it, which is the honest degradation.
+   It is not silent about failing, it simply does not block the upload. */
+async function markSent(o, fileId){
+  if(!fileId) return;
+  if(BENCH !== 'artist' || !['layout','for_approval'].includes(o.status)) return;
+  try{
+    /* Read the order's files and sift here rather than with `.not()`. One
+       round trip either way, and it leans on nothing exotic - which matters
+       because the line below used to swallow the difference. */
+    const { data: others } = await sb.from('jo_files')
+      .select('id,final_at').eq('job_order_id', o.id);
+    for(const x of (others || [])){
+      if(!x.final_at || x.id === fileId) continue;
+      await sb.from('jo_files').update({ final_at: null }).eq('id', x.id);
+    }
+    await sb.from('jo_files').update({ final_at: new Date().toISOString() }).eq('id', fileId);
+  }catch(e){
+    /* **SAID, NOT SWALLOWED.** The first version of this caught silently, and
+       the first thing it caught was not a dropped line but a TypeError - the
+       test stub has no `.not()`, so the whole feature did nothing while every
+       check around it stayed green. A catch that hides a programming error is
+       worse than no catch. The dialog is still the backstop for the shop; the
+       console is the backstop for me. */
+    console.error('could not mark the sent design:', e);
+  }
+}
+
 async function uploadFileTo(o, file, joItemId, bar, reviewId){
   try{ assertWritable(); }catch(err){ toast(err.message); return null; }
   const prog = $(bar + 'Prog');
@@ -4062,14 +4122,16 @@ async function uploadFileTo(o, file, joItemId, bar, reviewId){
         if(s && s.done) got = s.file; else if(s) next = s.next;
       }
     }
-    const { error } = await sb.from('jo_files').insert({ shop_id: SHOP.id, job_order_id: o.id, kind: 'upload',
+    const { data: insId, error } = await sb.from('jo_files').insert({ shop_id: SHOP.id, job_order_id: o.id, kind: 'upload',
       drive_file_id: got.id, file_name: got.name, size_bytes: got.size, mime: got.mime, label: got.name,
       jo_item_id: joItemId || null, added_by: STAFF ? STAFF.id : null,
       /* Only sent when there is one: before `build19w` the column does not
          exist, and naming a column that does not exist fails the whole insert
          - the same trap `build19a` had to run ahead of the app for. */
-      ...(reviewId ? { jo_review_id: reviewId } : {}) });
+      ...(reviewId ? { jo_review_id: reviewId } : {}) })
+      .select('id').single();
     if(error) throw error;
+    await markSent(o, insId ? insId.id : null);
     toast(got.name + ' is in the job folder.');
     if(CUR === o) loadFiles(o);
     return got;
