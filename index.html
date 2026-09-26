@@ -342,6 +342,9 @@
   .fmove{max-width:104px;height:32px;font-size:13px;font-weight:700;padding:0 4px;flex:none;
          border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text-2)}
   .dif{padding:0 0 10px 12px;border-left:2px solid var(--line);margin:0 0 8px 2px}
+  /* A bench with nothing to add here (production, a voided order) leaves the
+     box empty - and an empty box still drew its border as a stray tick. */
+  .dif:empty{display:none}
   .dif .fl-add input{height:40px;font-size:15px}
   .dif .flink{font-size:13px}
   /* M / F rather than a dropdown: one tap instead of three, and it fits a
@@ -367,70 +370,32 @@
   .latest .fl{margin:0}
   .latest .when{display:block;color:var(--text-2);font-size:12px;font-weight:600;
                 margin-top:5px}
-  /* ── THE THREAD ──
-     "the file transferring receiving and attaching should be simple continuous
-     and easy to manage like sending a sms" (25 Sep). Files, notes and bench
-     moves in one list, oldest at the top, newest at the bottom - the way a
-     phone shows a conversation, and the way the job actually went.
-     Sides are by DIRECTION, not by author: on a counter's screen the artist is
-     on the left and the counter on the right; on the artist's screen it is the
-     other way round. Each person sees their own side on the right, which is
-     what every messaging app has taught everyone to read. */
-  .thr{margin:2px 0 4px;display:flex;flex-direction:column;gap:9px}
-  .msg{max-width:88%;align-self:flex-start;border:1px solid var(--line);
-       border-radius:10px 10px 10px 3px;padding:8px 10px;background:#fff}
-  .msg.mine{align-self:flex-end;border-radius:10px 10px 3px 10px;background:#FAFAF8}
-  .msgw{display:flex;gap:6px;align-items:baseline;font-size:11.5px;font-weight:700;
-        color:var(--text-2);letter-spacing:.02em;margin:0 0 5px}
-  .msgw .t{font-weight:600;letter-spacing:0}
-  .msgt{font-size:13.5px;line-height:1.45;margin:0 0 4px;overflow-wrap:anywhere}
-  /* A file row inside a message is the message's body, so it loses the top
-     margin it carries when it is one of a list. */
-  .msg .fl{margin:3px 0 0;gap:6px}
-  .msg .fl:first-of-type{margin-top:0}
-  /* **A MESSAGE IS FOR READING; THE ITEM'S OWN LIST IS FOR MANAGING.**
-     Every file row carries four controls - Save, which-item, mark-final and
-     the x - and inside a bubble on a 360px phone they stack, so one file took
-     half the screen and a conversation of six was unreadable. That is the
-     opposite of what this is for.
-     The two that are FILING rather than reading come off: which-item and the
-     x. Neither is lost - the same row is drawn under the item below, where
-     filing belongs and where both still are. Save and the final mark stay,
-     because "let me keep that" and "this is the one" are things you do while
-     reading. */
-  /* **THESE CAME BACK ON 25 Sep, and the reason is a lesson.** They were
-     hidden here because a file row carried four controls and was drawn TWICE
-     - once in the thread and once under its item - so six files meant twelve
-     rows of buttons. I treated the symptom: hide two controls in one of the
-     two copies.
-     The real fault was the duplication, and removing that halved the screen
-     by itself. Hiding these as well took the which-item picker and the x out
-     of the app ENTIRELY once the item list stopped listing - and the picker
-     is the only repair for a file put on the wrong item, because `jo_files`
-     has a unique index on `drive_file_id` and removing it means uploading the
-     bytes again. `itemfiles.mjs` went red on both within a minute.
-     **Fix the cause, then look again before hiding anything.** */
-  .msg .dl, .msg .markfinal{font-size:11.5px;padding:3px 8px}
-  /* A bench move is not somebody speaking. Centred, quiet and small - the way
-     a phone shows "missed call" between two messages. */
-  .sysl{align-self:center;font-size:11.5px;font-weight:700;color:var(--text-2);
-        letter-spacing:.04em;text-transform:uppercase;padding:1px 0}
+  /* ── THE FILES, AS SECTIONS ──
+     The SMS thread lived here 25-26 Sep and was removed on the morning of
+     the demo, on the shop's word: "it cause so much confusion on reading."
+     Files are read in fixed, labelled sections now - what was sent with the
+     job order, the artist's designs, and the corrections - in a fixed order
+     per bench. A conversation is how files ARRIVE; sections are how a shop
+     READS them, and the person who reads them fifty times a day chose. */
+  .fsec{margin:10px 0 4px}
+  .fsec .k{margin:0 0 4px}
   .thrmt{color:var(--text-2);font-size:13px;padding:2px 0 4px}
-  /* Say something. One line, an attach and a Send - the shape of the box at
-     the bottom of every messaging app, put at the TOP because this thread is
-     newest-first and that is where the message will land. */
-  /* The artist's box. Bordered so it reads as a place rather than a line,
-     amber-edged because it is the thing the shop is waiting on them for. */
-  .artbox{border:1px solid var(--amber);background:var(--amber-wash);
-          border-radius:11px;padding:11px 13px;margin:10px 0}
-  .artbox .k{margin:0 0 8px}
-  .artbox .upl{display:inline-block;font-size:14px;margin-right:14px}
-  .artbox .addlink{display:inline-flex}
-  .artbox .fl-add{margin-top:8px}
-  .artbox .small{margin-top:7px}
-  .say{margin:4px 0 10px}
-  .say input{width:100%;font:inherit;font-size:16px;padding:9px 11px;
-             border:1px solid var(--line);border-radius:8px;background:#fff}
+  /* The reviewer's correction box: a message field and an attach, both
+     optional, feeding the Send back button below it. Amber, because it is
+     the same "what to change" that the artist will read at the top of the
+     order when it goes back. */
+  .corrbox{border:1px solid var(--amber);background:var(--amber-wash);
+           border-radius:11px;padding:11px 13px;margin:12px 0 4px}
+  .corrbox .k{margin:0 0 8px}
+  .corrbox input[type=text], .corrbox input:not([type]){width:100%;font:inherit;
+           font-size:16px;padding:9px 11px;border:1px solid var(--line);
+           border-radius:8px;background:#fff;box-sizing:border-box}
+  .corrbox .small{margin-top:7px}
+  /* The artist's per-item upload: the one control that matters on that
+     bench, so it reads as a button rather than a footnote. */
+  .upl.artup{display:inline-block;font-size:14px;font-weight:800;
+             padding:8px 12px;border:1px solid var(--amber);border-radius:8px;
+             background:var(--amber-wash);text-decoration:none;color:var(--text)}
   .sayrow{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
   .sayrow .upl{flex:0 0 auto}
   /* The picked name takes the middle and may be long, so it gets an explicit
@@ -1872,37 +1837,26 @@ setTimeout(function(){
          artist - which is the commonest thing anyone wants to say.
          It sits ABOVE the thread because the thread is newest-first, so this
          is where the message will appear. -->
-    <!-- THE ARTIST'S OWN BOX. Their upload used to be the same quiet "or
-         upload a file" every bench gets, at the bottom under Open job folder -
-         a footnote, for the single most important thing anyone on that bench
-         does. Named, bordered, and above the conversation. -->
-    <!-- Moved up 25 Sep. It sat below every file and every history line, so
-         an artist opening a redesign scrolled past the rejected design to
-         find out what was wrong with it. -->
-    <div class="sentback" id="dSentBack" hidden></div>
-    <div class="artbox" id="dArtBox" hidden>
-      <div class="k" id="dArtBoxK">Attach your design for approval</div>
-      <label class="upl" id="dArtUpWrap">Upload the design file<input type="file" id="dArtUp" hidden></label>
-      <button type="button" class="addlink" id="dArtLinkOpen">or paste a Drive link</button>
-      <div class="fl-add" id="dArtLinkRow" hidden>
-        <input id="dArtUrl" inputmode="url" autocomplete="off" placeholder="Paste a Google Drive link">
-        <div class="fl-add2">
-          <input id="dArtLabel" maxlength="80" autocomplete="off" placeholder="Label">
-          <button type="button" class="btn ghost" id="dArtAdd">Add link</button>
-        </div>
-      </div>
-      <div class="small muted" id="dArtHint"></div>
-    </div>
-    <div class="say" id="dSay" hidden>
-      <input id="dSayText" maxlength="500" autocomplete="off"
-             placeholder="Say something about this job order" aria-label="Message about this job order">
-      <div class="sayrow">
-        <label class="upl" id="dSayUpWrap" hidden>+ Attach<input type="file" id="dSayFile" hidden></label>
-        <span class="small muted" id="dSayName" hidden></span>
-        <button type="button" class="btn ghost" id="dSaySend">Send</button>
-      </div>
-    </div>
+    <!-- The SMS-like message box and the artist's single attach box lived
+         here 25-26 Sep and were removed the morning of the demo, on the
+         shop's word: "Can we remove the sms like feature it cause so much
+         confusion on reading." The artist uploads under each ITEM now, and
+         the reviewer's correction box below is the only message field. -->
     <div class="dfiles" id="dFiles"></div>
+    <!-- THE CORRECTION BOX - reviewer only, only while a design waits.
+         "then there will be a field for message for correction if they are
+         any then attach new file for correction of there are any. Send back
+         button or Approve." Both halves optional; Send back below reads them. -->
+    <div class="corrbox" id="dCorrBox" hidden>
+      <div class="k">If the design needs changes</div>
+      <input id="dCorrNote" maxlength="500" autocomplete="off"
+             placeholder="Message for correction (optional)">
+      <div class="sayrow">
+        <label class="upl" id="dCorrUpWrap">+ Attach a correction file<input type="file" id="dCorrFile" hidden></label>
+        <span class="small muted" id="dCorrName" hidden></span>
+      </div>
+      <div class="small muted">Then press <b>Send back</b> below &mdash; or <b>Approve</b> to send it to production.</div>
+    </div>
     <!-- "For the whole order" was read on 25 Sep as "files that apply to ALL
          job orders". It never meant that. It means THIS order, not tied to one
          item - a layout covering the whole job, a reference photo, the signed
@@ -3394,7 +3348,12 @@ async function loadFiles(o){
      from before this existed is null too - so on those orders the rule cannot
      see who sent what, and relabelling them all "sent with the job order"
      would be a confident lie. They get the single list they have always had. */
-  const split = rows.some(fromArtist);
+  /* A design on the order proves it; failing that, an order where EVERY file
+     names its adder (and the shop has artists to tell apart) is classifiable
+     too - which is every order taken since `added_by` shipped, with somebody
+     tapped in. An old order with null adders keeps the one honest list. */
+  const split = rows.some(fromArtist) ||
+    (rows.length > 0 && ARTISTS.length > 0 && rows.every(f => f.added_by));
   /* Where a file can be moved to. jo_files has a unique index on
      drive_file_id, so an upload put on the wrong item cannot be removed and
      added again - the bytes would have to go up a second time. Moving is the
@@ -3482,15 +3441,6 @@ async function loadFiles(o){
         ` data-final="${f.final_at ? '1' : '0'}"` +
         ` data-name="${esc(f.file_name || f.label || '')}"` +
         ` aria-label="Take ${esc(f.file_name || f.label || 'this file')} off the order">×</button>` : ''}</div>`;
-  /* Which one prints. Only worth saying when there is more than one upload -
-     with a single file there is no question to answer, and repeating it above
-     itself is just clutter. Newest wins: no schema change, and it matches how
-     an artist actually works, sending a draft and then the finished art. If
-     drafts and finals ever get muddled in practice, that is when jo_files
-     earns a flag - not before. */
-  const ups = rows.filter(f => f.kind === 'upload' && f.drive_file_id && !f.backed_up_at
-                              && (!split || fromArtist(f)));
-  const latest = ups.length > 1 ? ups[ups.length - 1] : null;
   /* Newest upload first in every list, then the links in the order they were
      pasted. Asked for 24 Sep - an artist sending a redraw wants their latest
      at the top, not at the bottom of four. */
@@ -3507,27 +3457,13 @@ async function loadFiles(o){
     const g = groups.find(x => x.id === f.jo_item_id);
     return g ? g.item : 'an item';
   };
-  /* ONLY WHEN NOTHING IS DECLARED. With a final design marked, a second box
-     guessing from timestamps is at best a repeat and at worst a contradiction
-     - on the live shop it named a different file from the final box, under a
-     heading telling production to print it. */
-  const head = (latest && !rows.some(f => f.final_at)) ? `<div class="latest"><div class="k">Newest file — this is the one to print</div>` +
-      row(latest) +
-      `<span class="when">${esc(String(latest.created_at || '').slice(0, 10))} · on ${esc(itemOfFile(latest))}` +
-      `${ups.length > 1 ? ` · ${ups.length} files on this order` : ''}</span></div>` : '';
-
-  /* The declared final design leads everything, above even the newest file:
-     one is a statement, the other a guess from a timestamp. */
-  /* THE ONE THE SHOP IS ACTING ON, above everything else. A counter opening
-     an order that is waiting on them sees the submitted design first and the
-     rest as history - which is the whole point of the round trip. */
   const fin = rows.find(f => f.final_at);
+  /* Drawn for PRODUCTION only. Every other bench reads the sections, where
+     the chosen design already carries its star - a summary box above a list
+     that repeats it is the duplication the shop kept photographing. */
   const finHead = fin
-    ? `<div class="finalbox${awaiting ? ' awaiting' : ''}"><div class="k">` +
-      (atLayout ? 'Design ready to send for approval'
-        : awaiting ? 'Design waiting for approval'
-        : 'Final design \u2014 this is what production prints') +
-      `</div>` + row(fin) + `</div>`
+    ? `<div class="finalbox"><div class="k">Final design \u2014 this is what production prints</div>` +
+      row(fin) + `</div>`
     /* Production cannot start without one, so say so where they will look
        rather than leaving an empty space to interpret. */
     : (BENCH === 'production'
@@ -3553,156 +3489,69 @@ async function loadFiles(o){
      continuous and easy to manage like sending a sms."*
      Two more reads, both already made elsewhere in this dialog for other
      reasons, and both scoped by RLS to this shop. */
-  const [revRes, logRes] = await Promise.all([
-    /* `id` IS LOAD-BEARING. Without it a photo attached to a note cannot find
-       the note, and was drawn nowhere - found on the live shop, where the
-       artist read "make the logo bigger, see photo" and there was no photo.
-       The stub returns whole rows whatever this list says, which is why no
-       suite could see it. */
-    sb.from('jo_reviews').select('id,verdict,note,reviewed_at,reviewed_by')
-      .eq('job_order_id', o.id).order('reviewed_at'),
-    sb.from('jo_status_log').select('to_status,changed_at')
-      .eq('job_order_id', o.id).order('changed_at')
-  ]);
+  /* The corrections and the direction both come from jo_reviews; the status
+     log is no longer drawn at all - the chip at the top says where the order
+     is, and the corrections box says why it came back. */
+  const { data: revData } = await sb.from('jo_reviews')
+    .select('id,verdict,note,reviewed_at,reviewed_by')
+    .eq('job_order_id', o.id).order('reviewed_at');
   if(CUR !== o) return;                        // a faster tap opened another order
 
-  /* **Sides are by DIRECTION, not by author.** Everyone reads their own side
-     on the right, which is what every messaging app has taught them - so the
-     artist sits right on the artist's phone and left on the counter's. */
-  const artistSide = BENCH === 'artist';
-  const evs = [];
-  /* A file attached to a message is not a message of its own - it is that
-     message's picture. Held aside here and hung on its note below. */
-  const byReview = {};
-  rows.forEach(f => { if(f.jo_review_id) (byReview[f.jo_review_id] = byReview[f.jo_review_id] || []).push(f); });
-  /* **A file is never dropped.** One that points at a note is drawn under the
-     note - but only if that note is actually here to draw it. A missing or
-     unreadable note must not make its picture vanish with it. */
-  const reviewIds = new Set((revRes.data || []).map(r => r.id));
-  rows.forEach(f => { if(f.jo_review_id && reviewIds.has(f.jo_review_id)) return;
-    evs.push({ at: f.created_at || '', kind: 'file', who: f.added_by || null,
-      mine: fromArtist(f) === artistSide, fallback: 'The shop', files: [f] }); });
-  /* A verdict with no note says nothing the status move below does not
-     already say, so it is not drawn twice. A verdict WITH a note is somebody
-     speaking, and that is a message. */
-  (revRes.data || []).forEach(r => {
-    const got = byReview[r.id] || [];
-    if(!r.note && !got.length) return;
-    /* A plain 'note' has no side of its own - it is whoever typed it. The app
-       cannot cheaply know a stranger's bench, so it takes the side of the
-       person reading only when they sent it themselves. */
-    const fromArt = r.verdict === 'submitted' ||
-      (r.verdict === 'note' && !!STAFF && r.reviewed_by === STAFF.id && artistSide);
-    evs.push({ at: r.reviewed_at || '', kind: 'note', who: r.reviewed_by || null,
-      mine: r.verdict === 'note'
-        ? (!!STAFF && r.reviewed_by === STAFF.id)
-        : (fromArt === artistSide),
-      fallback: r.verdict === 'submitted' ? 'The artist'
-              : r.verdict === 'note' ? 'The shop' : 'The counter',
-      text: r.note || '', files: got }); });
-  /* A bench move is not somebody speaking. It is the quiet centred line a
-     phone puts between two messages. `jo_status_log.changed_by` is the shop's
-     one shared account, so it can never name a person - which is why this is
-     a line about the JOB rather than a message from anyone. */
-  /* **WHO MOVED IT, where that can be known.** `jo_status_log.changed_by` is
-     `default auth.uid()` and there is one auth account per shop, so that
-     column names the SHOP on every row and can never answer this. But a
-     verdict carries `reviewed_by`, a real shop_staff id - and the app writes
-     the move and then the verdict inside the same second, so a move takes the
-     name of a verdict within ten seconds of it.
-     **It is a heuristic, said out loud rather than hidden.** The column that
-     would make it a fact is `build19y`. A move with nobody to name says
-     nothing: a blank is honest, a wrong name is not. */
-  const verdicts = (revRes.data || [])
-    .filter(r => r.reviewed_by && r.reviewed_at)
-    .map(r => ({ t: new Date(r.reviewed_at).getTime(), who: r.reviewed_by }));
-  const movedBy = at => {
-    if(!at) return null;
-    const t = new Date(at).getTime();
-    let best = null, gap = 10000;
-    verdicts.forEach(v => { const d = Math.abs(v.t - t); if(d <= gap){ gap = d; best = v.who; } });
-    return best;
-  };
-  (logRes.data || []).forEach(r => evs.push({ at: r.changed_at || '', kind: 'move',
-    who: movedBy(r.changed_at), text: LABEL[r.to_status] || r.to_status }));
-
-  /* **A TIE IS NOT A COIN TOSS.** Sending back writes three things inside one
-     second - the move, then the note, then the upload - so they arrive with
-     timestamps that can be identical to the millisecond, and a sort with no
-     tie-break puts them in whatever order they were pushed. The rank is the
-     order the app actually performs them, so the conversation reads the way
-     it happened rather than the way the arrays were built. */
-  const rank = { move: 0, note: 1, file: 2 };
-  evs.sort((a, b) => String(a.at).localeCompare(String(b.at)) || (rank[a.kind] - rank[b.kind]));
-  /* Four files picked at once are one act, so they read as one message - the
-     same way a phone groups a burst of photos. Only CONSECUTIVE files, only
-     from the same person, only within two minutes: anything looser would
-     merge two people's work into one bubble. */
-  const merged = [];
-  evs.forEach(e => {
-    const prev = merged[merged.length - 1];
-    if(prev && prev.kind === 'file' && e.kind === 'file' && prev.who === e.who &&
-       Math.abs(new Date(e.at) - new Date(prev.at)) <= 120000){
-      prev.files.push(e.files[0]);
-    }else merged.push(e);
-  });
-
-  /* **NEWEST AT THE TOP.** SMS puts the newest at the bottom and gets away
-     with it because a chat app opens scrolled to the bottom. This thread is a
-     section partway down a dialog that opens at the TOP, so newest-last put
-     the one thing somebody opened the order to see furthest from them - and
-     further every time another file arrives. Every other list in this app is
-     newest-first for the same reason: the board, today's takings.
-     **Built ascending and reversed at the end, deliberately.** The grouping
-     above merges consecutive files from one person, and doing that on a
-     descending list would put a burst of four photos inside its bubble
-     backwards. Ascending to merge, reversed to read.
-     `File 1` is unaffected: it is numbered from `created_at`, oldest first, so
-     that a number is permanent. Numbering and display order are separate
-     questions and only one of them changed. */
-  merged.reverse();
-
-  /* One `staff_get` per person, cached across the session by staffName(), so
-     a thread of twenty files asks for at most a handful of names. */
-  /* Movers are in here too now, so a move's name costs no extra call. */
-  const ids = [...new Set(merged.map(e => e.who).filter(Boolean))];
-  const named = {};
-  (await Promise.all(ids.map(staffName))).forEach((n, i) => { named[ids[i]] = n; });
+  /* THE CORRECTIONS: the latest send-back, shown while the order is back at
+     layout - once it moves on, the note has been acted on. Its attached file
+     travels WITH it, which is the lost-photo lesson made permanent: a file
+     that points at a review is that review's picture, drawn beside its words. */
+  const backRev = atLayout
+    ? ((revData || []).filter(r => r.verdict === 'sent_back').slice(-1)[0] || null)
+    : null;
+  const corrFiles = backRev ? rows.filter(f => f.jo_review_id === backRev.id) : [];
+  const corrIds = new Set(corrFiles.map(f => f.id));
+  const corrWho = backRev ? await staffName(backRev.reviewed_by) : '';
   if(CUR !== o) return;
-
   const when = t => t ? new Date(t).toLocaleString('en-PH',
     { timeZone:'Asia/Manila', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '';
-  const thread = merged.map(e => e.kind === 'move'
-    ? `<div class="sysl">${esc(e.text)}${named[e.who] ? ' \u00b7 ' + esc(named[e.who]) : ''}` +
-      ` \u00b7 ${esc(when(e.at))}</div>`
-    : `<div class="msg${e.mine ? ' mine' : ''}">` +
-      `<div class="msgw"><span>${esc(named[e.who] || e.fallback)}</span>` +
-      `<span class="t">${esc(when(e.at))}</span></div>` +
-      (e.text ? `<div class="msgt">${esc(e.text)}</div>` : '') +
-      (e.files || []).map(f => row(f) + (groups.length > 1
-        ? `<span class="when">on ${esc(itemOfFile(f))}</span>` : '')).join('') +
-      `</div>`).join('');
 
-  const anySent = merged.some(e => e.kind !== 'move');
-  /* **PRODUCTION GETS THE FINAL FILE, THEN THE SIZES** - *"production even
-     sees so many files that they will become confuse what to print."* The
-     final design goes ABOVE the lines, where they look first, and the
-     drafts, the customer's photos and the rejected versions do not reach
-     their screen at all. What they are owed is one file and a size sheet.
-     Messages still reach them, without their attachments: "the printer is
-     down" is theirs to read; draft 2 is not theirs to print. */
+  const designs = rows.filter(f => fromArtist(f) && !corrIds.has(f.id));
+  const sent    = rows.filter(f => !fromArtist(f) && !corrIds.has(f.id));
+
+  const rowWithItem = f => row(f) + (groups.length > 1
+    ? `<span class="when">on ${esc(itemOfFile(f))}</span>` : '');
+  const section = (label, list) => list.length
+    ? `<div class="fsec"><div class="k">${label}</div>${newestFirst(list).map(rowWithItem).join('')}</div>`
+    : '';
+  const corrBox = (backRev && (backRev.note || corrFiles.length))
+    ? `<div class="sentback"><div class="k">Corrections \u2014 what to change</div>` +
+      (backRev.note ? `<div class="n">${esc(backRev.note)}</div>` : '') +
+      corrFiles.map(rowWithItem).join('') +
+      `<div class="w">${esc(corrWho || 'The counter')} \u00b7 ${esc(when(backRev.reviewed_at))}</div></div>`
+    : '';
+
+  /* Without a known direction (old orders, empty roster) there is one honest
+     list under one honest heading, exactly as always. */
+  const secSent    = section(split ? 'Files sent with the job order' : 'Files on this job order', sent);
+  const secDesigns = section('Design files by the artist', designs);
+
   if(BENCH === 'production'){
+    /* **ONLY THE FINAL DESIGN.** "so it is easy no way to be confuse." The
+       drafts, the reference photos, the corrections - none of it reaches
+       production. One file above the size sheet, or a sentence saying there
+       is not one yet. */
     $('#dPrintFile').innerHTML = finHead;
-    const talk = merged.filter(e => e.kind === 'move' || (e.kind === 'note' && e.text));
-    box.innerHTML = talk.length ? `<div class="thr">${talk.map(e => e.kind === 'move'
-        ? `<div class="sysl">${esc(e.text)}${named[e.who] ? ' \u00b7 ' + esc(named[e.who]) : ''} \u00b7 ${esc(when(e.at))}</div>`
-        : `<div class="msg"><div class="msgw"><span>${esc(named[e.who] || e.fallback)}</span>` +
-          `<span class="t">${esc(when(e.at))}</span></div><div class="msgt">${esc(e.text)}</div></div>`).join('')}</div>` : '';
+    box.innerHTML = '';
   }else{
     $('#dPrintFile').innerHTML = '';
-    box.innerHTML = finHead + head +
-      (anySent ? '' : '<div class="thrmt">Nothing has been sent on this job order yet.</div>') +
-      (merged.length ? `<div class="thr">${thread}</div>` : '');
+    /* THE READING ORDER IS THE SPEC, verbatim.
+       Artist on a fresh order: what they were sent, then their own designs.
+       Artist on a send-back:   corrections first, then the rejected design,
+                                then the originals LAST.
+       Reviewer:                originals first, then the artist's designs;
+                                the correction field sits below, outside this
+                                box, beside the buttons that use it. */
+    const cameBackNow = BENCH === 'artist' && corrBox;
+    box.innerHTML = (cameBackNow
+        ? corrBox + secDesigns + secSent
+        : corrBox + secSent + secDesigns) ||
+      '<div class="thrmt">No files on this job order yet.</div>';
   }
   /* Nothing there and nothing to add: say nothing at all. */
 
@@ -3721,19 +3570,53 @@ async function loadFiles(o){
        controls below are its whole purpose now. */
     box2.innerHTML = '';
     if(o.voided || !id) return;
-    if(BENCH === 'artist' && o.status === 'layout') return;
     if(BENCH === 'production') return;   // production prints; it does not attach
-    /* **The artist can paste a link too**, from 25 Sep. The sketch puts
-       "Add link" and "Add file" side by side in the artist's own box, and it
-       is right: plenty of finished art is a Drive link to a folder, not a
-       file to upload twice. Nothing in the Worker or the database was ever
-       counter-only about a link - this was one condition. */
-    if(canTakeOrders() || BENCH === 'artist'){
+    /* **THE ARTIST'S UPLOAD LIVES UNDER EACH ITEM** - "below every item will
+       be upload design file". One clearly named control per item, only while
+       the job is theirs; the upload marks itself as the design (markSent) and
+       the ONLY send is the Send for approval button below. */
+    if(BENCH === 'artist'){
+      if(o.status !== 'layout') return;
+      if(DRIVE.connected){
+        const up = document.createElement('label');
+        up.className = 'upl artup'; up.textContent = 'Upload design file';
+        const inp = document.createElement('input'); inp.type = 'file'; inp.hidden = true;
+        inp.onchange = () => { const f = inp.files[0]; inp.value = ''; if(f) uploadFile(f, id); };
+        up.appendChild(inp); box2.appendChild(up);
+      }
+      /* Finished art is often a Drive link to a folder rather than a file to
+         upload twice. A pasted design takes the same mark an upload takes. */
+      const open = document.createElement('button');
+      open.type = 'button'; open.className = 'addlink'; open.textContent = 'or paste a Drive link';
+      const add = document.createElement('div'); add.className = 'fl-add'; add.hidden = true;
+      const url = document.createElement('input');
+      url.inputMode = 'url'; url.autocomplete = 'off'; url.placeholder = 'Drive link to the design';
+      url.setAttribute('aria-label', 'Google Drive link to the design for ' + (box2.previousSibling ? 'this item' : 'this item'));
+      const go = document.createElement('button');
+      go.type = 'button'; go.className = 'btn ghost'; go.textContent = 'Add link';
+      open.onclick = () => { add.hidden = false; open.hidden = true; url.focus(); };
+      go.onclick = async () => {
+        const u = driveUrl(url.value);
+        if(!u) return toast(NOT_DRIVE);
+        try{ assertWritable(); }catch(err){ return toast(err.message); }
+        const { data: made, error } = await sb.from('jo_files').insert({ shop_id: SHOP.id,
+          job_order_id: o.id, kind: 'link', url: u, jo_item_id: id,
+          added_by: STAFF ? STAFF.id : null }).select('id').single();
+        if(error) return toast(error.message);
+        await markSent(o, made ? made.id : null);
+        toast('Design link added'); loadFiles(o);
+      };
+      add.append(url, go); box2.append(open, add);
+      return;
+    }
+    if(canTakeOrders()){
       /* One quiet link per item instead of three inputs. An order with three
          items showed four of these areas at once, which is a wall on a phone
          and is used once per file. */
       const open = document.createElement('button');
-      open.type = 'button'; open.className = 'addlink'; open.textContent = 'Add a file';
+      /* "+ Add a file" opened a LINK box, beside "or upload a file" - the
+         browser agent could not tell the twins apart. Each says what it is. */
+      open.type = 'button'; open.className = 'addlink'; open.textContent = 'Add a Drive link';
       box2.appendChild(open);
 
       const add = document.createElement('div'); add.className = 'fl-add';
@@ -6010,44 +5893,24 @@ function openDetail(o){
   /* Never on a voided order, for the same reason Edit is not: a voided order
      is a record of what was cancelled, not a thing to keep adding to. */
   $('#dAddLine').hidden = !canTakeOrders() || o.voided;
-  loadReview(o);
   loadHands(o);
   loadPays(o);
   loadFiles(o);
   // the folder and upload only once the shop's Drive is connected
-  /* Anyone on the shop may say something - that is the point of it - but not
-     on a voided order, which is a record of what was cancelled rather than a
-     conversation still going on. */
-  /* **Only the artist, only while the job is theirs.** At `for_approval` it
-     is with the counter and there is nothing for them to attach; after that
-     it is being made. */
-  const artBox = BENCH === 'artist' && o.status === 'layout' && !o.voided;
-  $('#dArtBox').hidden = !artBox;
-  if(artBox){
-    /* A redesign is a different sentence from a first draft, and the artist
-       opening it already knows which one they are in - the box should agree
-       with them rather than say the same thing both times. */
-    $('#dArtBoxK').textContent = cameBack(o)
-      ? 'Attach the corrected design for approval'
-      : 'Attach your design for approval';
-    $('#dArtHint').textContent = DRIVE.connected
-      ? 'It goes to the counter when you press Send for approval, below.'
-      : 'Google Drive is not connected, so a link is the only way today.';
-    $('#dArtUpWrap').hidden = !DRIVE.connected;
-    $('#dArtLinkRow').hidden = true;
-    $('#dArtLinkOpen').hidden = false;
-    $('#dArtUrl').value = ''; $('#dArtLabel').value = '';
-  }
-  $('#dSay').hidden = !!o.voided;
-  $('#dSayUpWrap').hidden = !DRIVE.connected || !!o.voided;
-  $('#dSayText').value = ''; SAY_FILE = null;
-  $('#dSayName').hidden = true; $('#dSayName').textContent = '';
+  /* The correction box is the reviewer's, and only while a design waits.
+     Both halves are optional - "if they are any" - and Send back reads them. */
+  $('#dCorrBox').hidden = !(canTakeOrders() && o.status === 'for_approval' && !o.voided);
+  $('#dCorrNote').value = ''; CORR_FILE = null;
+  $('#dCorrFile').value = '';
+  $('#dCorrName').hidden = true; $('#dCorrName').textContent = '';
+  $('#dCorrUpWrap').hidden = !DRIVE.connected;
   $('#dDriveTools').hidden = !DRIVE.connected || !!o.voided;
-  /* The generic upload comes off the artist's screen while their own box is
-     up: two ways to do one thing is the complaint that started today. Open
-     job folder stays - it is a different action. */
+  /* The artist uploads under each item; production does not attach at all.
+     The generic upload would be a second way to do one thing for the first
+     and a wrong door entirely for the second. Open job folder stays. */
   const genericUp = $('#dDriveTools').querySelector('label.upl');
-  if(genericUp) genericUp.hidden = artBox || BENCH === 'production';
+  if(genericUp) genericUp.hidden = (BENCH === 'artist' && o.status === 'layout')
+                                   || BENCH === 'production';
   /* **Opening it is reading it.** Marked here rather than on the board, so
      scrolling past an order never counts as having seen what is on it. The
      board behind repaints on the next refresh; the chip and the banner go
@@ -6284,70 +6147,28 @@ async function recordReview(verdict, note){
   return { error, id: data ? data.id : null };
 }
 
-/* The file picked on the compose box, cleared whenever an order opens so one
-   order's attachment can never ride along to the next. */
-let SAY_FILE = null;
-$('#dArtLinkOpen').onclick = () => {
-  $('#dArtLinkRow').hidden = false; $('#dArtLinkOpen').hidden = true; $('#dArtUrl').focus();
-};
-$('#dArtUp').onchange = () => {
-  const f = $('#dArtUp').files[0]; $('#dArtUp').value = '';
-  /* `null` for the item: a design covers the job, and an artist should not be
-     asked which line it belongs to before they can send it. It can be moved
-     onto one afterwards from its row, like any other file. */
-  if(f) uploadFile(f, null);
-};
-$('#dArtAdd').onclick = async () => {
-  const url = driveUrl($('#dArtUrl').value);
-  if(!url) return toast(NOT_DRIVE);
-  try{ assertWritable(); }catch(err){ return toast(err.message); }
-  const { data, error } = await sb.from('jo_files').insert({ shop_id: SHOP.id, job_order_id: CUR.id,
-    kind: 'link', url, label: $('#dArtLabel').value.trim().slice(0, 80) || null,
-    added_by: STAFF ? STAFF.id : null }).select('id').single();
-  if(error) return toast(error.message);
-  /* A pasted design is a design: it takes the same mark an upload takes, so
-     Send for approval does not stop to ask which file is meant. */
-  await markSent(CUR, data ? data.id : null);
-  $('#dArtUrl').value = ''; $('#dArtLabel').value = '';
-  toast('Design added'); loadFiles(CUR);
-};
-
-$('#dSayFile').onchange = () => {
-  SAY_FILE = $('#dSayFile').files[0] || null;
-  $('#dSayName').hidden = !SAY_FILE;
-  $('#dSayName').textContent = SAY_FILE ? SAY_FILE.name : '';
-};
-$('#dSaySend').onclick = async () => {
-  const text = $('#dSayText').value.trim().slice(0, 500);
-  if(!text && !SAY_FILE) return toast('Type something, or attach a file.');
-  try{ assertWritable(); }catch(err){ return toast(err.message); }
-  /* **The message IS the thing here**, so a refusal is said out loud and what
-     was typed is left in the box. That is the opposite of the submitted note,
-     where the MOVE was the fact and a lost note was recoverable by telling
-     somebody - and it is why this one does not swallow.
-     Before `build19w` widens the CHECK the insert is refused and the sentence
-     below is what a person sees. */
-  const rev = await recordReview('note', text || null);
-  if(rev.error) return toast('Could not send it: ' + rev.error.message);
-  const f = SAY_FILE; SAY_FILE = null;
-  $('#dSayText').value = '';
-  $('#dSayFile').value = '';
-  $('#dSayName').hidden = true; $('#dSayName').textContent = '';
-  /* The file goes up after the message exists, so it can point at it. A
-     failed upload leaves the message standing, which is right: what was said
-     still happened. */
-  if(f) await uploadFileTo(CUR, f, null, '#dUp', rev.id);
-  toast('Sent');
-  loadFiles(CUR);
+/* The correction file, cleared whenever an order opens so one order's
+   attachment can never ride along to the next. */
+let CORR_FILE = null;
+$('#dCorrFile').onchange = () => {
+  CORR_FILE = $('#dCorrFile').files[0] || null;
+  $('#dCorrName').hidden = !CORR_FILE;
+  $('#dCorrName').textContent = CORR_FILE ? CORR_FILE.name + ' - goes back with the correction' : '';
 };
 
 $('#dSendBack').onclick = async () => {
   try{ assertWritable(); }catch(err){ return toast(err.message); }
-  const why = await ask('Send JO ' + CUR.jo_no + ' back to the artist. What needs changing?',
-    { head: 'Send back', input: 'What needs changing', yes: 'Send it back', no: 'Keep it here',
-      file: true });
-  if(why === null || why === false) return;
-  const back = ASK_FILE; ASK_FILE = null;
+  /* The message and the file come from the correction box ON the order - the
+     pop-up dialog is gone with the rest of the SMS shape. Empty is allowed
+     ("if they are any"), but an empty send-back still asks once, because a
+     red button beside Approve is exactly where a thumb slips. */
+  const why  = $('#dCorrNote').value.trim().slice(0, 500);
+  const back = CORR_FILE;
+  if(!why && !back){
+    const go = await ask('Send JO ' + CUR.jo_no + ' back to the artist with no correction note?',
+      { head: 'Send back', yes: 'Send it back', no: 'Stay here', danger: true });
+    if(!go) return;
+  }
 
   const to = ($('#dArtist') && !$('#dArtWrap').hidden) ? ($('#dArtist').value || null) : undefined;
   const patch = { status: 'layout', updated_at: new Date().toISOString() };
@@ -6355,58 +6176,28 @@ $('#dSendBack').onclick = async () => {
   const { error } = await sb.from('job_orders').update(patch).eq('id', CUR.id);
   if(error) return toast(error.message);
 
-  /* The note is written after the move, deliberately. If the move fails the
-     order has not come back and a note saying why would be a lie; if the note
-     fails the order is still correctly with the artist, and a missing note is
-     recoverable by telling them. The move is the fact. */
-  const rev = await recordReview('sent_back', why);
+  /* The move is the fact; the note describes it and is written after. */
+  const rev = await recordReview('sent_back', why || null);
   const e2 = rev.error;
-  /* **A REJECTED DESIGN IS NOT THE CHOSEN ONE ANY MORE.** It kept its star
-     and kept saying it was being sent, on both benches, after the counter had
-     said no to it. The next design the artist attaches marks itself. */
+  /* A rejected design is not the chosen one any more. The next design the
+     artist attaches marks itself. */
   try{
     await sb.from('jo_files').update({ final_at: null })
       .eq('job_order_id', CUR.id).not('final_at', 'is', null);
   }catch(e){ console.error('could not clear the rejected design:', e); }
-  /* The file goes up LAST and while the order is still open, so the progress
-     bar has somewhere to draw. It is attached to the whole order rather than
-     to an item: what is wrong with a design is rarely one line of it.
-     It cannot undo the move - the order is already back with the artist, the
-     note is already recorded, and an upload that fails is a file to send
-     again, not a job to put right. uploadFileTo says so itself if it does. */
-  /* The photo carries the note's id, so the thread shows "Reg: the logo is
-     the old one" WITH the picture under it rather than as two messages. If
-     `build19w` has not run the id is null and it still uploads - one message
-     becomes two, which is exactly how it read yesterday. */
+  /* The correction file goes up last, pointing at the note, so the artist
+     reads them as one thing: the words and the picture of what is wrong. */
   if(back) await uploadFileTo(CUR, back, null, '#dUp', rev.id);
+  CORR_FILE = null;
   dlg.close();
   toast(e2 ? 'Sent back, but the note did not save: ' + e2.message
            : 'JO ' + CUR.jo_no + ' sent back to the artist');
   refresh();
 };
 
-/* Why it came back, shown to whoever opens it - the artist's first question.
-   Only while it is still being redesigned: once it has gone on, the note has
-   been acted on and the trail is the record. */
-async function loadReview(o){
-  const box = $('#dSentBack');
-  box.hidden = true;
-  if(o.status !== 'layout') return;
-  const { data } = await sb.from('jo_reviews')
-    .select('verdict,note,reviewed_at,reviewed_by').eq('job_order_id', o.id)
-    .order('reviewed_at', { ascending: false }).limit(1);
-  const r = (data || [])[0];
-  if(CUR !== o || !r || r.verdict !== 'sent_back' || !r.note) return;
-  const who = await staffName(r.reviewed_by);
-  if(CUR !== o) return;
-  box.innerHTML = '<div class="k">Sent back - what to change</div>' +
-    '<div class="n">' + esc(r.note) + '</div>' +
-    '<div class="w">' + esc(who || 'The counter') + ' · ' +
-    esc(new Date(r.reviewed_at).toLocaleString('en-PH',
-      { timeZone:'Asia/Manila', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })) +
-    '</div>';
-  box.hidden = false;
-}
+/* Why it came back is drawn by loadFiles as the Corrections box - the note,
+   its attached file, who and when - at the TOP of the artist's order. The
+   separate loadReview() that painted #dSentBack went with the thread. */
 
 /* Correcting a line on a saved order. `line_total` is GENERATED ALWAYS and
    `jo_items_resync` owns `job_orders.total`, so writing qty and unit_price is
