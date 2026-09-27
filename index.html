@@ -26,6 +26,9 @@
     /* the only three greys - all clear 4.5:1 on white */
     --text:#111111; --text-2:#4D4D49; --grey:#5C5C58;
     --green:#0C6647; --amber:#87610A;
+    /* used since 25 Sep by the ready and approval banners and the correction
+       box, and never defined until 27 Sep - so all three drew untinted */
+    --green-wash:#E7F4EC; --amber-wash:#FFF4E0;
     --hex:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
     --r-sm:7px; --r:10px; --r-lg:14px;
     --hexcarbon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='70'%3E%3Cg fill='none' stroke='%23D8232A' stroke-opacity='.22'%3E%3Cpath d='M20,0L40,11L40,35L20,46L0,35L0,11Z'/%3E%3Cpath d='M0,35L20,46L20,70L0,81L-20,70L-20,46Z'/%3E%3Cpath d='M40,35L60,46L60,70L40,81L20,70L20,46Z'/%3E%3C/g%3E%3C/svg%3E");
@@ -347,6 +350,8 @@
   .dif:empty{display:none}
   .dif .fl-add input{height:40px;font-size:15px}
   .dif .flink{font-size:13px}
+  /* taken and due, together at the right of the card (27 Sep) */
+  .jo .dates{margin-left:auto;white-space:nowrap}
   /* M / F rather than a dropdown: one tap instead of three, and it fits a
      column where a select would not. Tapping the one already on turns it off,
      because plenty of apparel is ordered without a split. */
@@ -379,6 +384,17 @@
      READS them, and the person who reads them fifty times a day chose. */
   .fsec{margin:10px 0 4px}
   .fsec .k{margin:0 0 4px}
+  /* One hue per section (26-27 Sep): "use colors to differentiate files send
+     with job order, designs files by the artist - the set up is already ok we
+     just need highlights". Blue = came with the job order, green = the
+     artist's designs; corrections keep their amber box and production's final
+     box keeps its red. The tint covers the whole section so the rows are
+     claimed by their colour too. */
+  .fsec.sent,.fsec.des{padding:8px 10px;border-left:3px solid;border-radius:0 8px 8px 0}
+  .fsec.sent{border-color:#2563eb;background:#eff6ff}
+  .fsec.sent .k{color:#1d4ed8}
+  .fsec.des{border-color:#16a34a;background:#f0fdf4}
+  .fsec.des .k{color:#15803d}
   .thrmt{color:var(--text-2);font-size:13px;padding:2px 0 4px}
   /* The reviewer's correction box: a message field and an attach, both
      optional, feeding the Send back button below it. Amber, because it is
@@ -428,6 +444,11 @@
   /* Sticks under the nav: the question you are asking of the board has to
      stay on screen while you read the answer, or you scroll back up to find
      out which tab you are on. 78px of header plus a 51px nav. */
+  .bsearch{margin:0 0 8px}
+  .bsearch input{width:100%;height:44px;font-size:16px;padding:0 14px;border:1px solid var(--line);
+                 border-radius:11px;background:#fff}
+  .bsearch input:focus{outline:2px solid var(--black);outline-offset:0}
+  .dsearch{margin:0 0 10px}
   .btabs{display:flex;gap:6px;overflow-x:auto;padding:10px 0;
          position:sticky;top:129px;z-index:7;
          background:var(--paper);border-bottom:1px solid var(--line);
@@ -678,6 +699,17 @@
   .tile.dark{background:#1A1A1A;border-color:#1A1A1A} .tile.dark .k{color:#B4B4B0} .tile.dark .v{color:#fff}
   .tile.red{background:var(--red-wash);border-color:var(--red-wash-line)}
   .tile.red .v{color:var(--red-deep)} .tile.red .k{color:var(--red-deep)}
+  /* Booked versus received (27 Sep). The split under a sales figure is how
+     much of it is already paid and how much is still owed; the green tiles
+     are money that actually came in, broken down by how it was paid. */
+  .tile .split{margin-top:8px;font-size:12.5px;font-weight:700;color:#D6D6D2;line-height:1.5}
+  .tile .split b{color:#fff;font-variant-numeric:tabular-nums}
+  .tile .split .un b{color:#FFB4B4}
+  .tile.got{background:var(--green-wash);border-color:var(--green)}
+  .tile.got .k,.tile.got .v{color:var(--green)}
+  .tile .bym{margin-top:6px;font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.55}
+  .tile .bym b{font-variant-numeric:tabular-nums}
+  .tile .bym .cash{color:var(--green)}
   .ages{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}
   .age{background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px 4px;text-align:center}
   .age .v{font-weight:800;font-size:18px}
@@ -1293,6 +1325,11 @@ setTimeout(function(){
   <section class="view" id="vDash">
     <div class="dash">
       <div id="alertsDash" class="alerts"></div>
+      <!-- the same search, from the first screen: typing here opens the board -->
+      <div class="bsearch dsearch">
+        <input id="dSearch" type="search" autocomplete="off" enterkeyhint="search"
+               placeholder="Search job orders" aria-label="Search job orders">
+      </div>
       <div class="top">
         <i class="bullet" style="background:#1A1A1A"></i>
         <span class="eyebrow" id="dDay"></span>
@@ -1301,12 +1338,16 @@ setTimeout(function(){
       <div class="stats">
         <div class="stat"><b id="dDue">0</b><small>DUE TODAY</small></div>
         <div class="stat"><b id="dClaim">0</b><small>FOR CLAIM</small></div>
-        <div class="stat alert" id="dUnpaidTile"><b id="dUnpaid">₱0</b><small>UNPAID</small></div>
+        <div class="stat alert" id="dUnpaidTile"><b id="dUnpaid">₱0</b><small id="dUnpaidK">UNPAID</small></div>
       </div>
       <!-- money that actually came in, from payment rows -->
       <div class="stats" id="dMoney">
         <div class="stat paid"><b id="dPaidT">₱0</b><small>PAID TODAY</small></div>
-        <div class="stat paid"><b id="dPaidM">₱0</b><small>PAID THIS MONTH</small></div>
+        <!-- 27 Sep: "cash received today ... the cash in the counter on that
+             day". Payments by the cash method only - what should be in the
+             drawer - because Paid today also counts GCash, bank and cheque. -->
+        <div class="stat paid"><b id="dCashT">₱0</b><small>CASH TODAY</small></div>
+        <div class="stat paid" id="dPaidMTile"><b id="dPaidM">₱0</b><small>PAID THIS MONTH</small></div>
       </div>
     </div>
     <div class="dashgo">
@@ -1353,6 +1394,13 @@ setTimeout(function(){
     <div id="artOnly" class="artonly" hidden></div>
     <!-- Only for the benches that run the whole shop; an artist and
          production already see nothing but their own work. -->
+    <!-- 27 Sep: "add search bar on the board so they can search it". Searches
+         every order this bench can see, whatever tab is chosen. -->
+    <div class="bsearch">
+      <input id="bSearch" type="search" autocomplete="off" enterkeyhint="search"
+             placeholder="Search JO, name, phone, item"
+             aria-label="Search job orders">
+    </div>
     <div id="boardTabs" class="btabs" role="tablist" aria-label="Board" hidden></div>
     <div id="boardList"></div>
   </section>
@@ -1360,8 +1408,20 @@ setTimeout(function(){
   <!-- sales -->
   <section class="view" id="vSales" hidden>
     <div class="tiles">
-      <div class="tile dark"><div class="k">Sales today</div><div class="v" id="tToday">₱0</div><div class="k" id="tTodayN"></div></div>
-      <div class="tile dark"><div class="k">Sales this month</div><div class="v" id="tMonth">₱0</div><div class="k" id="tMonthN"></div></div>
+      <div class="tile dark"><div class="k">Sales today</div><div class="v" id="tToday">₱0</div><div class="k" id="tTodayN"></div>
+        <div class="split" id="tTodaySplit"></div></div>
+      <div class="tile dark"><div class="k">Sales this month</div><div class="v" id="tMonth">₱0</div><div class="k" id="tMonthN"></div>
+        <div class="split" id="tMonthSplit"></div></div>
+    </div>
+    <!-- 27 Sep: "the sales are directly on the total sales, no breakdown on
+         the amount that was paid ... it gives the wrong idea to the owner".
+         SALES is what was BOOKED (orders taken); RECEIVED is money that came
+         in, from payment rows, whatever day the order was taken. -->
+    <div class="tiles" style="margin-top:10px">
+      <div class="tile got"><div class="k">Received today</div><div class="v" id="tGotT">₱0</div>
+        <div class="bym" id="tGotTBy"></div></div>
+      <div class="tile got"><div class="k">Received this month</div><div class="v" id="tGotM">₱0</div>
+        <div class="bym" id="tGotMBy"></div></div>
     </div>
     <div class="tile red" style="margin-top:10px">
       <div class="k">Still to collect</div>
@@ -2006,11 +2066,19 @@ function seenAll(){
   catch(e){ return {}; }
 }
 function seenMap(){ const a = seenAll(); return a[seenKey()] || {}; }
-function markSeen(id){
+/* **Stamped with the SERVER's time of the newest thing, not this phone's
+   clock** (27 Sep). Arrivals carry the database's timestamps; stamping "seen"
+   with the phone's own clock meant a phone running a few minutes slow could
+   never catch up with a file that arrived just before it was opened - the
+   order read as Unread for ever. Comparing server time with server time
+   cannot drift. The phone's clock is only the fallback when nothing is known. */
+const stampOf = t => { const n = Date.parse(t); return isNaN(n) ? 0 : n; };
+function markSeen(id, at){
   try{
     const all = seenAll();
     const m = all[seenKey()] = all[seenKey()] || {};
-    m[id] = new Date().toISOString();
+    const want = at || LAST_MSG.get(id) || new Date().toISOString();
+    if(stampOf(m[id]) < stampOf(want)) m[id] = want;
     /* Trimmed so one counter phone cannot grow this for ever: the newest 400
        orders is far more than anybody scrolls, and an order dropping out
        simply reads as unseen again. */
@@ -2029,7 +2097,7 @@ const hasNew = o => {
   const at = LAST_MSG.get(o.id);
   if(!at) return false;
   const seen = SEEN_CACHE[o.id];
-  return !seen || String(seen) < String(at);
+  return !seen || stampOf(seen) < stampOf(at);
 };
 let SEEN_CACHE = {};
 let ITEMS = [], LINES = [], ORDERS = [], CUR = null;
@@ -2066,6 +2134,11 @@ const MOVES = {
 };
 const canTakeOrders = () => ['counter','office','owner'].includes(BENCH);
 const canSeeMoney   = () => ['office','owner'].includes(BENCH) || ROLE === 'owner';
+/* The counter takes the money, so it is owed the day's takings and what is
+   still owed this month - but never the SALES totals, which stay with office
+   and owner (27 Sep: "the counter can see the paid today, total unpaid of the
+   month but never the total sales of the day and the month"). */
+const canSeeTakings = () => canSeeMoney() || BENCH === 'counter';
 
 /* Anything a person typed - customer, contact, notes, item names, units and
    notes, staff names, the shop's name - and any error text from the server is
@@ -2723,8 +2796,12 @@ async function openShop(){
   await refresh();
   /* the dashboard is the first thing a counter sees, but the money on it
      is not for every bench - an artist gets the counts, not the peso */
-  $('#dUnpaidTile').hidden = !canSeeMoney();
-  $('#dMoney').hidden = !canSeeMoney();
+  $('#dUnpaidTile').hidden = !canSeeTakings();
+  $('#dMoney').hidden = !canSeeTakings();
+  $('#dPaidMTile').hidden = !canSeeMoney();
+  /* The counter's red tile is this month's, not every balance ever: what it
+     was asked for, and the figure a counter can actually chase. */
+  $('#dUnpaidK').textContent = canSeeMoney() ? 'UNPAID' : 'UNPAID THIS MONTH';
   $('#dNew').hidden = !canTakeOrders();
   /* FOR CLAIM is a counter's tile: it is the queue of people coming to the
      shop. An artist and production cannot release anything, so a number they
@@ -3496,6 +3573,15 @@ async function loadFiles(o){
     .select('id,verdict,note,reviewed_at,reviewed_by')
     .eq('job_order_id', o.id).order('reviewed_at');
   if(CUR !== o) return;                        // a faster tap opened another order
+  /* What was on screen was read - including anything newer than the last
+     board refresh. Only other people's things, as the activity clock counts. */
+  {
+    const me = STAFF ? STAFF.id : null;
+    let newest = '';
+    (data || []).forEach(f => { if(!(me && f.added_by === me) && stampOf(f.created_at) > stampOf(newest)) newest = f.created_at; });
+    (revData || []).forEach(r => { if(!(me && r.reviewed_by === me) && stampOf(r.reviewed_at) > stampOf(newest)) newest = r.reviewed_at; });
+    if(newest){ markSeen(o.id, newest); SEEN_CACHE = seenMap(); }
+  }
 
   /* THE CORRECTIONS: the latest send-back, shown while the order is back at
      layout - once it moves on, the note has been acted on. Its attached file
@@ -3516,8 +3602,8 @@ async function loadFiles(o){
 
   const rowWithItem = f => row(f) + (groups.length > 1
     ? `<span class="when">on ${esc(itemOfFile(f))}</span>` : '');
-  const section = (label, list) => list.length
-    ? `<div class="fsec"><div class="k">${label}</div>${newestFirst(list).map(rowWithItem).join('')}</div>`
+  const section = (label, list, cls) => list.length
+    ? `<div class="fsec ${cls || ''}"><div class="k">${label}</div>${newestFirst(list).map(rowWithItem).join('')}</div>`
     : '';
   const corrBox = (backRev && (backRev.note || corrFiles.length))
     ? `<div class="sentback"><div class="k">Corrections \u2014 what to change</div>` +
@@ -3528,8 +3614,8 @@ async function loadFiles(o){
 
   /* Without a known direction (old orders, empty roster) there is one honest
      list under one honest heading, exactly as always. */
-  const secSent    = section(split ? 'Files sent with the job order' : 'Files on this job order', sent);
-  const secDesigns = section('Design files by the artist', designs);
+  const secSent    = section(split ? 'Files sent with the job order' : 'Files on this job order', sent, 'sent');
+  const secDesigns = section('Design files by the artist', designs, 'des');
 
   if(BENCH === 'production'){
     /* **ONLY THE FINAL DESIGN.** "so it is easy no way to be confuse." The
@@ -5335,6 +5421,17 @@ $('#pinEye').onclick = () => {
 };
 
 $('#dNew').onclick = () => $('#nvNew').click();
+$('#bSearch').addEventListener('input', () => {
+  SEARCH = $('#bSearch').value; $('#dSearch').value = SEARCH; renderBoard();
+});
+/* Typing on the dashboard carries on in the board's box, where the results
+   are - the keyboard stays up and nothing typed is lost. */
+$('#dSearch').addEventListener('input', () => {
+  SEARCH = $('#dSearch').value; $('#bSearch').value = SEARCH;
+  $('#nvBoard').click();
+  const b = $('#bSearch'); b.focus();
+  try{ b.setSelectionRange(b.value.length, b.value.length); }catch(e){}
+});
 $('#dAll').onclick = () => $('#nvBoard').click();
 $('#dOpenAll').onclick = () => $('#nvBoard').click();
 
@@ -5617,6 +5714,17 @@ function paintAlerts(seen, mine){
   });
 }
 
+let SEARCH = '';
+/* Every word typed must appear somewhere on the order: "jersey maricel"
+   finds Maricel's jersey. "JO 1042", "jo-1042" and "1042" all find JO 1042. */
+function matches(o, q){
+  const hay = [
+    'jo ' + o.jo_no, 'jo' + o.jo_no, o.customer_name, o.customer_contact, o.customer_fb,
+    lineText(o), o.notes, canTakeOrders() ? o.po_number : '',
+    o.artist_id ? artistName(o.artist_id) : '', LABEL[o.status]
+  ].filter(Boolean).join(' ').toLowerCase();
+  return q.replace(/jo[\s#-]*(\d)/g, 'jo$1').split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
 function renderBoard(){
   const mine = SEES[BENCH] || SEES.counter;
   /* Every tab reads from here, so a bench can never be shown work that is not
@@ -5677,7 +5785,11 @@ function renderBoard(){
     });
   }
 
-  const open = seen.filter(o => tab.keep(o, mine));
+  /* A search answers across the whole board, not inside one tab - "anywhere",
+     as asked. Still only `seen`, so it can never find work this bench may not
+     see, and nothing about money is searched. */
+  const q = SEARCH.trim().toLowerCase();
+  const open = q ? seen.filter(o => matches(o, q)) : seen.filter(o => tab.keep(o, mine));
   // rush first, then late, then newest
   open.sort((a,b)=> (!!b.rush - !!a.rush) || (isLate(b)-isLate(a)) || (b.jo_no-a.jo_no));
 
@@ -5699,6 +5811,10 @@ function renderBoard(){
   renderDepts(live, t);
   renderDash();
   const box = $('#boardList');
+  if(!open.length && q){
+    box.innerHTML = '<div class="empty">No job order matches \u201c' + esc(SEARCH.trim()) + '\u201d.</div>';
+    return;
+  }
   if(!open.length){
     box.innerHTML = '<div class="empty">' + esc(tab.id === 'all'
       ? 'Nothing waiting at the ' + BENCH_NAME[BENCH].toLowerCase() + ' bench right now.'
@@ -5742,7 +5858,8 @@ function renderBoard(){
              <span class="chip ${esc(o.status)}">${isLate(o)?'LATE · ':''}${esc(LABEL[o.status])}</span>
              ${!money ? '' : Number(o.balance)>0?`<span class="chip owed">${peso(o.balance)} owed</span>`:'<span class="chip">paid</span>'}
              ${o.artist_id && BENCH !== 'artist' ? `<span class="small to">→ ${esc(artistName(o.artist_id) || 'artist')}</span>` : ''}
-             <span class="muted small" style="margin-left:auto">${o.target_date?('due '+esc(o.target_date)):''}</span>
+             <span class="muted small dates">${o.order_date ? 'taken ' + esc(o.order_date) : ''}${
+               o.order_date && o.target_date ? ' \u00b7 ' : ''}${o.target_date ? 'due ' + esc(o.target_date) : ''}</span>
            </div>
          </div>
        </div>`;
@@ -5753,6 +5870,11 @@ function renderBoard(){
 
 /* ── detail ── */
 const dlg = $('#dlg');
+/* **Closing an order repaints the board and the banners** (27 Sep). Opening
+   marks it read, but nothing redrew until the next refresh - so the order
+   just read still wore its Unread chip and the banner still said "1 job
+   order has something new". No fetch: it redraws what is already here. */
+dlg.addEventListener('close', () => { if(SHOP) renderBoard(); });
 /* The manifest: the sheet a parade order arrives on, drawn from the rows.
    Only when the item actually carries a split - one shirt in one size needs
    no table, and an item nobody split reads perfectly well as a list.
@@ -6715,7 +6837,7 @@ async function renderSales(){
 
   const [{ data:monRows }, { data:owedRows }, { data:paidRows }, { data:govRows }] = await Promise.all([
     sb.from('job_orders')
-      .select('total,order_date,item_type,jo_items(item_type,line_total)')
+      .select('total,balance,order_date,item_type,jo_items(item_type,line_total)')
       .eq('voided', false).neq('status','cancelled')
       .gte('order_date', from).limit(2000),
     sb.from('job_orders')
@@ -6724,7 +6846,7 @@ async function renderSales(){
       .gt('balance', 0).limit(2000),
     // money that came in this month (Manila), one row per payment
     sb.from('jo_payments')
-      .select('amount,paid_at')
+      .select('amount,method,paid_at')
       .gte('paid_at', new Date(from + 'T00:00:00+08:00').toISOString()).limit(5000),
     // what each government account still owes, order by order
     sb.from('job_orders')
@@ -6738,20 +6860,57 @@ async function renderSales(){
   const pays   = paidRows || [];
   const manila = p => new Date(p.paid_at).toLocaleDateString('en-CA', { timeZone:'Asia/Manila' });
   const sumPay = f => pays.filter(f).reduce((s,p)=>s+Number(p.amount),0);
-  fitMoney($('#dPaidT'), peso(sumPay(p => manila(p) === t)), 'half');
-  fitMoney($('#dPaidM'), peso(sumPay(p => manila(p) >= from)), 'half');
+  const isToday = p => manila(p) === t, isMonth = p => manila(p) >= from;
+  const isCash  = p => p.method === 'cash';
+  fitMoney($('#dPaidT'), peso(sumPay(isToday)), 'third');
+  fitMoney($('#dCashT'), peso(sumPay(p => isToday(p) && isCash(p))), 'third');
+  fitMoney($('#dPaidM'), peso(sumPay(isMonth)), 'third');
 
   const mon  = monRows  || [];
   const owed = owedRows || [];
   const dayO = mon.filter(o => o.order_date === t);
+  const sum  = (list, f) => list.reduce((s,o)=>s+Number(f(o) || 0),0);
 
-  $('#tToday').textContent  = peso(dayO.reduce((s,o)=>s+Number(o.total),0));
-  $('#tTodayN').textContent = dayO.length + ' job orders';
-  $('#tMonth').textContent  = peso(mon.reduce((s,o)=>s+Number(o.total),0));
-  $('#tMonthN').textContent = mon.length + ' job orders';
+  /* SALES and RECEIVED are different questions, and the tiles now say so.
+     Paid on these = total minus balance: whatever has been collected on the
+     orders TAKEN in that period, downpayments included. Received = payment
+     rows by the day the money came in, on any order. The two only agree when
+     every customer pays on the day they order. */
+  const split = (list, el) => {
+    const unpaid = sum(list, o => o.balance), paid = sum(list, o => o.total) - unpaid;
+    el.innerHTML = '<span>Paid <b>' + esc(peso(paid)) + '</b></span> \u00b7 ' +
+                   '<span class="un">Unpaid <b>' + esc(peso(unpaid)) + '</b></span>';
+  };
+  const byMethod = (f, el) => {
+    const METHODS = [['cash','Cash'],['gcash','GCash'],['bank','Bank'],['cheque','Cheque']];
+    el.innerHTML = METHODS
+      .map(([m, name]) => ({ m, name, v: sumPay(p => f(p) && p.method === m) }))
+      .filter(x => x.v > 0 || x.m === 'cash')          // cash always shows: it is the drawer
+      .map(x => '<span class="' + (x.m === 'cash' ? 'cash' : '') + '">' + esc(x.name) +
+                ' <b>' + esc(peso(x.v)) + '</b></span>').join(' \u00b7 ');
+  };
+
+  /* A figure left in the DOM is still a figure on that device: the Sales tab
+     is hidden from the counter, and its numbers are not written either. */
+  if(canSeeMoney()){
+    $('#tToday').textContent  = peso(sum(dayO, o => o.total));
+    $('#tTodayN').textContent = dayO.length + ' job orders';
+    split(dayO, $('#tTodaySplit'));
+    $('#tMonth').textContent  = peso(sum(mon, o => o.total));
+    $('#tMonthN').textContent = mon.length + ' job orders';
+    split(mon, $('#tMonthSplit'));
+    $('#tGotT').textContent = peso(sumPay(isToday));
+    byMethod(isToday, $('#tGotTBy'));
+    $('#tGotM').textContent = peso(sumPay(isMonth));
+    byMethod(isMonth, $('#tGotMBy'));
+  }else{
+    ['#tToday','#tTodayN','#tTodaySplit','#tMonth','#tMonthN','#tMonthSplit',
+     '#tGotT','#tGotTBy','#tGotM','#tGotMBy'].forEach(k => { $(k).textContent = ''; });
+  }
 
   const owedTotal = owed.reduce((s,o)=>s+Number(o.balance),0);
-  fitMoney($('#dUnpaid'), peso(owedTotal), 'third');     // exact pesos, not "₱16k"
+  // exact pesos, not "₱16k"; the counter's tile is this month's balance
+  fitMoney($('#dUnpaid'), peso(canSeeMoney() ? owedTotal : sum(mon, o => o.balance)), 'third');
   $('#tOwed').textContent  = peso(owedTotal);
   $('#tOwedN').textContent = owed.length + ' orders with a balance';
   const age    = o => Math.floor((new Date(t) - new Date(o.order_date)) / 864e5);
