@@ -488,7 +488,22 @@
   .corow.owes{border-color:var(--red-wash-line);background:#FFFAFA}
   .custlink{font:inherit;font-weight:800;color:var(--ink);background:none;border:0;padding:0;cursor:pointer;
             text-decoration:underline;text-decoration-color:#BDBDBD;text-underline-offset:3px;text-align:left}
-  .fsug{display:grid;gap:5px;margin:-2px 0 4px}
+  .fcust{display:flex;gap:6px;align-items:stretch}
+  .fcust input{flex:1;min-width:0}
+  .fcust button{flex:none;width:48px;font:inherit;font-size:18px;font-weight:800;border:1px solid var(--line);
+                border-radius:10px;background:#fff;color:var(--ink);cursor:pointer}
+  .fcust button[aria-expanded="true"]{background:var(--black);color:#fff;border-color:var(--black)}
+  .fhint{background:var(--amber-wash);border:1px solid #E8C88A;border-radius:10px;padding:8px 11px;
+         font-size:13px;font-weight:700;color:#6B4A05;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+  .fhint button{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:99px;padding:6px 12px;
+                background:#6B4A05;color:#fff;cursor:pointer}
+  .fhint button.no{background:none;color:#6B4A05;text-decoration:underline;padding:6px 2px}
+  .fsug{display:grid;gap:5px;margin:-2px 0 4px;max-height:300px;overflow-y:auto}
+  .fsug .why{grid-column:1 / -1;font-size:11px;font-weight:700;color:#8A5A05}
+  .cdsim{font-size:12.5px;font-weight:700;color:#6B4A05;background:var(--amber-wash);border-radius:9px;
+         padding:8px 11px;margin:0 0 8px}
+  .cdsim button{font:inherit;font-weight:800;background:none;border:0;padding:0;color:#6B4A05;
+                text-decoration:underline;cursor:pointer}
   .fsug button{display:grid;grid-template-columns:1fr auto;gap:1px 8px;text-align:left;font:inherit;
                background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 11px;cursor:pointer;color:var(--ink)}
   .fsug .nm{font-weight:800;font-size:14px;min-width:0;overflow-wrap:anywhere}
@@ -1300,7 +1315,15 @@ setTimeout(function(){
   <section class="view" id="vNew" hidden>
     <div class="card">
       <div class="grid2">
-        <label class="wide">Customer<input id="fCust" placeholder="Name" autocomplete="off"></label>
+        <label class="wide">Customer
+          <span class="fcust">
+            <input id="fCust" placeholder="Name" autocomplete="off">
+            <!-- the saved customers, like the government account picker -->
+            <button type="button" id="fCustAll" aria-label="Pick a saved customer" aria-expanded="false">&#9662;</button>
+          </span>
+        </label>
+        <!-- the name checker: "Did you mean ...?" when a name is close to a saved one -->
+        <div class="fhint wide" id="fHint" hidden></div>
         <!-- customers served before, as the name or number is typed -->
         <div class="fsug wide" id="fSug" hidden></div>
         <label>Contact<input id="fPhone" placeholder="09xx"></label>
@@ -1925,6 +1948,8 @@ setTimeout(function(){
       <div class="ct owe"><b id="cdOwe">₱0</b><small>STILL OWES</small></div>
     </div>
     <div class="small cdold" id="cdOldest"></div>
+    <!-- names close to this one: probably the same person, typed differently -->
+    <div class="cdsim" id="cdSimilar" hidden></div>
     <div id="cdOrders"></div>
   </div>
   <div class="df">
@@ -3037,6 +3062,7 @@ async function loadItems(){
 function newOrder(){
   LINES = [];
   $('#fCust').value=''; $('#fPhone').value=''; $('#fFb').value=''; $('#fNotes').value=''; $('#fDown').value='';
+  if($('#fHint')){ $('#fHint').hidden = true; $('#fSug').hidden = true; }
   $('#fRcpt').value=''; FPM.reset();
   $('#fRush').setAttribute('aria-pressed', 'false');
   $('#fArtist').value = '';
@@ -5766,21 +5792,54 @@ let BOARD_TAB = 'all';
 /* An order on this list may be older than the board's newest-300 window, so
    it cannot be assumed to be in ORDERS. Fetch it by id when it is not. */
 /* ── customers ──
-   A CUSTOMER IS RECOGNISED FROM THEIR ORDERS - no account to open, no table.
-   The same person is typed "Maricel", "Maricel Ablanque" and "maricel
-   ablanque " on three different days, so the PHONE NUMBER is the key: its
-   last ten digits, which makes 0917 123 4567 and +63 917 123 4567 the same
-   person. An order with no usable number falls back to the name, with case
-   and spacing ignored. Government orders are left out - they have their own
-   tracker, by account and PO, on the Sales tab.
-   The suggestions on the new-order form feed this: picking a past customer
-   there writes the same name and number again, so the grouping stays whole. */
+   A CUSTOMER IS THEIR NAME (27 Sep, spawn-97: "use names"). spawn-96 keyed
+   on the phone number; the shop wanted the name, which is what the counter
+   says and recognises. Capitals, spacing, punctuation and accents do not
+   count - "Ma. Cristina", "ma cristina" and "MA  CRISTINA" are one customer.
+   What a name key cannot do by itself is notice "Maricel Ablangue" is
+   "Maricel Ablanque" typed badly, so two things stand guard:
+     - the NAME CHECKER on the form (`#fHint`), which says "Did you mean ...?"
+       the moment a new name is close to a saved one, and
+     - SIMILAR NAMES on a customer's page, for the ones that got through.
+   Two different people with exactly the same name read as one customer -
+   the shop's choice, knowingly made. Government orders are left out: their
+   tracker is on the Sales tab, by account and PO. */
 let CUSTOMERS = [], CUST_AT = 0, CUST_F = 'owes';
-const custKey = o => {
-  const d = String(o.customer_contact || '').replace(/\D/g, '');
-  if(d.length >= 10) return 'p' + d.slice(-10);
-  return 'n' + String(o.customer_name || '').toLowerCase().replace(/\s+/g, ' ').trim();
-};
+const normName = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const custKey = o => 'n' + normName(o.customer_name);
+/* HOW CLOSE TWO NAMES ARE, 0 to 1. Four ways a name comes out differently:
+   the same words in another order ("Reyes Ana"), a name that is part of the
+   other ("Ana" / "Ana Reyes"), a slip of a finger ("Ablangue"), and a word
+   that is a slip on its own ("Maricel Ablangue"). */
+function editDist(a, b){
+  if(a === b) return 0;
+  const m = a.length, n = b.length;
+  if(!m) return n; if(!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for(let i = 1; i <= m; i++){
+    const cur = [i];
+    for(let j = 1; j <= n; j++)
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+function nameLikeness(a, b){
+  a = normName(a); b = normName(b);
+  if(!a || !b) return 0;
+  if(a === b) return 1;
+  const ta = a.split(' '), tb = b.split(' ');
+  if([...ta].sort().join(' ') === [...tb].sort().join(' ')) return 0.95;      // words reordered
+  const [sh, lo] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  // every word of the shorter name is (nearly) a word of the longer one
+  const near = w => lo.some(x => x === w || (w.length >= 4 && editDist(w, x) <= 1));
+  if(sh.every(near) && sh.join('').length >= 3) return sh.length === lo.length ? 0.9 : 0.82;
+  const whole = 1 - editDist(a, b) / Math.max(a.length, b.length);
+  return Math.max(a.length, b.length) >= 5 ? whole : 0;
+}
+const LIKE = 0.8;                  // at or above: "did you mean" / "similar names"
+
 async function loadCustomers(force){
   if(!force && CUST_AT && Date.now() - CUST_AT < 60000) return CUSTOMERS;
   const { data, error } = await sb.from('job_orders')
@@ -5799,7 +5858,7 @@ async function loadCustomers(force){
       if(!c.phone && o.customer_contact) c.phone = o.customer_contact;
       if(!c.fb && o.customer_fb) c.fb = o.customer_fb;
       c.orders.push(o);
-      const nm = o.customer_name.trim().replace(/\s+/g, ' ');
+      const nm = o.customer_name.trim().replace(/\s+/g, ' ');       // shown as typed, grouped by normName
       c.names = c.names || new Map();
       c.names.set(nm, (c.names.get(nm) || 0) + 1);
       c.booked += Number(o.total || 0);
@@ -5881,6 +5940,24 @@ async function openCustomer(key){
   $('#cdOldest').textContent = c.oldest
     ? 'Oldest unpaid: JO ' + c.oldest.jo_no + ', taken ' + c.oldest.order_date + ' (' + daysSince(c.oldest.order_date) + ' days ago)'
     : '';
+  /* Names close to this one - probably the same person, typed differently.
+     The app cannot rename a saved order, so these are shown, not merged:
+     tap one to look, and use the checker on the next order to stop it. */
+  const sim = list.filter(x => x !== c && nameLikeness(x.name, c.name) >= LIKE);
+  const sb2 = $('#cdSimilar');
+  sb2.innerHTML = '';
+  sb2.hidden = !sim.length;
+  if(sim.length){
+    sb2.appendChild(document.createTextNode('Similar names - maybe the same person: '));
+    sim.slice(0, 5).forEach((x, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = x.name + (x.owed > 0 ? ' (owes ' + peso(x.owed) + ')' : '');
+      b.onclick = () => openCustomer(x.key);
+      if(i) sb2.appendChild(document.createTextNode(', '));
+      sb2.appendChild(b);
+    });
+  }
   const box = $('#cdOrders');
   box.innerHTML = '';
   c.orders.forEach(o => {                          // newest first
@@ -5906,24 +5983,52 @@ $('#cdNew').onclick = () => {
   $('#fSug').hidden = true;
 };
 
-/* SUGGESTIONS on the new-order form: two letters of a name, or four digits of
-   a number, offer the customers already served. Picking one writes the same
-   name, number and Facebook name as before - which is what keeps a repeat
-   customer as ONE customer in the tracker. What they still owe is shown
-   right there, because that is the moment it matters. */
-async function suggestCustomers(){
+/* SUGGESTIONS on the new-order form, the way the government account picker
+   works: type, and the saved customers come up. Ranked so the likeliest is
+   first - the name starting with what was typed, then a word of it starting
+   with it, then containing it, then a near miss ("Maricle" finds Maricel).
+   Seven digits of a number find them too. Picking one writes the same name,
+   number and Facebook name again - which is what keeps a repeat customer ONE
+   customer. What they still owe is shown, because that is when it matters. */
+function rankCustomer(c, q){
+  const n = normName(c.name);
+  if(!q) return 0;
+  if(n === q) return 100;
+  if(n.startsWith(q)) return 90;
+  if(n.split(' ').some(w => w.startsWith(q))) return 80;
+  if(q.split(' ').every(w => n.includes(w))) return 70;
+  // a slip while typing: the same length of the name, one or two letters off
+  if(q.length >= 4){
+    const pre = n.slice(0, q.length);
+    const d = editDist(q, pre);
+    if(d <= (q.length >= 7 ? 2 : 1)) return 60 - d;
+  }
+  const like = nameLikeness(q, c.name);
+  return like >= LIKE ? Math.round(like * 50) : 0;
+}
+let SUG_ALL = false;                 // the dropdown button: every customer, not only matches
+async function suggestCustomers(byPhone){
   const box = $('#fSug');
-  const name = $('#fCust').value.trim().toLowerCase();
-  const digits = $('#fPhone').value.replace(/\D/g, '');
-  if(name.length < 2 && digits.length < 4){ box.hidden = true; box.innerHTML = ''; return; }
+  /* Each box searches its own field. A number already sitting in the phone box
+     must not steer the NAME suggestions - "0917" is half the shop's customers -
+     and a number needs seven digits before it says anything useful. */
+  const q = byPhone ? '' : normName($('#fCust').value);
+  const digits = byPhone ? $('#fPhone').value.replace(/\D/g, '') : '';
+  if(!SUG_ALL && q.length < 2 && digits.length < 7){ box.hidden = true; box.innerHTML = ''; checkName(); return; }
   const list = await loadCustomers();
-  const hits = list.filter(c => (name.length >= 2 && c.name.toLowerCase().includes(name)) ||
-                                (digits.length >= 4 && String(c.phone).replace(/\D/g, '').includes(digits)))
-    .sort((a, b) => String(b.last || '').localeCompare(String(a.last || ''))).slice(0, 4);
-  // an exact match already typed needs no suggestion
-  if(!hits.length || (hits.length === 1 && hits[0].name.toLowerCase() === name &&
-                      (!hits[0].phone || $('#fPhone').value.trim() === hits[0].phone))){
-    box.hidden = true; box.innerHTML = ''; return;
+  let hits;
+  if(SUG_ALL && !q){
+    hits = list.slice().sort((a, b) => a.name.localeCompare(b.name)).slice(0, 60);
+  }else{
+    hits = list.map(c => ({ c, r: Math.max(rankCustomer(c, q),
+                  digits.length >= 7 && String(c.phone).replace(/\D/g, '').includes(digits) ? 75 : 0) }))
+      .filter(x => x.r > 0)
+      .sort((a, b) => (b.r - a.r) || String(b.c.last || '').localeCompare(String(a.c.last || '')))
+      .slice(0, SUG_ALL ? 60 : 5).map(x => x.c);
+  }
+  // an exact name already typed needs no list - unless the dropdown was asked for
+  if(!hits.length || (!SUG_ALL && hits.length === 1 && normName(hits[0].name) === q)){
+    box.hidden = true; box.innerHTML = ''; checkName(); return;
   }
   box.innerHTML = '';
   hits.forEach(c => {
@@ -5940,17 +6045,57 @@ async function suggestCustomers(){
     box.appendChild(b);
   });
   box.hidden = false;
+  checkName();                     // the list and the checker answer together
 }
 function pickCustomer(c){
   $('#fCust').value = c.name;
-  if(c.phone) $('#fPhone').value = c.phone;
-  if(c.fb) $('#fFb').value = c.fb;
+  if(c.phone && !$('#fPhone').value.trim()) $('#fPhone').value = c.phone;
+  if(c.fb && !$('#fFb').value.trim()) $('#fFb').value = c.fb;
+  SUG_ALL = false; $('#fCustAll').setAttribute('aria-expanded', 'false');
   $('#fSug').hidden = true; $('#fSug').innerHTML = '';
+  CHECK_OK = ''; checkName();
 }
-$('#fCust').addEventListener('input', () => suggestCustomers());
-$('#fPhone').addEventListener('input', () => suggestCustomers());
+/* THE NAME CHECKER. When the name typed is not a saved customer but is close
+   to one, say so under the box - "Did you mean Maricel Ablanque?" - with the
+   saved name one tap away. Never a dialog and never a block: plenty of new
+   customers have names like old ones, and a question on every save is one
+   people learn to tap through. "No, a new customer" quiets it for that name. */
+let CHECK_OK = '';
+async function checkName(){
+  const hint = $('#fHint');
+  const typed = $('#fCust').value.trim();
+  const q = normName(typed);
+  if(q.length < 3 || q === CHECK_OK){ hint.hidden = true; return; }
+  const list = await loadCustomers();
+  if(normName($('#fCust').value) !== q) return;           // typed on since: a later call answers
+  if(list.some(c => normName(c.name) === q)){ hint.hidden = true; return; }   // a saved customer: fine
+  const near = list.map(c => ({ c, l: nameLikeness(typed, c.name) }))
+    .filter(x => x.l >= LIKE).sort((a, b) => b.l - a.l)[0];
+  if(!near){ hint.hidden = true; return; }
+  const c = near.c, n = c.orders.length;
+  hint.innerHTML = '<span>Did you mean <b>' + esc(c.name) + '</b>? ' +
+    esc(n + (n === 1 ? ' past order' : ' past orders') + (c.owed > 0 ? ', owes ' + peso(c.owed) : '')) + '</span>';
+  const use = document.createElement('button');
+  use.type = 'button'; use.textContent = 'Use ' + c.name;
+  use.onclick = () => pickCustomer(c);
+  const no = document.createElement('button');
+  no.type = 'button'; no.className = 'no'; no.textContent = 'No, a new customer';
+  no.onclick = () => { CHECK_OK = q; hint.hidden = true; };
+  hint.append(use, no);
+  hint.hidden = false;
+}
+$('#fCust').addEventListener('input', () => { SUG_ALL = false; $('#fCustAll').setAttribute('aria-expanded', 'false'); suggestCustomers(); });
+$('#fPhone').addEventListener('input', () => suggestCustomers(true));
 $('#fCust').addEventListener('blur', () => setTimeout(() => {
-  if(document.activeElement !== $('#fPhone')) $('#fSug').hidden = true; }, 200));
+  if(document.activeElement !== $('#fPhone') && !SUG_ALL) $('#fSug').hidden = true;
+  checkName(); }, 200));
+/* The dropdown button: every saved customer, A to Z - or, with something
+   typed, every match rather than the top five. Tap again to close. */
+$('#fCustAll').onclick = () => {
+  SUG_ALL = !SUG_ALL;
+  $('#fCustAll').setAttribute('aria-expanded', String(SUG_ALL));
+  if(SUG_ALL) suggestCustomers(); else { $('#fSug').hidden = true; $('#fSug').innerHTML = ''; }
+};
 
 /* ADD A PRODUCT from the order form, for every bench that takes orders.
    The same door as the receipt's offer: item_add checks the PIN where the
