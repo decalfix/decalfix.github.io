@@ -186,6 +186,25 @@
   .money{text-align:right;font-weight:800}
   .totrow{display:flex;justify-content:space-between;padding:7px 2px;font-weight:700}
   .totrow.big{font-size:26px;font-weight:800;border-top:2px solid #1A1A1A;margin-top:6px;padding-top:11px}
+  /* the money block, coloured (27 Sep) */
+  .mrows{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+  .mrows .totrow{padding:10px 14px}
+  .mrows .totrow.tot{background:var(--surface-2,#F4F4F5);color:var(--ink)}
+  .mrows .totrow.paid{color:var(--green);background:var(--green-wash)}
+  .mrows .totrow.big{margin:0;border-top:0;padding:13px 14px}
+  .mrows .totrow.big.owe{background:var(--red-wash);color:var(--red-deep)}
+  .mrows .totrow.big.clear{background:var(--green);color:#fff}
+  /* each line wears its job type, the same colours as the board */
+  .lrow.lc{border-left:4px solid var(--c);background:var(--cw);padding-left:10px;padding-right:10px;
+           border-radius:0 10px 10px 0;margin:0 0 6px;border-bottom:0}
+  .lrow.lc .d > .tname{color:var(--c)}
+  .lrow.lc .money{color:var(--c);font-weight:800}
+  .lrow.lc .edit{color:var(--c);border:1.5px solid var(--c);border-radius:99px;text-decoration:none;
+                 padding:2px 9px;margin-left:4px;background:#fff}
+  .lrow.lsub.lc,.lrow.lsubt.lc{border-left-width:2px;margin-left:8px;background:none;border-radius:0}
+  .lc.cat-apparel{--c:#1D4ED8;--cw:#EFF4FF} .lc.cat-tarp{--c:#0F766E;--cw:#ECF7F5}
+  .lc.cat-sticker{--c:#C2410C;--cw:#FFF3EC} .lc.cat-sign{--c:#7C4A1E;--cw:#F7F1EA}
+  .lc.cat-mug{--c:#BE185D;--cw:#FDF0F6}     .lc.cat-other{--c:#475569;--cw:#F2F4F7}
 
   /* board - hexagon quantity chip, then the job */
   .jo{background:#fff;border-radius:var(--r);box-shadow:0 1px 2px rgba(0,0,0,.05);
@@ -815,6 +834,11 @@
   .hb{height:10px;background:var(--line);border-radius:99px;margin-top:5px;overflow:hidden}
   .hb i{display:block;height:100%;background:#1A1A1A;border-radius:99px}
   .hbar:first-child .hb i{background:var(--red)}
+  .chart rect.paid{fill:var(--green)} .chart rect.paidtoday{fill:#0A4F37}
+  .tcats .hb i.cat-apparel{background:#1D4ED8} .tcats .hb i.cat-tarp{background:#0F766E}
+  .tcats .hb i.cat-sticker{background:#C2410C} .tcats .hb i.cat-sign{background:#7C4A1E}
+  .tcats .hb i.cat-mug{background:#BE185D}     .tcats .hb i.cat-other{background:#475569}
+  .tcust .all{width:100%;margin-top:6px}
   .agebar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:10px;background:#fff}
   .agebar i{display:block;height:100%}
   .agebar .a1{background:var(--grey)} .agebar .a2{background:var(--amber)} .agebar .a3{background:var(--red)}
@@ -979,6 +1003,11 @@
   .stat b{display:block;font-weight:800;font-size:27px;font-variant-numeric:tabular-nums}
   .stat small{display:block;font-weight:700;font-size:10.5px;letter-spacing:.08em;color:var(--grey);margin-top:3px}
   .stat.alert{background:var(--red-wash);border-color:var(--red-wash-line)}
+  /* every tile opens what it counts (27 Sep) - a small arrow says so */
+  .stat.go{cursor:pointer;position:relative;transition:transform .08s}
+  .stat.go:active{transform:scale(.97)}
+  .stat.go::after{content:'\203A';position:absolute;top:4px;right:8px;font-size:15px;font-weight:800;opacity:.45}
+  .stat.go:focus-visible{outline:2px solid var(--red);outline-offset:2px}
   .stat.alert b,.stat.alert small{color:var(--red-deep)}
   .stat b{white-space:nowrap}
   /* Two across: the counter's two tiles make one row, the owner's four make
@@ -1310,11 +1339,13 @@ setTimeout(function(){
 </div>
 <nav>
   <div class="in" role="tablist">
+    <!-- Analytics first (27 Sep): it is the owner's front page. Hidden for
+         every bench that may not see sales, so for them Dashboard still leads. -->
+    <button id="nvSales" role="tab" aria-selected="false">Analytics</button>
     <button id="nvDash"  role="tab" aria-selected="true">Dashboard</button>
     <button id="nvNew"   role="tab" aria-selected="false">New order</button>
     <button id="nvBoard" role="tab" aria-selected="false">Board</button>
     <button id="nvCust"  role="tab" aria-selected="false" hidden>Customers</button>
-    <button id="nvSales" role="tab" aria-selected="false">Sales</button>
     <button id="nvStaff" role="tab" aria-selected="false" hidden>Staff</button>
   </div>
 </nav>
@@ -1443,20 +1474,20 @@ setTimeout(function(){
         <span class="sync" id="dSync"></span>
       </div>
       <div class="stats">
-        <div class="stat"><b id="dDue">0</b><small>DUE TODAY</small></div>
-        <div class="stat"><b id="dClaim">0</b><small>FOR CLAIM</small></div>
-        <div class="stat alert" id="dUnpaidTile"><b id="dUnpaid">₱0</b><small id="dUnpaidK">UNPAID</small></div>
+        <div class="stat go" data-go="due" role="button" tabindex="0"><b id="dDue">0</b><small>DUE TODAY</small></div>
+        <div class="stat go" data-go="claim" role="button" tabindex="0"><b id="dClaim">0</b><small>FOR CLAIM</small></div>
+        <div class="stat alert go" data-go="unpaid" role="button" tabindex="0" id="dUnpaidTile"><b id="dUnpaid">₱0</b><small id="dUnpaidK">UNPAID</small></div>
       </div>
       <!-- money that actually came in, from payment rows -->
       <div class="stats" id="dMoney">
         <!-- Cash on hand FIRST (27 Sep, the shop's order): payments by the
              cash method only, what should be in the drawer. Collected today
              counts GCash, bank and cheque as well. -->
-        <div class="stat paid"><b id="dCashT">₱0</b><small>CASH ON HAND</small></div>
-        <div class="stat paid"><b id="dPaidT">₱0</b><small>COLLECTED TODAY</small></div>
-        <div class="stat paid" id="dPaidMTile"><b id="dPaidM">₱0</b><small>COLLECTED THIS MONTH</small></div>
+        <div class="stat paid go" data-go="cash" role="button" tabindex="0"><b id="dCashT">₱0</b><small>CASH ON HAND</small></div>
+        <div class="stat paid go" data-go="paidT" role="button" tabindex="0"><b id="dPaidT">₱0</b><small>COLLECTED TODAY</small></div>
+        <div class="stat paid go" data-go="month" role="button" tabindex="0" id="dPaidMTile"><b id="dPaidM">₱0</b><small>COLLECTED THIS MONTH</small></div>
         <!-- 27 Sep: "in the owner there is also a total cash received in the month" -->
-        <div class="stat paid" id="dCashMTile"><b id="dCashM">₱0</b><small>CASH THIS MONTH</small></div>
+        <div class="stat paid go" data-go="month" role="button" tabindex="0" id="dCashMTile"><b id="dCashM">₱0</b><small>CASH THIS MONTH</small></div>
       </div>
     </div>
     <div class="dashgo">
@@ -1582,9 +1613,26 @@ setTimeout(function(){
       <div class="chart" id="tDays"></div>
       <div class="small muted" id="tDaysK" style="margin-top:6px"></div>
     </div>
+    <!-- money IN per day, beside the orders-taken chart above (27 Sep) -->
+    <div class="card" style="margin-top:12px">
+      <h2>Collected per day</h2>
+      <div class="chart" id="tPaidDays"></div>
+      <div class="small muted" id="tPaidDaysK" style="margin-top:6px"></div>
+    </div>
+    <!-- the job-type colours from the board, as the month's sales -->
+    <div class="card" style="margin-top:12px">
+      <h2>Sales by job type</h2>
+      <div id="tCats" class="small tcats"></div>
+    </div>
     <div class="card" style="margin-top:12px">
       <h2>What sells</h2>
       <div id="tMix" class="small"></div>
+    </div>
+    <!-- 27 Sep: "create a summary for the customers also" - the government
+         card's twin for walk-in customers, from the Customers tab's list -->
+    <div class="card" style="margin-top:12px">
+      <h2>Customers who owe</h2>
+      <div id="tCust" class="small"></div>
     </div>
     <div class="card" style="margin-top:12px">
       <h2>Government accounts</h2>
@@ -1949,6 +1997,16 @@ setTimeout(function(){
   </div>
 </dialog>
 
+<!-- What a money tile on the dashboard counts, order by order (27 Sep). -->
+<dialog id="listDlg">
+  <div class="dh"><span class="no" id="lsHead">Details</span></div>
+  <div class="db">
+    <div class="csum" id="lsSum"></div>
+    <div id="lsRows"></div>
+  </div>
+  <div class="df"><button class="btn" id="lsClose">Close</button></div>
+</dialog>
+
 <!-- One customer: every order, what was paid, what is still owed. -->
 <dialog id="custDlg">
   <div class="dh"><span class="no" id="cdName">Customer</span></div>
@@ -2067,10 +2125,12 @@ setTimeout(function(){
     <!-- Hidden outright for a bench that may not see money. It used to draw
          three em-dashes, which is three rows of screen saying nothing and
          inviting "why is this blank?" every time an artist opened an order. -->
-    <div id="dMoneyRows">
-      <div class="totrow" style="margin-top:8px"><span class="muted">Total</span><span id="dTotal"></span></div>
-      <div class="totrow"><span class="muted">Paid</span><span id="dPaid"></span></div>
-      <div class="totrow big"><span>Balance</span><span id="dBal"></span></div>
+    <!-- 27 Sep: "add colors here, so we make it pretty". Paid is green, the
+         balance red while anything is owed and green once it is not. -->
+    <div id="dMoneyRows" class="mrows">
+      <div class="totrow tot"><span>Total</span><span id="dTotal"></span></div>
+      <div class="totrow paid"><span>Paid</span><span id="dPaid"></span></div>
+      <div class="totrow big" id="dBalRow"><span id="dBalK">Balance</span><span id="dBal"></span></div>
     </div>
     <div class="pays" id="dPays"></div>
     <!-- SAY SOMETHING. Until 25 Sep the only way to write a note on a job
@@ -2979,7 +3039,7 @@ async function openShop(){
   $('#btnCsv').hidden  = !canSeeMoney();
   $('#nvStaff').hidden = ROLE !== 'owner';
   // the next person to tap in does not inherit the last one's search or filter
-  SEARCH = ''; CAT_ONLY = null; $('#bSearch').value = ''; $('#dSearch').value = '';
+  SEARCH = ''; CAT_ONLY = null; LENS = null; $('#bSearch').value = ''; $('#dSearch').value = '';
   renderStaff();
 
   /* The tab goes up BEFORE anything is fetched. Read it first: showTab writes
@@ -2988,7 +3048,11 @@ async function openShop(){
      A tab this bench cannot see falls back to the dashboard. */
   TAB_HIST = [];                       // a fresh open starts with nowhere back
   const wanted = openedWorth() ? readTab() : '';
-  if(!restoreTab(wanted, true) ) showTab('nvDash', true, true);
+  /* The OWNER opens on Analytics - "the first thing they see will be the
+     charts, the summary and the numbers". Everybody else on the dashboard.
+     A reload still puts anyone back on the tab they were on. */
+  if(!restoreTab(wanted, true) )
+    showTab(BENCH === 'owner' && canSeeMoney() ? 'nvSales' : 'nvDash', true, true);
 
   await loadItems();
   await loadArtists();
@@ -5668,6 +5732,94 @@ $('#pinEye').onclick = () => {
 };
 
 $('#dNew').onclick = () => $('#nvNew').click();
+
+/* ── the dashboard's tiles open what they count ── */
+const listDlg = $('#listDlg');
+$('#lsClose').onclick = () => listDlg.close();
+function showList(head, sum, rows, empty){
+  $('#lsHead').textContent = head;
+  $('#lsSum').textContent = sum;
+  const box = $('#lsRows');
+  box.innerHTML = '';
+  if(!rows.length) box.innerHTML = '<div class="empty">' + esc(empty) + '</div>';
+  rows.forEach(r => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'corow' + (r.owes ? ' owes' : '');
+    b.innerHTML = '<span class="no">' + esc(r.no) + '</span>' +
+      '<span class="amt ' + (r.owes ? 'owe' : 'ok') + '">' + esc(r.amt) + '</span>' +
+      '<span class="sub">' + esc(r.sub) + '</span>';
+    if(r.id) b.onclick = () => openOwed(r.id);    // the order opens on top; closing it comes back here
+    box.appendChild(b);
+  });
+  if(!listDlg.open) listDlg.showModal();
+}
+/* Payments name their order by id; the board usually already holds it, and
+   the rest are fetched in one call. */
+async function orderNames(ids){
+  const map = new Map(ORDERS.filter(o => ids.includes(o.id)).map(o => [o.id, o]));
+  const missing = ids.filter(id => !map.has(id));
+  if(missing.length){
+    const { data } = await sb.from('job_orders').select('id,jo_no,customer_name').in('id', missing);
+    (data || []).forEach(o => map.set(o.id, o));
+  }
+  return map;
+}
+const METHOD_NAME = { cash:'Cash', gcash:'GCash', bank:'Bank', cheque:'Cheque' };
+async function showPayments(cashOnly){
+  if(!DASH_DATA) return toast('Still loading - try again in a moment.');
+  const { pays, t } = DASH_DATA;
+  const manila = p => new Date(p.paid_at).toLocaleDateString('en-CA', { timeZone:'Asia/Manila' });
+  const list = pays.filter(p => manila(p) === t && (!cashOnly || p.method === 'cash'))
+    .sort((a, b) => String(b.paid_at).localeCompare(String(a.paid_at)));
+  const names = await orderNames([...new Set(list.map(p => p.job_order_id))]);
+  const total = list.reduce((s, p) => s + Number(p.amount), 0);
+  showList(cashOnly ? 'Cash on hand today' : 'Collected today',
+    list.length + (list.length === 1 ? ' payment' : ' payments') + ' \u00b7 ' + peso(total) +
+      (cashOnly ? ' - what should be in the drawer' : ''),
+    list.map(p => { const o = names.get(p.job_order_id) || {};
+      return { id: p.job_order_id, no: 'JO ' + (o.jo_no || '?') + (o.customer_name ? ' \u00b7 ' + o.customer_name : ''),
+               amt: peso(p.amount),
+               sub: [METHOD_NAME[p.method] || p.method, p.receipt_no ? 'receipt ' + p.receipt_no : '',
+                     new Date(p.paid_at).toLocaleTimeString('en-PH', { timeZone:'Asia/Manila', hour:'numeric', minute:'2-digit' })]
+                     .filter(Boolean).join(' \u00b7 ') }; }),
+    cashOnly ? 'No cash has come in yet today.' : 'Nothing has been collected yet today.');
+}
+function showUnpaidMonth(){
+  if(!DASH_DATA) return toast('Still loading - try again in a moment.');
+  /* the same orders the tile summed: every order taken this month with a balance */
+  const list = DASH_DATA.mon.filter(o => Number(o.balance) > 0)
+    .sort((a, b) => Number(b.balance) - Number(a.balance));
+  const total = list.reduce((s, o) => s + Number(o.balance), 0);
+  showList('Unpaid this month',
+    list.length + (list.length === 1 ? ' order' : ' orders') + ' taken this month still owe ' + peso(total),
+    list.map(o => ({ id: o.id, owes: true, no: 'JO ' + o.jo_no + ' \u00b7 ' + o.customer_name,
+                     amt: peso(o.balance) + ' owed',
+                     sub: [o.order_date, LABEL[o.status] || o.status, 'total ' + peso(o.total)].join(' \u00b7 ') })),
+    'Every order taken this month is paid.');
+}
+function lensTo(label, keep){
+  LENS = { label, keep };
+  const tabs = tabsFor();
+  BOARD_TAB = tabs ? (tabs.find(x => x.id === 'all') || tabs[0]).id : 'all';
+  SEARCH = ''; $('#bSearch').value = ''; CAT_ONLY = null;
+  if($('#vBoard').hidden) $('#nvBoard').click(); else renderBoard();
+}
+function goTile(kind){
+  const t = today();
+  if(kind === 'due')   return lensTo('work due today or late', o => !!o.target_date && o.target_date <= t &&
+                                                                      !['ready','claimed'].includes(o.status));
+  if(kind === 'claim') return lensTo('jobs ready for the customer', o => o.status === 'ready');
+  if(kind === 'cash')  return showPayments(true);
+  if(kind === 'paidT') return showPayments(false);
+  /* the owner's month and every-balance figures live on Analytics, which the
+     counter cannot open - so the counter's unpaid tile lists its own orders */
+  if(kind === 'unpaid') return canSeeMoney() ? $('#nvSales').click() : showUnpaidMonth();
+  if(kind === 'month') return $('#nvSales').click();
+}
+document.querySelectorAll('.stat.go').forEach(el => {
+  el.addEventListener('click', () => goTile(el.dataset.go));
+  el.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); goTile(el.dataset.go); } });
+});
 $('#bSort').value = SORT;
 $('#bSort').addEventListener('change', () => {
   SORT = $('#bSort').value;
@@ -5902,6 +6054,9 @@ async function loadCustomers(force){
 const custWords = c => [c.name, c.phone, c.fb, String(c.phone).replace(/\D/g, '')].join(' ').toLowerCase();
 const custHit = (c, q) => q.split(/\s+/).filter(Boolean).every(w => custWords(c).includes(w));
 const daysSince = d => d ? Math.max(0, Math.floor((new Date(today()) - new Date(d)) / 864e5)) : 0;
+/* "since today", "1 day", "12 days" - never "0 days" or "1 days" */
+const agoText = (d, ago) => { const n = daysSince(d);
+  return n === 0 ? (ago ? 'today' : 'since today') : n + (n === 1 ? ' day' : ' days') + (ago ? ' ago' : ''); };
 
 async function renderCustomers(){
   const list = await loadCustomers();
@@ -5931,7 +6086,7 @@ async function renderCustomers(){
       '<span class="amt ' + (c.owed > 0 ? 'owe' : 'ok') + '">' + (c.owed > 0
         ? esc(peso(c.owed)) + '<small>OWES</small>' : 'Paid up') + '</span>' +
       '<span class="sub">' + esc([c.phone, n + (n === 1 ? ' order' : ' orders'),
-        c.owed > 0 && c.oldest ? 'oldest unpaid ' + daysSince(c.oldest.order_date) + ' days' : 'last ' + (c.last || '')]
+        c.owed > 0 && c.oldest ? 'oldest unpaid ' + agoText(c.oldest.order_date) : 'last ' + (c.last || '')]
         .filter(Boolean).join(' \u00b7 ')) + '</span>';
     b.onclick = () => openCustomer(c.key);
     box.appendChild(b);
@@ -5962,7 +6117,7 @@ async function openCustomer(key){
   fitMoney($('#cdPaid'), peso(c.booked - c.owed), 'third');
   fitMoney($('#cdOwe'), peso(c.owed), 'third');
   $('#cdOldest').textContent = c.oldest
-    ? 'Oldest unpaid: JO ' + c.oldest.jo_no + ', taken ' + c.oldest.order_date + ' (' + daysSince(c.oldest.order_date) + ' days ago)'
+    ? 'Oldest unpaid: JO ' + c.oldest.jo_no + ', taken ' + c.oldest.order_date + ' (' + agoText(c.oldest.order_date, true) + ')'
     : '';
   /* Names close to this one - probably the same person, typed differently.
      The app cannot rename a saved order, so these are shown, not merged:
@@ -6246,6 +6401,9 @@ function renderDepts(live, t){
 /* null = off. A uuid = that artist. The string 'none' = work nobody has
    picked up, which is the row an owner is most often looking for. */
 let ARTIST_ONLY = null;
+/* A tile's lens: the board narrowed to exactly what a dashboard number
+   counted, with a bar saying so and a way out. `null` is the whole board. */
+let LENS = null;
 function showArtistWork(id, name){
   ARTIST_ONLY = id;
   BOARD_TAB = 'all';
@@ -6351,11 +6509,20 @@ function renderBoard(){
      on this bench's work, never a way around it. */
   if(ARTIST_ONLY) seen = seen.filter(o =>
     ARTIST_ONLY === 'none' ? !o.artist_id : o.artist_id === ARTIST_ONLY);
+  if(LENS) seen = seen.filter(LENS.keep);
 
   /* A filtered board must say so and offer the way out, or it reads as
      orders having gone missing. */
   const note = $('#artOnly');
-  if(note){
+  if(note && LENS && !ARTIST_ONLY){
+    note.hidden = false;
+    note.textContent = '';
+    const t = document.createElement('span'); t.textContent = 'Showing ' + LENS.label;
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = 'Show everything';
+    b.onclick = () => { LENS = null; renderBoard(); };
+    note.append(t, b);
+  }else if(note){
     note.hidden = !ARTIST_ONLY;
     if(ARTIST_ONLY){
       const who = ARTIST_ONLY === 'none' ? 'nobody'
@@ -6396,7 +6563,7 @@ function renderBoard(){
       b.setAttribute('aria-selected', String((!SEARCH.trim() || BENCH === 'production') && t.id === tab.id));
       b.setAttribute('aria-label', t.label + ', ' + n + (n === 1 ? ' order' : ' orders'));
       b.innerHTML = esc(t.label) + '<span class="n">' + n + '</span>';
-      b.onclick = () => { BOARD_TAB = t.id; renderBoard(); };
+      b.onclick = () => { BOARD_TAB = t.id; LENS = null; renderBoard(); };
       tabEl.appendChild(b);
     });
   }
@@ -6618,26 +6785,27 @@ function openDetail(o){
      the tiles, the board card and the dashboard were closed in build 19 and
      this row was missed because it reads as part of the work. */
   const money = canSeeMoney() || BENCH === 'counter';
-  const plain = l => `<div class="lrow"><div class="d">${esc(l.item_type)}${l.size?` · ${esc(l.size)}`:''}
+  const cc = name => 'lc cat-' + catOfName(name).id;
+  const plain = l => `<div class="lrow ${cc(l.item_type)}"><div class="d"><span class="tname">${esc(l.item_type)}</span>${l.size?` · ${esc(l.size)}`:''}
         ${l.notes?`<div class="small inote">${esc(l.notes)}</div>`:''}
         <div class="muted small">${money ? `${l.qty} × ${peso(l.unit_price)}` : `${l.qty} to make`} ${edit(l)}</div></div>
         ${money ? `<div class="money">${peso(l.line_total)}</div>` : ''}</div>`;
   const filesBox = g => `<div class="dif" data-item="${esc(g.id || '')}"></div>`;
   $('#dLines').innerHTML = gs.length
     ? gs.map(g => (!g.grouped ? plain(g.rows[0]) :
-        `<div class="lrow lhead"><div class="d">${esc(g.item)}
+        `<div class="lrow lhead ${cc(g.item)}"><div class="d"><span class="tname">${esc(g.item)}</span>
            ${g.note?`<div class="small inote">${esc(g.note)}</div>`:''}
            <div class="muted small">${g.qty} in ${g.rows.length} sizes</div></div></div>` +
         manifest(g) +
-        g.rows.map(l=>`<div class="lrow lsub"><div class="d">${esc(l.size||'—')}${
+        g.rows.map(l=>`<div class="lrow lsub ${cc(g.item)}"><div class="d">${esc(l.size||'—')}${
            l.gender ? ` · ${l.gender === 'male' ? 'Male' : 'Female'}` : ''}
            <div class="muted small">${money ? `${l.qty} × ${peso(l.unit_price)}` : `${l.qty} to make`} ${edit(l)}</div></div>
            ${money ? `<div class="money">${peso(l.line_total)}</div>` : ''}</div>`).join('') +
         /* No subtotal without the prices it is a subtotal OF. */
-        (money ? `<div class="lrow lsubt"><div class="d">Subtotal</div><div class="money">${peso(g.total)}</div></div>` : ''))
+        (money ? `<div class="lrow lsubt ${cc(g.item)}"><div class="d">Subtotal</div><div class="money">${peso(g.total)}</div></div>` : ''))
         + filesBox(g)
       ).join('')
-    : `<div class="lrow"><div class="d">${esc(o.item_type||'—')}${o.size?` · ${esc(o.size)}`:''}
+    : `<div class="lrow ${cc(o.item_type)}"><div class="d"><span class="tname">${esc(o.item_type||'—')}</span>${o.size?` · ${esc(o.size)}`:''}
         <div class="muted small">${money ? `${o.qty} × ${peso(o.unit_price)}` : `${o.qty} to make`}</div></div>
         ${money ? `<div class="money">${peso(o.total)}</div>` : ''}</div>`;
   $('#dMoneyRows').hidden = !money;
@@ -6645,6 +6813,10 @@ function openDetail(o){
     $('#dTotal').textContent = peso(o.total);
     $('#dPaid').textContent  = peso(o.downpayment);
     $('#dBal').textContent   = peso(o.balance);
+    const owes = Number(o.balance) > 0;
+    $('#dBalRow').classList.toggle('owe', owes);
+    $('#dBalRow').classList.toggle('clear', !owes);
+    $('#dBalK').textContent = owes ? 'Balance' : 'Paid in full';
   }else{
     /* Emptied, not only hidden - the same rule the board's tab strip keeps.
        A figure left in the DOM is still a figure on that device. */
@@ -7521,13 +7693,94 @@ function drawDays(mon, t){
     : 'No orders taken yet this month.';
 }
 
+/* Money COLLECTED per day this month - payment rows by the Manila day they
+   came in - so the owner can hold it against the orders-taken chart above.
+   Today's bar is the darker green. */
+function drawPaidDays(pays, t){
+  const n = Number(t.slice(8, 10));
+  const sums = Array(n).fill(0);
+  const from = t.slice(0, 8) + '01';
+  pays.forEach(p => {
+    const d = new Date(p.paid_at).toLocaleDateString('en-CA', { timeZone:'Asia/Manila' });
+    if(d >= from && d <= t) sums[Number(d.slice(8, 10)) - 1] += Number(p.amount);
+  });
+  const max = Math.max(...sums), W = 310, H = 120, gap = 2;
+  const bw = (W - gap * (n - 1)) / n;
+  const mon3 = new Date(t + 'T00:00:00').toLocaleDateString('en-PH', { month:'short' });
+  const bars = sums.map((v, i) => {
+    const h = max > 0 ? Math.max(v > 0 ? 3 : 1, Math.round(v / max * H)) : 1;
+    return `<rect x="${(i * (bw + gap)).toFixed(1)}" y="${H - h}" width="${bw.toFixed(1)}" height="${h}" rx="1.5"
+      class="${i === n - 1 ? 'paidtoday' : v > 0 ? 'paid' : 'off'}"><title>${mon3} ${i + 1}: ${peso(v)}</title></rect>`;
+  }).join('');
+  const ticks = [1, 5, 10, 15, 20, 25, 30].filter(d => d <= n)
+    .map(d => `<text x="${((d - 1) * (bw + gap) + bw / 2).toFixed(1)}" y="${H + 14}">${d}</text>`).join('');
+  $('#tPaidDays').innerHTML =
+    `<svg viewBox="0 0 ${W} ${H + 18}" role="img" aria-label="Money collected per day this month">${bars}${ticks}</svg>`;
+  const total = sums.reduce((a, b) => a + b, 0);
+  $('#tPaidDaysK').textContent = max > 0
+    ? `Collected so far this month: ${peso(total)}. Best day: ${mon3} ${sums.indexOf(max) + 1}, ${peso(max)}`
+    : 'Nothing collected yet this month.';
+}
+/* The month's sales by the same job types the board is coloured by - so a
+   tarp-heavy month reads as teal here and on the board alike. Line totals,
+   so a mixed order is split across its types rather than given to one. */
+function drawCats(mon){
+  const by = new Map();
+  mon.forEach(o => {
+    const ls = o.jo_items || [];
+    if(ls.length) ls.forEach(l => { const c = catOfName(l.item_type); by.set(c, (by.get(c) || 0) + Number(l.line_total || 0)); });
+    else { const c = catOfName(o.item_type); by.set(c, (by.get(c) || 0) + Number(o.total || 0)); }
+  });
+  const rows = [...by.entries()].filter(e => e[1] > 0).sort((a, b) => b[1] - a[1]);
+  const total = rows.reduce((t, e) => t + e[1], 0), most = rows.length ? rows[0][1] : 1;
+  $('#tCats').innerHTML = rows.length
+    ? rows.map(([c, v]) => `<div class="hbar"><div class="hbt"><span class="d">${esc(c.name)}</span>` +
+        `<span class="money">${esc(peso(v))} \u00b7 ${Math.round(v / total * 100)}%</span></div>` +
+        `<div class="hb"><i class="cat-${esc(c.id)}" style="width:${Math.max(2, v / most * 100).toFixed(1)}%"></i></div></div>`).join('')
+    : '<div class="muted">Nothing sold yet this month.</div>';
+}
+/* WHO OWES, for walk-in customers - the government card's twin. The top five
+   by what they owe, each opening their page, and the way to the full list. */
+async function renderCustSummary(){
+  const box = $('#tCust');
+  if(!canTakeOrders()){ box.innerHTML = ''; return; }
+  const list = await loadCustomers();
+  const owing = list.filter(c => c.owed > 0).sort((a, b) => b.owed - a.owed);
+  box.innerHTML = '';
+  box.classList.add('tcust');
+  const head = document.createElement('p');
+  head.className = 'csum';
+  head.innerHTML = owing.length
+    ? esc(owing.length + (owing.length === 1 ? ' customer owes ' : ' customers owe ')) +
+      '<b>' + esc(peso(owing.reduce((t, c) => t + c.owed, 0))) + '</b>'
+    : 'No customer owes anything.';
+  box.appendChild(head);
+  owing.slice(0, 5).forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'crow';
+    const n = c.orders.length;
+    b.innerHTML = '<span class="nm">' + esc(c.name) + '</span>' +
+      '<span class="amt owe">' + esc(peso(c.owed)) + '<small>OWES</small></span>' +
+      '<span class="sub">' + esc([n + (n === 1 ? ' order' : ' orders'),
+        c.oldest ? 'oldest unpaid ' + agoText(c.oldest.order_date) : ''].filter(Boolean).join(' \u00b7 ')) + '</span>';
+    b.onclick = () => openCustomer(c.key);
+    box.appendChild(b);
+  });
+  const all = document.createElement('button');
+  all.type = 'button'; all.className = 'btn ghost all';
+  all.textContent = owing.length > 5 ? 'See all ' + owing.length + ' customers who owe' : 'Open Customers';
+  all.onclick = () => $('#nvCust').click();
+  box.appendChild(all);
+}
+
+let DASH_DATA = null;
 async function renderSales(){
   const t    = today();
   const from = t.slice(0,8) + '01';
 
   const [{ data:monRows }, { data:owedRows }, { data:paidRows }, { data:govRows }] = await Promise.all([
     sb.from('job_orders')
-      .select('total,balance,order_date,item_type,jo_items(item_type,line_total)')
+      .select('id,jo_no,customer_name,status,total,balance,order_date,item_type,jo_items(item_type,line_total)')
       .eq('voided', false).neq('status','cancelled')
       .gte('order_date', from).limit(2000),
     sb.from('job_orders')
@@ -7536,7 +7789,7 @@ async function renderSales(){
       .gt('balance', 0).limit(2000),
     // money that came in this month (Manila), one row per payment
     sb.from('jo_payments')
-      .select('amount,method,paid_at')
+      .select('amount,method,paid_at,job_order_id,receipt_no')
       .gte('paid_at', new Date(from + 'T00:00:00+08:00').toISOString()).limit(5000),
     // what each government account still owes, order by order
     sb.from('job_orders')
@@ -7559,6 +7812,7 @@ async function renderSales(){
 
   const mon  = monRows  || [];
   const owed = owedRows || [];
+  DASH_DATA = { mon, pays, t, from };           // what the dashboard tiles open
   const dayO = mon.filter(o => o.order_date === t);
   const sum  = (list, f) => list.reduce((s,o)=>s+Number(f(o) || 0),0);
 
@@ -7609,7 +7863,8 @@ async function renderSales(){
      would otherwise still be in the page when the counter taps in. */
   if(!canSeeMoney()){
     ['#tOwed','#tOwedN','#tA1','#tA2','#tA3','#tDaysK'].forEach(k => { $(k).textContent = ''; });
-    ['#tAgeBar','#tOwedList','#tMix','#tDays','#tGov'].forEach(k => { $(k).innerHTML = ''; });
+    ['#tAgeBar','#tOwedList','#tMix','#tDays','#tGov','#tPaidDays','#tCats','#tCust'].forEach(k => { $(k).innerHTML = ''; });
+    $('#tPaidDaysK').textContent = '';
     return;
   }
   $('#tOwed').textContent  = peso(owedTotal);
@@ -7679,6 +7934,9 @@ async function renderSales(){
         <div class="hb"><i style="width:${Math.max(2, v/most*100).toFixed(1)}%"></i></div></div>`).join('')
     : '<div class="muted">Nothing sold yet this month.</div>';
   drawDays(mon, t);
+  drawPaidDays(pays, t);
+  drawCats(mon);
+  renderCustSummary();
 
   /* Government accounts: what each still owes, and on which orders - with
      the PO number, so a payment can be matched to its purchase order. */
