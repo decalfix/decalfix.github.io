@@ -787,6 +787,15 @@
   .tile .split{margin-top:8px;font-size:12.5px;font-weight:700;color:#D6D6D2;line-height:1.5}
   .tile .split b{color:#fff;font-variant-numeric:tabular-nums}
   .tile .split .un b{color:#FFB4B4}
+  .mstack{display:grid;gap:10px}
+  .tile .note{margin-top:4px;font-size:12px;font-weight:600;line-height:1.4}
+  .tile.cash{background:var(--green);border-color:var(--green)}
+  .tile.cash .k,.tile.cash .v,.tile.cash .note{color:#fff}
+  .tile.cash .bym{color:#E6F4EC} .tile.cash .bym b{color:#fff} .tile.cash .bym .cash{color:#fff}
+  .tile.ar{background:var(--amber-wash);border-color:#E8C88A}
+  .tile.ar .k,.tile.ar .v,.tile.ar .note{color:#6B4A05}
+  .tile.dark .note{color:#B4B4B0}
+  .tile.got .note{color:var(--green)}
   .tile.got{background:var(--green-wash);border-color:var(--green)}
   .tile.got .k,.tile.got .v{color:var(--green)}
   .tile .bym{margin-top:6px;font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.55}
@@ -1440,12 +1449,12 @@ setTimeout(function(){
       </div>
       <!-- money that actually came in, from payment rows -->
       <div class="stats" id="dMoney">
-        <div class="stat paid"><b id="dPaidT">₱0</b><small>PAID TODAY</small></div>
-        <!-- 27 Sep: "cash received today ... the cash in the counter on that
-             day". Payments by the cash method only - what should be in the
-             drawer - because Paid today also counts GCash, bank and cheque. -->
-        <div class="stat paid"><b id="dCashT">₱0</b><small>CASH TODAY</small></div>
-        <div class="stat paid" id="dPaidMTile"><b id="dPaidM">₱0</b><small>PAID THIS MONTH</small></div>
+        <!-- Cash on hand FIRST (27 Sep, the shop's order): payments by the
+             cash method only, what should be in the drawer. Collected today
+             counts GCash, bank and cheque as well. -->
+        <div class="stat paid"><b id="dCashT">₱0</b><small>CASH ON HAND</small></div>
+        <div class="stat paid"><b id="dPaidT">₱0</b><small>COLLECTED TODAY</small></div>
+        <div class="stat paid" id="dPaidMTile"><b id="dPaidM">₱0</b><small>COLLECTED THIS MONTH</small></div>
         <!-- 27 Sep: "in the owner there is also a total cash received in the month" -->
         <div class="stat paid" id="dCashMTile"><b id="dCashM">₱0</b><small>CASH THIS MONTH</small></div>
       </div>
@@ -1534,24 +1543,27 @@ setTimeout(function(){
 
   <!-- sales -->
   <section class="view" id="vSales" hidden>
-    <div class="tiles">
+    <!-- THE SHOP'S ORDER, top to bottom (27 Sep): the drawer first, then
+         today, then the month, then everything still owed. One per row, so it
+         reads like a report on a phone. Each says in a line what it counts:
+         SALES is what was booked; COLLECTIONS is money that came in, on any
+         order; RECEIVABLES is what is still owed. -->
+    <div class="mstack" id="tStack">
+      <div class="tile cash"><div class="k">Cash on hand today</div><div class="v" id="tCashT">₱0</div>
+        <div class="note">Cash payments received today - what should be in the drawer.</div>
+        <div class="bym">Collected today, all methods: <b id="tGotT">₱0</b><br><span id="tGotTBy"></span></div></div>
+      <div class="tile ar"><div class="k">Receivables · today's orders</div><div class="v" id="tArT">₱0</div>
+        <div class="note">Still unpaid on the orders taken today.</div></div>
       <div class="tile dark"><div class="k">Sales today</div><div class="v" id="tToday">₱0</div><div class="k" id="tTodayN"></div>
         <div class="split" id="tTodaySplit"></div></div>
+      <div class="tile got"><div class="k">Collections this month</div><div class="v" id="tGotM">₱0</div>
+        <div class="note">Every payment received since the 1st, on any order.</div>
+        <div class="bym" id="tGotMBy"></div></div>
       <div class="tile dark"><div class="k">Sales this month</div><div class="v" id="tMonth">₱0</div><div class="k" id="tMonthN"></div>
         <div class="split" id="tMonthSplit"></div></div>
     </div>
-    <!-- 27 Sep: "the sales are directly on the total sales, no breakdown on
-         the amount that was paid ... it gives the wrong idea to the owner".
-         SALES is what was BOOKED (orders taken); RECEIVED is money that came
-         in, from payment rows, whatever day the order was taken. -->
-    <div class="tiles" style="margin-top:10px">
-      <div class="tile got"><div class="k">Received today</div><div class="v" id="tGotT">₱0</div>
-        <div class="bym" id="tGotTBy"></div></div>
-      <div class="tile got"><div class="k">Received this month</div><div class="v" id="tGotM">₱0</div>
-        <div class="bym" id="tGotMBy"></div></div>
-    </div>
     <div class="tile red" style="margin-top:10px">
-      <div class="k">Still to collect</div>
+      <div class="k">Total receivables · still to collect</div>
       <div class="v" id="tOwed">₱0</div>
       <div class="k" id="tOwedN"></div>
       <div class="ages">
@@ -2299,7 +2311,9 @@ const BENCH_NAME = { counter:'Counter', artist:'Artist', production:'Production'
 const SEES = {
   counter:    ['new','layout','for_approval','printing','ready'],
   artist:     ['layout','for_approval','printing','ready','claimed'],
-  production: ['printing','ready'],
+  /* 'claimed' from 27 Sep: production's Released tab shows the jobs they
+     finished that have gone out, so "is that one done?" has an answer. */
+  production: ['printing','ready','claimed'],
   office:     ['new','layout','for_approval','printing','ready','claimed'],
   owner:      ['new','layout','for_approval','printing','ready','claimed']
 };
@@ -5785,7 +5799,17 @@ const ARTIST_TABS = [
    ARTIST_TABS's, and it ran before the const existed. */
 BOARD_TABS.splice(3, 0, { id:'redo', label:'Came back', warn:true, keep:cameBack });
 
+/* PRODUCTION'S TWO QUESTIONS (27 Sep): what is still to make, and what is
+   finished. Two tabs and no "All": every order production can see is in
+   exactly one of them, so nothing can fall between. Finished includes Ready -
+   off the press, waiting for the customer - as well as Released, because to
+   production both are done; the chip on each card says which. */
+const PROD_TABS = [
+  { id:'todo', label:'To be produced', keep:o => o.status === 'printing' },
+  { id:'done', label:'Released',       keep:o => ['ready','claimed'].includes(o.status) }
+];
 const tabsFor = () => BENCH === 'artist' ? ARTIST_TABS
+                    : BENCH === 'production' ? PROD_TABS
                     : canTakeOrders()    ? BOARD_TABS : null;
 let BOARD_TAB = 'all';
 
@@ -6369,7 +6393,7 @@ function renderBoard(){
       b.className = 'btab' + (t.warn && n ? ' warn' : '');
       b.setAttribute('role', 'tab');
       // while a search is answering across every tab, no tab is "chosen"
-      b.setAttribute('aria-selected', String(!SEARCH.trim() && t.id === tab.id));
+      b.setAttribute('aria-selected', String((!SEARCH.trim() || BENCH === 'production') && t.id === tab.id));
       b.setAttribute('aria-label', t.label + ', ' + n + (n === 1 ? ' order' : ' orders'));
       b.innerHTML = esc(t.label) + '<span class="n">' + n + '</span>';
       b.onclick = () => { BOARD_TAB = t.id; renderBoard(); };
@@ -6381,7 +6405,12 @@ function renderBoard(){
      as asked. Still only `seen`, so it can never find work this bench may not
      see, and nothing about money is searched. */
   const q = SEARCH.trim().toLowerCase();
-  const inTab = q ? seen.filter(o => matches(o, q)) : seen.filter(o => tab.keep(o, mine));
+  /* Across every tab for the benches that run the shop ("anywhere", as they
+     asked); inside the chosen tab for production, who asked the opposite -
+     released jobs turning up among the ones still to make was confusing. */
+  const wide = !!q && BENCH !== 'production';
+  const inTab = wide ? seen.filter(o => matches(o, q))
+              : seen.filter(o => tab.keep(o, mine) && (!q || matches(o, q)));
   /* The type key: one button per type on THIS view, with its count, and
      tapping one narrows the board to it. It is drawn from what is on screen,
      so it never offers a type with nothing behind it. */
@@ -6436,7 +6465,8 @@ function renderBoard(){
   renderDash();
   const box = $('#boardList');
   if(!open.length && q){
-    box.innerHTML = '<div class="empty">No job order matches \u201c' + esc(SEARCH.trim()) + '\u201d.</div>';
+    box.innerHTML = '<div class="empty">No job order matches \u201c' + esc(SEARCH.trim()) + '\u201d' +
+      (wide ? '' : ' in ' + esc(tab.label)) + '.</div>';
     return;
   }
   if(!open.length){
@@ -7560,13 +7590,15 @@ async function renderSales(){
     $('#tMonth').textContent  = peso(sum(mon, o => o.total));
     $('#tMonthN').textContent = mon.length + ' job orders';
     split(mon, $('#tMonthSplit'));
+    $('#tCashT').textContent = peso(sumPay(p => isToday(p) && isCash(p)));
+    $('#tArT').textContent = peso(sum(dayO, o => o.balance));
     $('#tGotT').textContent = peso(sumPay(isToday));
     byMethod(isToday, $('#tGotTBy'));
     $('#tGotM').textContent = peso(sumPay(isMonth));
     byMethod(isMonth, $('#tGotMBy'));
   }else{
     ['#tToday','#tTodayN','#tTodaySplit','#tMonth','#tMonthN','#tMonthSplit',
-     '#tGotT','#tGotTBy','#tGotM','#tGotMBy'].forEach(k => { $(k).textContent = ''; });
+     '#tGotT','#tGotTBy','#tGotM','#tGotMBy','#tCashT','#tArT'].forEach(k => { $(k).textContent = ''; });
   }
 
   const owedTotal = owed.reduce((s,o)=>s+Number(o.balance),0);
