@@ -454,6 +454,47 @@
   .owedgo:active{background:var(--red-wash)}
   .owedgo:focus-visible{outline:2px solid var(--red);outline-offset:2px}
   .owedlist{margin-top:9px;display:grid;gap:6px}
+  /* CUSTOMERS (27 Sep) */
+  .cfilt{display:flex;gap:6px;margin:0 0 8px}
+  .cfilt button{flex:1;height:40px;font:inherit;font-size:14px;font-weight:800;border-radius:99px;
+                border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+  .cfilt button[aria-pressed="true"]{background:var(--black);border-color:var(--black);color:#fff}
+  .csum{font-size:13px;font-weight:700;color:var(--grey);margin:0 2px 8px}
+  .csum b{color:var(--red-deep)}
+  .crow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;width:100%;text-align:left;
+        font:inherit;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 13px;
+        margin:0 0 7px;cursor:pointer;color:var(--ink)}
+  .crow:active{background:var(--wash,#F4F4F5)}
+  .crow .nm{font-weight:800;font-size:15px;min-width:0;overflow-wrap:anywhere}
+  .crow .sub{grid-column:1;font-size:12px;color:var(--grey);font-weight:600}
+  .crow .amt{grid-row:1 / span 2;grid-column:2;text-align:right;font-weight:800;font-size:15px;
+             font-variant-numeric:tabular-nums;white-space:nowrap}
+  .crow .amt small{display:block;font-size:10px;letter-spacing:.08em;font-weight:800}
+  .crow .amt.owe{color:var(--red-deep)} .crow .amt.ok{color:var(--green)}
+  .ctiles{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0 8px}
+  .ct{text-align:center;border:1px solid var(--line);border-radius:9px;padding:9px 4px;background:#fff}
+  .ct b{display:block;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ct small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.08em;color:var(--grey)}
+  .ct.paid{background:var(--green-wash)} .ct.paid b{color:var(--green)}
+  .ct.owe{background:var(--red-wash)} .ct.owe b{color:var(--red-deep)}
+  .cdold{color:var(--red-deep);font-weight:700;margin:0 0 8px}
+  .corow{display:grid;grid-template-columns:1fr auto;gap:2px 8px;width:100%;text-align:left;font:inherit;
+         background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin:0 0 6px;
+         cursor:pointer;color:var(--ink)}
+  .corow .no{font-weight:800;font-size:13.5px}
+  .corow .sub{grid-column:1;font-size:11.5px;color:var(--grey);font-weight:600;min-width:0;overflow-wrap:anywhere}
+  .corow .amt{grid-row:1 / span 2;grid-column:2;text-align:right;font-weight:800;font-size:13.5px;white-space:nowrap}
+  .corow .amt.owe{color:var(--red-deep)} .corow .amt.ok{color:var(--green)}
+  .corow.owes{border-color:var(--red-wash-line);background:#FFFAFA}
+  .custlink{font:inherit;font-weight:800;color:var(--ink);background:none;border:0;padding:0;cursor:pointer;
+            text-decoration:underline;text-decoration-color:#BDBDBD;text-underline-offset:3px;text-align:left}
+  .fsug{display:grid;gap:5px;margin:-2px 0 4px}
+  .fsug button{display:grid;grid-template-columns:1fr auto;gap:1px 8px;text-align:left;font:inherit;
+               background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 11px;cursor:pointer;color:var(--ink)}
+  .fsug .nm{font-weight:800;font-size:14px;min-width:0;overflow-wrap:anywhere}
+  .fsug .sub{grid-column:1;font-size:11.5px;color:var(--grey);font-weight:600}
+  .fsug .amt{grid-row:1 / span 2;grid-column:2;align-self:center;font-size:12px;font-weight:800;white-space:nowrap}
+  .fsug .amt.owe{color:var(--red-deep)} .fsug .amt.ok{color:var(--green)}
   .owedrow{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:baseline;
            width:100%;text-align:left;padding:10px 11px;border:1px solid var(--line);
            border-radius:9px;background:#fff;color:var(--text);font:inherit;cursor:pointer}
@@ -1248,6 +1289,7 @@ setTimeout(function(){
     <button id="nvDash"  role="tab" aria-selected="true">Dashboard</button>
     <button id="nvNew"   role="tab" aria-selected="false">New order</button>
     <button id="nvBoard" role="tab" aria-selected="false">Board</button>
+    <button id="nvCust"  role="tab" aria-selected="false" hidden>Customers</button>
     <button id="nvSales" role="tab" aria-selected="false">Sales</button>
     <button id="nvStaff" role="tab" aria-selected="false" hidden>Staff</button>
   </div>
@@ -1258,7 +1300,9 @@ setTimeout(function(){
   <section class="view" id="vNew" hidden>
     <div class="card">
       <div class="grid2">
-        <label class="wide">Customer<input id="fCust" placeholder="Name"></label>
+        <label class="wide">Customer<input id="fCust" placeholder="Name" autocomplete="off"></label>
+        <!-- customers served before, as the name or number is typed -->
+        <div class="fsug wide" id="fSug" hidden></div>
         <label>Contact<input id="fPhone" placeholder="09xx"></label>
         <label>FB name<input id="fFb" maxlength="120" autocomplete="off" placeholder="Facebook name"></label>
         <label>Delivery / Release Date<input id="fDate" type="date"></label>
@@ -1269,6 +1313,7 @@ setTimeout(function(){
     <h2>Items</h2>
     <div id="lines"></div>
     <button class="btn ghost" id="addLine" style="width:100%">+ Add item</button>
+    <button type="button" class="addlink" id="addProd" style="margin-top:8px">Not on the list? Add a product</button>
 
     <!-- The order-level Files box lived here until 25 Sep and was a second
          way to do what every LINE on this form already does: each item has
@@ -1447,6 +1492,21 @@ setTimeout(function(){
     </label>
     <div id="bCats" class="bcats" aria-label="Job types"></div>
     <div id="boardList"></div>
+  </section>
+
+  <!-- customers: every repeat customer and what they owe (27 Sep) -->
+  <section class="view" id="vCust" hidden>
+    <div class="bsearch">
+      <input id="cSearch" type="search" autocomplete="off" enterkeyhint="search"
+             placeholder="Search a name or phone number" aria-label="Search customers">
+    </div>
+    <div class="cfilt" role="group" aria-label="Show">
+      <button type="button" data-f="owes" aria-pressed="true">Owes</button>
+      <button type="button" data-f="all"  aria-pressed="false">All</button>
+      <button type="button" data-f="paid" aria-pressed="false">Paid up</button>
+    </div>
+    <div class="csum" id="cSum"></div>
+    <div id="cList"></div>
   </section>
 
   <!-- sales -->
@@ -1851,6 +1911,47 @@ setTimeout(function(){
   <div class="df">
     <button class="btn ghost" id="edCancel">Cancel</button>
     <button class="btn" id="edSave">Save the change</button>
+  </div>
+</dialog>
+
+<!-- One customer: every order, what was paid, what is still owed. -->
+<dialog id="custDlg">
+  <div class="dh"><span class="no" id="cdName">Customer</span></div>
+  <div class="db">
+    <div class="small muted" id="cdContact"></div>
+    <div class="ctiles">
+      <div class="ct"><b id="cdN">0</b><small>ORDERS</small></div>
+      <div class="ct paid"><b id="cdPaid">₱0</b><small>PAID</small></div>
+      <div class="ct owe"><b id="cdOwe">₱0</b><small>STILL OWES</small></div>
+    </div>
+    <div class="small cdold" id="cdOldest"></div>
+    <div id="cdOrders"></div>
+  </div>
+  <div class="df">
+    <button class="btn ghost" id="cdNew">New order for them</button>
+    <button class="btn" id="cdClose">Close</button>
+  </div>
+</dialog>
+
+<!-- Add a product without waiting for an order that needs it (27 Sep:
+     "the office, owner, counter can do that"). item_add is the only door. -->
+<dialog id="prodDlg">
+  <div class="dh"><span class="no">Add a product</span></div>
+  <div class="db">
+    <label>Name<input id="npName" maxlength="80" autocomplete="off" placeholder="What the shop calls it"></label>
+    <label>Sold by<select id="npUnit">
+      <option value="pc">Piece</option><option value="set">Set</option>
+      <option value="sqft">Square foot (width × height)</option><option value="meter">Meter</option>
+      <option value="pack">Pack</option><option value="box">Box</option><option value="pair">Pair</option>
+    </select></label>
+    <label>Price<input id="npPrice" inputmode="decimal" autocomplete="off" placeholder="Leave blank to quote each order"></label>
+    <label id="npPinWrap">Your PIN<input id="npPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+    <p class="small muted">Check the name and price now - the app cannot change them later.</p>
+    <div class="msg" id="npMsg"></div>
+  </div>
+  <div class="df">
+    <button class="btn ghost" id="npNo">Cancel</button>
+    <button class="btn" id="npSave">Add product</button>
   </div>
 </dialog>
 
@@ -2832,6 +2933,10 @@ async function openShop(){
   // Benches that never take an order do not get the order screen at all.
   $('#nvNew').hidden   = !canTakeOrders();
   $('#nvSales').hidden = !canSeeMoney();
+  /* Customers is for the benches that take orders and money: the tracker is
+     balances, and an artist or production sees no money anywhere. */
+  $('#nvCust').hidden = !canTakeOrders();
+  CUST_AT = 0;                                   // a new person, a fresh list
   $('#btnCsv').hidden  = !canSeeMoney();
   $('#nvStaff').hidden = ROLE !== 'owner';
   // the next person to tap in does not inherit the last one's search or filter
@@ -5575,6 +5680,7 @@ async function refresh(){
   }catch(e){ /* the board is still worth drawing without it */ }
   SYNCED = Date.now();
   renderBoard(); await renderSales();
+  if(!$('#vCust').hidden){ CUST_AT = 0; renderCustomers(); }
 }
 function isLate(o){
   return o.target_date && o.target_date < today() && !['claimed','cancelled'].includes(o.status) && !o.voided;
@@ -5659,6 +5765,236 @@ let BOARD_TAB = 'all';
 
 /* An order on this list may be older than the board's newest-300 window, so
    it cannot be assumed to be in ORDERS. Fetch it by id when it is not. */
+/* ── customers ──
+   A CUSTOMER IS RECOGNISED FROM THEIR ORDERS - no account to open, no table.
+   The same person is typed "Maricel", "Maricel Ablanque" and "maricel
+   ablanque " on three different days, so the PHONE NUMBER is the key: its
+   last ten digits, which makes 0917 123 4567 and +63 917 123 4567 the same
+   person. An order with no usable number falls back to the name, with case
+   and spacing ignored. Government orders are left out - they have their own
+   tracker, by account and PO, on the Sales tab.
+   The suggestions on the new-order form feed this: picking a past customer
+   there writes the same name and number again, so the grouping stays whole. */
+let CUSTOMERS = [], CUST_AT = 0, CUST_F = 'owes';
+const custKey = o => {
+  const d = String(o.customer_contact || '').replace(/\D/g, '');
+  if(d.length >= 10) return 'p' + d.slice(-10);
+  return 'n' + String(o.customer_name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+};
+async function loadCustomers(force){
+  if(!force && CUST_AT && Date.now() - CUST_AT < 60000) return CUSTOMERS;
+  const { data, error } = await sb.from('job_orders')
+    .select('id,jo_no,customer_name,customer_contact,customer_fb,total,balance,order_date,status,order_type,voided')
+    .eq('voided', false).neq('status', 'cancelled')
+    .order('jo_no', { ascending: false }).limit(5000);
+  if(error){ toast('Could not load the customers: ' + error.message); return CUSTOMERS; }
+  const by = new Map();
+  (data || []).filter(o => o.order_type !== 'government' && String(o.customer_name || '').trim())
+    .forEach(o => {                               // newest first, so the first seen is the latest
+      const k = custKey(o);
+      let c = by.get(k);
+      if(!c){ c = { key: k, name: o.customer_name.trim(), phone: o.customer_contact || '', fb: o.customer_fb || '',
+                    orders: [], booked: 0, owed: 0, last: o.order_date, oldest: null };
+              by.set(k, c); }
+      if(!c.phone && o.customer_contact) c.phone = o.customer_contact;
+      if(!c.fb && o.customer_fb) c.fb = o.customer_fb;
+      c.orders.push(o);
+      const nm = o.customer_name.trim().replace(/\s+/g, ' ');
+      c.names = c.names || new Map();
+      c.names.set(nm, (c.names.get(nm) || 0) + 1);
+      c.booked += Number(o.total || 0);
+      if(Number(o.balance) > 0){ c.owed += Number(o.balance); c.oldest = o; }   // oldest wins: the list is newest first
+    });
+  /* The name shown is the one typed MOST OFTEN, the longest on a tie - so a
+     quick "Ana" on the last order does not rename "Ana Reyes". */
+  by.forEach(c => {
+    const caps = t => (t.match(/[A-Z]/g) || []).length;   // "Boyet Diamante" over "boyet diamante"
+    c.name = [...c.names.entries()].sort((a, b) => (b[1] - a[1]) || (b[0].length - a[0].length) ||
+                                                   (caps(b[0]) - caps(a[0])))[0][0];
+  });
+  CUSTOMERS = [...by.values()];
+  CUST_AT = Date.now();
+  return CUSTOMERS;
+}
+const custWords = c => [c.name, c.phone, c.fb, String(c.phone).replace(/\D/g, '')].join(' ').toLowerCase();
+const custHit = (c, q) => q.split(/\s+/).filter(Boolean).every(w => custWords(c).includes(w));
+const daysSince = d => d ? Math.max(0, Math.floor((new Date(today()) - new Date(d)) / 864e5)) : 0;
+
+async function renderCustomers(){
+  const list = await loadCustomers();
+  const q = $('#cSearch').value.trim().toLowerCase();
+  let shown = list.filter(c => !q || custHit(c, q));
+  const owing = shown.filter(c => c.owed > 0);
+  if(CUST_F === 'owes') shown = owing;
+  if(CUST_F === 'paid') shown = shown.filter(c => c.owed <= 0);
+  // who to chase first: the most owed, then whoever was here most recently
+  shown.sort((a, b) => (b.owed - a.owed) || String(b.last || '').localeCompare(String(a.last || '')));
+  $('#cSum').innerHTML = owing.length
+    ? esc(owing.length + (owing.length === 1 ? ' customer owes ' : ' customers owe ')) +
+      '<b>' + esc(peso(owing.reduce((t, c) => t + c.owed, 0))) + '</b>' + (q ? ' (in this search)' : ' in total')
+    : esc(q ? 'Nobody in this search owes anything.' : 'Nobody owes anything right now.');
+  const box = $('#cList');
+  box.innerHTML = '';
+  if(!shown.length){
+    box.innerHTML = '<div class="empty">' + esc(q ? 'No customer matches \u201c' + $('#cSearch').value.trim() + '\u201d.'
+      : CUST_F === 'owes' ? 'Every customer is paid up.' : 'No customers yet.') + '</div>';
+    return;
+  }
+  shown.slice(0, 200).forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'crow';
+    const n = c.orders.length;
+    b.innerHTML = '<span class="nm">' + esc(c.name) + '</span>' +
+      '<span class="amt ' + (c.owed > 0 ? 'owe' : 'ok') + '">' + (c.owed > 0
+        ? esc(peso(c.owed)) + '<small>OWES</small>' : 'Paid up') + '</span>' +
+      '<span class="sub">' + esc([c.phone, n + (n === 1 ? ' order' : ' orders'),
+        c.owed > 0 && c.oldest ? 'oldest unpaid ' + daysSince(c.oldest.order_date) + ' days' : 'last ' + (c.last || '')]
+        .filter(Boolean).join(' \u00b7 ')) + '</span>';
+    b.onclick = () => openCustomer(c.key);
+    box.appendChild(b);
+  });
+  if(shown.length > 200){
+    const more = document.createElement('div');
+    more.className = 'small muted';
+    more.textContent = 'Showing 200 of ' + shown.length + ' - search to find the rest.';
+    box.appendChild(more);
+  }
+}
+$('#cSearch').addEventListener('input', () => renderCustomers());
+document.querySelectorAll('.cfilt button').forEach(b => { b.onclick = () => {
+  CUST_F = b.dataset.f;
+  document.querySelectorAll('.cfilt button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  renderCustomers();
+}; });
+
+let CUST_OPEN = null;
+async function openCustomer(key){
+  const list = await loadCustomers();
+  const c = list.find(x => x.key === key);
+  if(!c) return toast('Could not find that customer.');
+  CUST_OPEN = c;
+  $('#cdName').textContent = c.name;
+  $('#cdContact').textContent = [c.phone, c.fb ? 'FB ' + c.fb : ''].filter(Boolean).join(' \u00b7 ');
+  $('#cdN').textContent = String(c.orders.length);
+  fitMoney($('#cdPaid'), peso(c.booked - c.owed), 'third');
+  fitMoney($('#cdOwe'), peso(c.owed), 'third');
+  $('#cdOldest').textContent = c.oldest
+    ? 'Oldest unpaid: JO ' + c.oldest.jo_no + ', taken ' + c.oldest.order_date + ' (' + daysSince(c.oldest.order_date) + ' days ago)'
+    : '';
+  const box = $('#cdOrders');
+  box.innerHTML = '';
+  c.orders.forEach(o => {                          // newest first
+    const b = document.createElement('button');
+    const owes = Number(o.balance) > 0;
+    b.type = 'button'; b.className = 'corow' + (owes ? ' owes' : '');
+    b.innerHTML = '<span class="no">JO ' + esc(o.jo_no) + '</span>' +
+      '<span class="amt ' + (owes ? 'owe' : 'ok') + '">' + (owes ? esc(peso(o.balance)) + ' owed' : 'Paid') + '</span>' +
+      '<span class="sub">' + esc([o.order_date, LABEL[o.status] || o.status, 'total ' + peso(o.total)].join(' \u00b7 ')) + '</span>';
+    b.onclick = () => openOwed(o.id);            // opens on top; closing it comes back here
+    box.appendChild(b);
+  });
+  if(!custDlg.open) custDlg.showModal();
+}
+const custDlg = $('#custDlg');
+$('#cdClose').onclick = () => custDlg.close();
+$('#cdNew').onclick = () => {
+  const c = CUST_OPEN;
+  custDlg.close();
+  if(!c) return;
+  $('#nvNew').click();
+  $('#fCust').value = c.name; $('#fPhone').value = c.phone || ''; $('#fFb').value = c.fb || '';
+  $('#fSug').hidden = true;
+};
+
+/* SUGGESTIONS on the new-order form: two letters of a name, or four digits of
+   a number, offer the customers already served. Picking one writes the same
+   name, number and Facebook name as before - which is what keeps a repeat
+   customer as ONE customer in the tracker. What they still owe is shown
+   right there, because that is the moment it matters. */
+async function suggestCustomers(){
+  const box = $('#fSug');
+  const name = $('#fCust').value.trim().toLowerCase();
+  const digits = $('#fPhone').value.replace(/\D/g, '');
+  if(name.length < 2 && digits.length < 4){ box.hidden = true; box.innerHTML = ''; return; }
+  const list = await loadCustomers();
+  const hits = list.filter(c => (name.length >= 2 && c.name.toLowerCase().includes(name)) ||
+                                (digits.length >= 4 && String(c.phone).replace(/\D/g, '').includes(digits)))
+    .sort((a, b) => String(b.last || '').localeCompare(String(a.last || ''))).slice(0, 4);
+  // an exact match already typed needs no suggestion
+  if(!hits.length || (hits.length === 1 && hits[0].name.toLowerCase() === name &&
+                      (!hits[0].phone || $('#fPhone').value.trim() === hits[0].phone))){
+    box.hidden = true; box.innerHTML = ''; return;
+  }
+  box.innerHTML = '';
+  hits.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const n = c.orders.length;
+    b.innerHTML = '<span class="nm">' + esc(c.name) + '</span>' +
+      '<span class="amt ' + (c.owed > 0 ? 'owe' : 'ok') + '">' + (c.owed > 0 ? 'owes ' + esc(peso(c.owed)) : 'paid up') + '</span>' +
+      '<span class="sub">' + esc([c.phone, n + (n === 1 ? ' past order' : ' past orders')].filter(Boolean).join(' \u00b7 ')) + '</span>';
+    /* pointerdown, not click: the name box loses focus first, and a click
+       would arrive after the list had already gone */
+    b.addEventListener('pointerdown', e => { e.preventDefault(); pickCustomer(c); });
+    b.onclick = () => pickCustomer(c);
+    box.appendChild(b);
+  });
+  box.hidden = false;
+}
+function pickCustomer(c){
+  $('#fCust').value = c.name;
+  if(c.phone) $('#fPhone').value = c.phone;
+  if(c.fb) $('#fFb').value = c.fb;
+  $('#fSug').hidden = true; $('#fSug').innerHTML = '';
+}
+$('#fCust').addEventListener('input', () => suggestCustomers());
+$('#fPhone').addEventListener('input', () => suggestCustomers());
+$('#fCust').addEventListener('blur', () => setTimeout(() => {
+  if(document.activeElement !== $('#fPhone')) $('#fSug').hidden = true; }, 200));
+
+/* ADD A PRODUCT from the order form, for every bench that takes orders.
+   The same door as the receipt's offer: item_add checks the PIN where the
+   caller cannot reach it; null is a wrong PIN, a raise is everything else. */
+const prodDlg = $('#prodDlg');
+$('#addProd').onclick = () => {
+  $('#npName').value = ''; $('#npPrice').value = ''; $('#npPin').value = ''; $('#npUnit').value = 'pc';
+  $('#npPinWrap').hidden = !STAFF;
+  $('#npMsg').textContent = ''; $('#npMsg').className = 'msg';
+  $('#npSave').disabled = false;
+  prodDlg.showModal();
+  $('#npName').focus();
+};
+$('#npNo').onclick = () => prodDlg.close();
+$('#npSave').onclick = async () => {
+  const msg = $('#npMsg');
+  const bad = t => { msg.className = 'msg err'; msg.textContent = t; };
+  const nm  = $('#npName').value.trim().replace(/\s+/g, ' ');
+  const raw = $('#npPrice').value.trim().replace(/[^0-9.]/g, '');
+  const pr  = raw === '' ? 0 : Number(raw);
+  if(nm.length < 2) return bad('What is the product called?');
+  if(ITEMS.some(i => String(i.name).trim().toLowerCase() === nm.toLowerCase()))
+    return bad(nm + ' is already on the list.');
+  if(!Number.isFinite(pr) || pr < 0) return bad('That price is not a number.');
+  const pin = STAFF ? $('#npPin').value.trim() : '';
+  if(STAFF && !/^[0-9]{4}$/.test(pin)) return bad('Your PIN is four digits.');
+  try{ assertWritable(); }catch(err){ return bad(err.message); }
+  $('#npSave').disabled = true; msg.className = 'msg'; msg.textContent = 'Adding…';
+  let id;
+  try{
+    const { data, error } = await sb.rpc('item_add', {
+      p_shop: SHOP.id, p_name: nm, p_unit: $('#npUnit').value,
+      p_price: pr > 0 ? pr : null,
+      p_staff: STAFF ? STAFF.id : null, p_pin: STAFF ? pin : null });
+    if(error) throw error;
+    id = data;
+  }catch(e){ $('#npSave').disabled = false; return bad(e.message || 'That did not work.'); }
+  if(id === null || id === undefined){ $('#npSave').disabled = false; return bad('That is not your PIN.'); }
+  await loadItems();
+  renderLines();                                  // in the picker on this order already
+  prodDlg.close();
+  toast(nm + ' is on the list now');
+};
+
 async function openOwed(id){
   const known = ORDERS.find(o => o.id === id);
   if(known) return openDetail(known);
@@ -6074,9 +6410,22 @@ function openDetail(o){
      artist does not ring anybody and production does not either. The name
      stays, because it is how the job is spoken about in the shop. */
   const paper = canTakeOrders();
-  $('#dCust').textContent = o.customer_name +
+  const dc = $('#dCust');
+  dc.textContent = '';
+  if(paper && o.order_type !== 'government'){
+    /* Tap the name to see everything this customer has ordered and owes. The
+       order closes first, so the order tapped from the customer's list opens
+       on top of it rather than behind. */
+    const link = document.createElement('button');
+    link.type = 'button'; link.className = 'custlink';
+    link.textContent = o.customer_name;
+    link.setAttribute('aria-label', 'Open ' + o.customer_name + ' - every order and what they owe');
+    link.onclick = () => { const k = custKey(o); dlg.close(); openCustomer(k); };
+    dc.appendChild(link);
+  }else dc.appendChild(document.createTextNode(o.customer_name));
+  dc.appendChild(document.createTextNode(
     (paper && o.customer_contact ? ' \u00b7 ' + o.customer_contact : '') +
-    (paper && o.customer_fb ? ' \u00b7 FB ' + o.customer_fb : '');
+    (paper && o.customer_fb ? ' \u00b7 FB ' + o.customer_fb : '')));
   $('#dMeta').textContent = metaText(o);
   const gs = lineGroups(o);
   // every priced row, by id, so the edit dialog can find the one tapped
@@ -6895,6 +7244,7 @@ $('#rApSave').onclick = async () => {
 };
 
 $('#rPrint').onclick = () => { if(RCPT) printSlip(RCPT); };
+rcptDlg.addEventListener('close', () => { CUST_AT = 0; $('#fSug').hidden = true; });
 $('#rClose').onclick = () => rcptDlg.close();
 
 function printSlip(o){
@@ -7364,7 +7714,7 @@ addEventListener('popstate', () => {
 });
 
 /* ── tabs ── */
-const views = { nvDash:'vDash', nvNew:'vNew', nvBoard:'vBoard', nvSales:'vSales', nvStaff:'vStaff' };
+const views = { nvDash:'vDash', nvNew:'vNew', nvBoard:'vBoard', nvCust:'vCust', nvSales:'vSales', nvStaff:'vStaff' };
 /* `quiet` puts the tab up WITHOUT fetching. Used for the opening placement,
    where openShop is about to fetch everything anyway - two refreshes racing
    is how a board flickers. */
