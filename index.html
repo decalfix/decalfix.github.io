@@ -242,6 +242,30 @@
   /* a hexagon narrows towards the top and bottom, so a long number has to
      come down or it sits on the slope */
   .qty b.lng{font-size:14px;letter-spacing:-.02em}
+  /* JOB TYPE COLOURS (27 Sep). The hexagon and a chip carry the type, so
+     production can tell a tarp from a shirt from across the room. None of
+     these is the red of an alarm or the green of "ready", and all hold white
+     text at better than 4.5:1. */
+  .jo .qty.cat-apparel,.drow .qty.cat-apparel{background:#1D4ED8}
+  .jo .qty.cat-tarp,.drow .qty.cat-tarp{background:#0F766E}
+  .jo .qty.cat-sticker,.drow .qty.cat-sticker{background:#C2410C}
+  .jo .qty.cat-sign,.drow .qty.cat-sign{background:#7C4A1E}
+  .jo .qty.cat-mug,.drow .qty.cat-mug{background:#BE185D}
+  .jo .qty.cat-other,.drow .qty.cat-other{background:#475569}
+  .chip.cat{color:#fff;border-color:transparent}
+  .chip.cat-apparel{background:#1D4ED8} .chip.cat-tarp{background:#0F766E}
+  .chip.cat-sticker{background:#C2410C} .chip.cat-sign{background:#7C4A1E}
+  .chip.cat-mug{background:#BE185D}     .chip.cat-other{background:#475569}
+  /* the key doubles as a filter: tap Tarpaulin to see only tarps */
+  .bcats{display:flex;gap:6px;overflow-x:auto;padding:0 0 8px}
+  .bcats button{flex:none;font:inherit;font-size:12px;font-weight:800;padding:6px 11px;border-radius:99px;
+                border:2px solid transparent;color:#fff;cursor:pointer;opacity:.9}
+  .bcats button[aria-pressed="true"]{border-color:#111;opacity:1;box-shadow:0 0 0 2px #fff inset}
+  .bcats button .n{margin-left:6px;opacity:.85}
+  /* one line, not the form's stacked label: the board is for reading */
+  .bsort{flex-direction:row;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;letter-spacing:.08em;color:var(--grey)}
+  .view .bsort select{flex:1;min-width:0;height:40px;font:inherit;font-size:15px;font-weight:700;color:var(--ink);
+                border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 10px}
   .qty b.lngr{font-size:11.5px;letter-spacing:-.03em}
   .jobody{flex:1;min-width:0}
   .jo .t{display:flex;align-items:baseline;gap:8px}
@@ -395,6 +419,8 @@
   .fsec.sent .k{color:#1d4ed8}
   .fsec.des{border-color:#16a34a;background:#f0fdf4}
   .fsec.des .k{color:#15803d}
+  .fsec.old{padding:8px 10px;border-left:3px solid var(--amber);border-radius:0 8px 8px 0;background:var(--amber-wash)}
+  .fsec.old .k{color:var(--amber)}
   .thrmt{color:var(--text-2);font-size:13px;padding:2px 0 4px}
   /* The reviewer's correction box: a message field and an attach, both
      optional, feeding the Send back button below it. Amber, because it is
@@ -890,7 +916,11 @@
   .stat.alert{background:var(--red-wash);border-color:var(--red-wash-line)}
   .stat.alert b,.stat.alert small{color:var(--red-deep)}
   .stat b{white-space:nowrap}
-  #dMoney{margin-top:9px}
+  /* Two across: the counter's two tiles make one row, the owner's four make
+     a square - four across on a 360px phone would squeeze "₱22,560" to
+     nothing. */
+  #dMoney{margin-top:9px;display:grid;grid-template-columns:1fr 1fr}
+  #dMoney .stat[hidden]{display:none}
   .stat.paid{background:#1A1A1A;border-color:#1A1A1A}
   .stat.paid b{color:#fff} .stat.paid small{color:#B4B4B0}
   .dashgo{display:flex;gap:9px;margin:12px 0 4px}
@@ -1348,6 +1378,8 @@ setTimeout(function(){
              drawer - because Paid today also counts GCash, bank and cheque. -->
         <div class="stat paid"><b id="dCashT">₱0</b><small>CASH TODAY</small></div>
         <div class="stat paid" id="dPaidMTile"><b id="dPaidM">₱0</b><small>PAID THIS MONTH</small></div>
+        <!-- 27 Sep: "in the owner there is also a total cash received in the month" -->
+        <div class="stat paid" id="dCashMTile"><b id="dCashM">₱0</b><small>CASH THIS MONTH</small></div>
       </div>
     </div>
     <div class="dashgo">
@@ -1402,6 +1434,18 @@ setTimeout(function(){
              aria-label="Search job orders">
     </div>
     <div id="boardTabs" class="btabs" role="tablist" aria-label="Board" hidden></div>
+    <!-- 27 Sep: "a sorting button oldest to newest based on the orders taken
+         or the due date". Remembered on this device. -->
+    <label class="bsort">Sort
+      <select id="bSort" aria-label="Sort the board">
+        <option value="priority">Rush and late first</option>
+        <option value="taken_old">Date taken: oldest first</option>
+        <option value="taken_new">Date taken: newest first</option>
+        <option value="due_soon">Due date: soonest first</option>
+        <option value="due_late">Due date: latest first</option>
+      </select>
+    </label>
+    <div id="bCats" class="bcats" aria-label="Job types"></div>
     <div id="boardList"></div>
   </section>
 
@@ -2077,7 +2121,11 @@ function markSeen(id, at){
   try{
     const all = seenAll();
     const m = all[seenKey()] = all[seenKey()] || {};
-    const want = at || LAST_MSG.get(id) || new Date().toISOString();
+    /* No fallback to the phone's clock: a phone running fast stamped the
+       future and hid the next thing that arrived. hasNew is already false
+       where nothing is known, so there is nothing to record. */
+    const want = at || LAST_MSG.get(id);
+    if(!want) return;
     if(stampOf(m[id]) < stampOf(want)) m[id] = want;
     /* Trimmed so one counter phone cannot grow this for ever: the newest 400
        orders is far more than anybody scrolls, and an order dropping out
@@ -2100,6 +2148,13 @@ const hasNew = o => {
   return !seen || stampOf(seen) < stampOf(at);
 };
 let SEEN_CACHE = {};
+/* Board search, type filter and sort. Up here, not beside renderBoard: the
+   sort box is set from SORT while the page loads, before renderBoard's
+   neighbourhood has run. */
+let SEARCH = '';
+let CAT_ONLY = null;
+const SORT_KEY = 'df_sort';
+let SORT = (() => { try{ return localStorage.getItem(SORT_KEY) || 'priority'; }catch(e){ return 'priority'; } })();
 let ITEMS = [], LINES = [], ORDERS = [], CUR = null;
 
 // What each bench is allowed to see and move.
@@ -2779,6 +2834,8 @@ async function openShop(){
   $('#nvSales').hidden = !canSeeMoney();
   $('#btnCsv').hidden  = !canSeeMoney();
   $('#nvStaff').hidden = ROLE !== 'owner';
+  // the next person to tap in does not inherit the last one's search or filter
+  SEARCH = ''; CAT_ONLY = null; $('#bSearch').value = ''; $('#dSearch').value = '';
   renderStaff();
 
   /* The tab goes up BEFORE anything is fetched. Read it first: showTab writes
@@ -2799,6 +2856,7 @@ async function openShop(){
   $('#dUnpaidTile').hidden = !canSeeTakings();
   $('#dMoney').hidden = !canSeeTakings();
   $('#dPaidMTile').hidden = !canSeeMoney();
+  $('#dCashMTile').hidden = !canSeeMoney();
   /* The counter's red tile is this month's, not every balance ever: what it
      was asked for, and the figure a counter can actually chase. */
   $('#dUnpaidK').textContent = canSeeMoney() ? 'UNPAID' : 'UNPAID THIS MONTH';
@@ -3485,7 +3543,12 @@ async function loadFiles(o){
      photo, where it meant "send the customer's photo for approval" - nobody
      means that. Where the direction is known, only an artist's file offers it. */
   const finalBtn = f => (!canFinal || f.kind !== 'upload' || !f.drive_file_id || f.backed_up_at ||
-                         (split && !fromArtist(f))) ? ''
+                         /* Only an artist's file where artist files EXIST - the
+                            reference photo is not the design then. On an order
+                            with no artist upload (the customer brought a print-
+                            ready file) any upload can be the final one, or
+                            production is told to ask and nobody can answer. */
+                         (rows.some(fromArtist) && !fromArtist(f))) ? ''
     : `<button type="button" class="markfinal" data-final="${esc(f.id)}"` +
       ` aria-pressed="${f.final_at ? 'true' : 'false'}"` +
       ` aria-label="${f.final_at ? 'This is the chosen design' : 'Choose ' + esc(f.file_name || 'this file') + ' as the design'}">` +
@@ -3580,7 +3643,9 @@ async function loadFiles(o){
     let newest = '';
     (data || []).forEach(f => { if(!(me && f.added_by === me) && stampOf(f.created_at) > stampOf(newest)) newest = f.created_at; });
     (revData || []).forEach(r => { if(!(me && r.reviewed_by === me) && stampOf(r.reviewed_at) > stampOf(newest)) newest = r.reviewed_at; });
-    if(newest){ markSeen(o.id, newest); SEEN_CACHE = seenMap(); }
+    // still open, still this order: a read landing after Lock and a new tap-in
+    // would otherwise mark it read for the NEXT person
+    if(newest && dlg.open && CUR === o){ markSeen(o.id, newest); SEEN_CACHE = seenMap(); }
   }
 
   /* THE CORRECTIONS: the latest send-back, shown while the order is back at
@@ -3592,6 +3657,13 @@ async function loadFiles(o){
     : null;
   const corrFiles = backRev ? rows.filter(f => f.jo_review_id === backRev.id) : [];
   const corrIds = new Set(corrFiles.map(f => f.id));
+  /* Every round's correction photo, not only the latest one's. Before, an
+     earlier round's photo fell into "Files sent with the job order" - where
+     it read as the customer's material - and at For approval every one of
+     them did. They get a section of their own. */
+  const backIds = new Set((revData || []).filter(r => r.verdict === 'sent_back').map(r => r.id));
+  const earlier = rows.filter(f => f.jo_review_id && backIds.has(f.jo_review_id) && !corrIds.has(f.id));
+  earlier.forEach(f => corrIds.add(f.id));
   const corrWho = backRev ? await staffName(backRev.reviewed_by) : '';
   if(CUR !== o) return;
   const when = t => t ? new Date(t).toLocaleString('en-PH',
@@ -3616,6 +3688,7 @@ async function loadFiles(o){
      list under one honest heading, exactly as always. */
   const secSent    = section(split ? 'Files sent with the job order' : 'Files on this job order', sent, 'sent');
   const secDesigns = section('Design files by the artist', designs, 'des');
+  const secEarlier = section('Earlier corrections', earlier, 'old');
 
   if(BENCH === 'production'){
     /* **ONLY THE FINAL DESIGN.** "so it is easy no way to be confuse." The
@@ -3635,8 +3708,8 @@ async function loadFiles(o){
                                 box, beside the buttons that use it. */
     const cameBackNow = BENCH === 'artist' && corrBox;
     box.innerHTML = (cameBackNow
-        ? corrBox + secDesigns + secSent
-        : corrBox + secSent + secDesigns) ||
+        ? corrBox + secDesigns + secEarlier + secSent
+        : corrBox + secSent + secDesigns + secEarlier) ||
       '<div class="thrmt">No files on this job order yet.</div>';
   }
   /* Nothing there and nothing to add: say nothing at all. */
@@ -5083,6 +5156,34 @@ const unitOf = name => {
   const it = ITEMS.find(i => i.name === name);
   return ((it && it.unit) || 'qty').toUpperCase();
 };
+/* JOB TYPE, for the board's colours (27 Sep). Read from the name on each line.
+   Order matters: "DTF tarp" is a tarp, "sublimation mug" is a mug, so the
+   more specific families are tested first. Anything unmatched is Other - it
+   still gets a colour of its own, as asked. */
+const CATS = [
+  { id:'apparel', name:'Apparel',       re:/t-?shirt|\bshirt|jersey|polo|hood|jacket|uniform|sando|\bcap\b|warmer|apparel|\btee\b|long ?sleeve|vest|shorts|jogger|pants|dri-?fit|singlet|blouse|dress/ },
+  { id:'mug',     name:'Mugs & awards', re:/mug|tumbler|key ?chain|\bpins?\b|button|souvenir|plaque|medal|trophy|certificate|glass|bottle|pillow|\bfan\b|award/ },
+  { id:'tarp',    name:'Tarpaulin',     re:/tarp|banner|panaflex|streamer|backdrop|large ?format|billboard/ },
+  { id:'sticker', name:'Stickers & DTF', re:/sticker|decal|vinyl|\bdtf\b|\bdtf|label|transfer|heat ?press/ },
+  { id:'sign',    name:'Signage & cut', re:/sign|acrylic|sintra|standee|panel|\bboard\b|laser|\b3d\b|3d print|plate number|nameplate|letter/ },
+];
+const CAT_OTHER = { id:'other', name:'Other' };
+function catOfName(name){
+  const n = String(name || '').toLowerCase();
+  const hit = CATS.find(c => c.re.test(n));
+  if(hit) return hit;
+  // an apparel item carries a size ladder even when its name does not say so
+  const it = ITEMS.find(i => i.name === name);
+  return (it && Number(it.size_add) > 0) ? CATS[0] : CAT_OTHER;
+}
+/* An order's types, most lines first - so a mixed order is coloured by what
+   most of it is, and still lists every type it holds. */
+function catsOf(o){
+  const names = (o.jo_items && o.jo_items.length) ? o.jo_items.map(l => l.item_type) : [o.item_type];
+  const n = new Map();
+  names.forEach(x => { const c = catOfName(x); n.set(c, (n.get(c) || 0) + 1); });
+  return [...n.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+}
 const uomOf = o => unitOf((o.jo_items && o.jo_items.length) ? o.jo_items[0].item_type : o.item_type);
 
 /* What goes in the hexagon. Adding the quantities only means something when
@@ -5106,7 +5207,8 @@ const plural = (n, u) => {
 function qtyBadge(o){
   const bg = badgeOf(o), t = String(bg.n);
   const size = t.length > 4 ? ' class="lngr"' : t.length > 3 ? ' class="lng"' : '';
-  return '<div class="qty" aria-label="' + esc(t + ' ' + bg.unit.toLowerCase()) + '"><b' + size + '>' +
+  const cat = catsOf(o)[0];
+  return '<div class="qty cat-' + cat.id + '" aria-label="' + esc(t + ' ' + bg.unit.toLowerCase() + ', ' + cat.name) + '"><b' + size + '>' +
          esc(t) + '</b><small>' + esc(bg.unit) + '</small></div>';
 }
 
@@ -5421,6 +5523,12 @@ $('#pinEye').onclick = () => {
 };
 
 $('#dNew').onclick = () => $('#nvNew').click();
+$('#bSort').value = SORT;
+$('#bSort').addEventListener('change', () => {
+  SORT = $('#bSort').value;
+  try{ localStorage.setItem(SORT_KEY, SORT); }catch(e){}
+  renderBoard();
+});
 $('#bSearch').addEventListener('input', () => {
   SEARCH = $('#bSearch').value; $('#dSearch').value = SEARCH; renderBoard();
 });
@@ -5428,6 +5536,7 @@ $('#bSearch').addEventListener('input', () => {
    are - the keyboard stays up and nothing typed is lost. */
 $('#dSearch').addEventListener('input', () => {
   SEARCH = $('#dSearch').value; $('#bSearch').value = SEARCH;
+  if(!SEARCH.trim()){ renderBoard(); return; }      // the clear button is not a search
   $('#nvBoard').click();
   const b = $('#bSearch'); b.focus();
   try{ b.setSelectionRange(b.value.length, b.value.length); }catch(e){}
@@ -5714,12 +5823,13 @@ function paintAlerts(seen, mine){
   });
 }
 
-let SEARCH = '';
 /* Every word typed must appear somewhere on the order: "jersey maricel"
    finds Maricel's jersey. "JO 1042", "jo-1042" and "1042" all find JO 1042. */
 function matches(o, q){
   const hay = [
-    'jo ' + o.jo_no, 'jo' + o.jo_no, o.customer_name, o.customer_contact, o.customer_fb,
+    /* the claim stub prints JO-2609-1001, and a customer walks in holding it */
+    'jo ' + o.jo_no, 'jo' + o.jo_no, joRef(o).toLowerCase().replace(/^jo-/, 'jo'),
+    String(o.jo_no).padStart(4, '0'), o.customer_name, o.customer_contact, o.customer_fb,
     lineText(o), o.notes, canTakeOrders() ? o.po_number : '',
     o.artist_id ? artistName(o.artist_id) : '', LABEL[o.status]
   ].filter(Boolean).join(' ').toLowerCase();
@@ -5777,7 +5887,8 @@ function renderBoard(){
       b.type = 'button';
       b.className = 'btab' + (t.warn && n ? ' warn' : '');
       b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(t.id === tab.id));
+      // while a search is answering across every tab, no tab is "chosen"
+      b.setAttribute('aria-selected', String(!SEARCH.trim() && t.id === tab.id));
       b.setAttribute('aria-label', t.label + ', ' + n + (n === 1 ? ' order' : ' orders'));
       b.innerHTML = esc(t.label) + '<span class="n">' + n + '</span>';
       b.onclick = () => { BOARD_TAB = t.id; renderBoard(); };
@@ -5789,9 +5900,41 @@ function renderBoard(){
      as asked. Still only `seen`, so it can never find work this bench may not
      see, and nothing about money is searched. */
   const q = SEARCH.trim().toLowerCase();
-  const open = q ? seen.filter(o => matches(o, q)) : seen.filter(o => tab.keep(o, mine));
-  // rush first, then late, then newest
-  open.sort((a,b)=> (!!b.rush - !!a.rush) || (isLate(b)-isLate(a)) || (b.jo_no-a.jo_no));
+  const inTab = q ? seen.filter(o => matches(o, q)) : seen.filter(o => tab.keep(o, mine));
+  /* The type key: one button per type on THIS view, with its count, and
+     tapping one narrows the board to it. It is drawn from what is on screen,
+     so it never offers a type with nothing behind it. */
+  const catN = new Map();
+  inTab.forEach(o => catsOf(o).forEach(c => catN.set(c, (catN.get(c) || 0) + 1)));
+  if(CAT_ONLY && ![...catN.keys()].some(c => c.id === CAT_ONLY)) CAT_ONLY = null;
+  const catBox = $('#bCats');
+  catBox.innerHTML = '';
+  if(catN.size > 1 || CAT_ONLY){
+    [...CATS, CAT_OTHER].filter(c => catN.has(c)).forEach(c => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip cat-' + c.id;
+      b.setAttribute('aria-pressed', String(CAT_ONLY === c.id));
+      b.innerHTML = esc(c.name) + '<span class="n">' + catN.get(c) + '</span>';
+      b.onclick = () => { CAT_ONLY = CAT_ONLY === c.id ? null : c.id; renderBoard(); };
+      catBox.appendChild(b);
+    });
+  }
+  const open = CAT_ONLY ? inTab.filter(o => catsOf(o).some(c => c.id === CAT_ONLY)) : inTab;
+  /* An order with no due date sorts last either way - "soonest" and "latest"
+     are both questions about dates it does not have. The JO number breaks
+     every tie, so the order never shuffles between refreshes. */
+  const dayOf = d => d ? String(d) : null;
+  const byDate = (k, dir) => (a, b) => {
+    const x = dayOf(a[k]), y = dayOf(b[k]);
+    if(x !== y){ if(!x) return 1; if(!y) return -1; return dir * (x < y ? -1 : 1); }
+    return dir * (a.jo_no - b.jo_no);
+  };
+  open.sort(SORT === 'taken_old' ? byDate('order_date', 1)
+          : SORT === 'taken_new' ? byDate('order_date', -1)
+          : SORT === 'due_soon'  ? byDate('target_date', 1)
+          : SORT === 'due_late'  ? byDate('target_date', -1)
+          // the default, as it always was: rush first, then late, then newest
+          : (a,b)=> (!!b.rush - !!a.rush) || (isLate(b)-isLate(a)) || (b.jo_no-a.jo_no));
 
   /* the three numbers a counter actually wants on opening the app */
   const t = today();
@@ -5850,6 +5993,7 @@ function renderBoard(){
            <div class="t"><span class="no">JO ${esc(o.jo_no)}</span><span class="cust">${esc(o.customer_name)}</span></div>
            <div class="items">${esc(lineText(o))}</div>
            <div class="b">
+             ${catsOf(o).map(c => `<span class="chip cat cat-${c.id}">${esc(c.name)}</span>`).join('')}
              ${o.rush ? '<span class="chip rush">Rush</span>' : ''}
              ${hasNew(o) ? '<span class="chip fresh">Unread</span>' : ''}
              ${cameBack(o) ? '<span class="chip redo">Came back</span>' : ''}
@@ -6229,6 +6373,14 @@ $('#dNext').onclick = async () => {
   if(to !== undefined) patch.artist_id = to;
   const submitting = nx === 'for_approval' && CUR.status === 'layout';
   const approving = CUR.status === 'for_approval';
+  /* A correction typed and then Approve pressed: the two buttons sit side by
+     side, and approving would drop the note and the photo without a word. */
+  if(approving && ($('#dCorrNote').value.trim() || CORR_FILE)){
+    const go = await ask('You wrote a correction for JO ' + CUR.jo_no + '. Approving sends the design to ' +
+      'production and the correction is not sent. Approve anyway?',
+      { head: 'A correction is typed', yes: 'Approve anyway', no: 'Go back', danger: true });
+    if(!go) return;
+  }
   const { error } = await sb.from('job_orders').update(patch).eq('id', CUR.id);
   if(error) return toast(error.message);
   /* THE MOVE IS THE FACT; the note is a description of it. Written after,
@@ -6261,9 +6413,9 @@ $('#dNext').onclick = async () => {
    **The app cannot make that id.** `build19e` granted INSERT on this table's
    columns and `id` is not one of them, so it is read back rather than
    generated - the opposite of `jo_create`, where the app owns the ids. */
-async function recordReview(verdict, note){
+async function recordReview(verdict, note, o){
   const { data, error } = await sb.from('jo_reviews').insert({
-    shop_id: SHOP.id, job_order_id: CUR.id, verdict,
+    shop_id: SHOP.id, job_order_id: (o || CUR).id, verdict,
     note: note ? String(note).trim().slice(0, 500) : null,
     reviewed_by: STAFF ? STAFF.id : null }).select('id').single();
   return { error, id: data ? data.id : null };
@@ -6278,8 +6430,21 @@ $('#dCorrFile').onchange = () => {
   $('#dCorrName').textContent = CORR_FILE ? CORR_FILE.name + ' - goes back with the correction' : '';
 };
 
+let SENDING_BACK = false;
 $('#dSendBack').onclick = async () => {
+  /* **Once per tap, however many taps.** The old dialog caught a second tap;
+     the inline box does not, and on a slow line "did it work?" is a second
+     tap - which moved the order twice, wrote two verdicts and uploaded the
+     photo twice. The order is captured too: closing it and opening another
+     during the upload must not send THAT one's dialog and toast. */
+  if(SENDING_BACK) return;
   try{ assertWritable(); }catch(err){ return toast(err.message); }
+  SENDING_BACK = true;
+  $('#dSendBack').disabled = true;
+  try{ await sendBack(CUR); }
+  finally{ SENDING_BACK = false; $('#dSendBack').disabled = false; }
+};
+async function sendBack(o){
   /* The message and the file come from the correction box ON the order - the
      pop-up dialog is gone with the rest of the SMS shape. Empty is allowed
      ("if they are any"), but an empty send-back still asks once, because a
@@ -6287,35 +6452,35 @@ $('#dSendBack').onclick = async () => {
   const why  = $('#dCorrNote').value.trim().slice(0, 500);
   const back = CORR_FILE;
   if(!why && !back){
-    const go = await ask('Send JO ' + CUR.jo_no + ' back to the artist with no correction note?',
+    const go = await ask('Send JO ' + o.jo_no + ' back to the artist with no correction note?',
       { head: 'Send back', yes: 'Send it back', no: 'Stay here', danger: true });
     if(!go) return;
   }
+  CORR_FILE = null;                    // taken: it can go up once, with this send-back
 
   const to = ($('#dArtist') && !$('#dArtWrap').hidden) ? ($('#dArtist').value || null) : undefined;
   const patch = { status: 'layout', updated_at: new Date().toISOString() };
   if(to !== undefined) patch.artist_id = to;
-  const { error } = await sb.from('job_orders').update(patch).eq('id', CUR.id);
-  if(error) return toast(error.message);
+  const { error } = await sb.from('job_orders').update(patch).eq('id', o.id);
+  if(error){ CORR_FILE = back; return toast(error.message); }   // nothing moved: keep the file
 
   /* The move is the fact; the note describes it and is written after. */
-  const rev = await recordReview('sent_back', why || null);
+  const rev = await recordReview('sent_back', why || null, o);
   const e2 = rev.error;
   /* A rejected design is not the chosen one any more. The next design the
      artist attaches marks itself. */
   try{
     await sb.from('jo_files').update({ final_at: null })
-      .eq('job_order_id', CUR.id).not('final_at', 'is', null);
+      .eq('job_order_id', o.id).not('final_at', 'is', null);
   }catch(e){ console.error('could not clear the rejected design:', e); }
   /* The correction file goes up last, pointing at the note, so the artist
      reads them as one thing: the words and the picture of what is wrong. */
-  if(back) await uploadFileTo(CUR, back, null, '#dUp', rev.id);
-  CORR_FILE = null;
-  dlg.close();
+  if(back) await uploadFileTo(o, back, null, '#dUp', rev.id);
+  if(CUR === o) dlg.close();
   toast(e2 ? 'Sent back, but the note did not save: ' + e2.message
-           : 'JO ' + CUR.jo_no + ' sent back to the artist');
+           : 'JO ' + o.jo_no + ' sent back to the artist');
   refresh();
-};
+}
 
 /* Why it came back is drawn by loadFiles as the Corrections box - the note,
    its attached file, who and when - at the TOP of the artist's order. The
@@ -6862,9 +7027,10 @@ async function renderSales(){
   const sumPay = f => pays.filter(f).reduce((s,p)=>s+Number(p.amount),0);
   const isToday = p => manila(p) === t, isMonth = p => manila(p) >= from;
   const isCash  = p => p.method === 'cash';
-  fitMoney($('#dPaidT'), peso(sumPay(isToday)), 'third');
-  fitMoney($('#dCashT'), peso(sumPay(p => isToday(p) && isCash(p))), 'third');
-  fitMoney($('#dPaidM'), peso(sumPay(isMonth)), 'third');
+  fitMoney($('#dPaidT'), peso(sumPay(isToday)), 'half');
+  fitMoney($('#dCashT'), peso(sumPay(p => isToday(p) && isCash(p))), 'half');
+  fitMoney($('#dPaidM'), peso(canSeeMoney() ? sumPay(isMonth) : 0), 'half');
+  fitMoney($('#dCashM'), peso(canSeeMoney() ? sumPay(p => isMonth(p) && isCash(p)) : 0), 'half');
 
   const mon  = monRows  || [];
   const owed = owedRows || [];
@@ -6911,6 +7077,14 @@ async function renderSales(){
   const owedTotal = owed.reduce((s,o)=>s+Number(o.balance),0);
   // exact pesos, not "₱16k"; the counter's tile is this month's balance
   fitMoney($('#dUnpaid'), peso(canSeeMoney() ? owedTotal : sum(mon, o => o.balance)), 'third');
+  /* Everything below is the Sales tab. A bench that may not see it gets it
+     EMPTIED, not merely left hidden - on a shared phone the owner's figures
+     would otherwise still be in the page when the counter taps in. */
+  if(!canSeeMoney()){
+    ['#tOwed','#tOwedN','#tA1','#tA2','#tA3','#tDaysK'].forEach(k => { $(k).textContent = ''; });
+    ['#tAgeBar','#tOwedList','#tMix','#tDays','#tGov'].forEach(k => { $(k).innerHTML = ''; });
+    return;
+  }
   $('#tOwed').textContent  = peso(owedTotal);
   $('#tOwedN').textContent = owed.length + ' orders with a balance';
   const age    = o => Math.floor((new Date(t) - new Date(o.order_date)) / 864e5);
