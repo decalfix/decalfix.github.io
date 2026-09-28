@@ -95,12 +95,12 @@
   #stop .srow .btn{flex:1}
 
   /* auth */
-  #auth{min-height:100dvh;display:grid;place-items:center;padding:24px}
-  #auth .box{width:100%;max-width:400px;background:#fff;border-radius:var(--r-lg);
+  #auth,#setup{min-height:100dvh;display:grid;place-items:center;padding:24px}
+  #auth .box,#setup .box{width:100%;max-width:400px;background:#fff;border-radius:var(--r-lg);
              box-shadow:0 1px 2px rgba(0,0,0,.05),0 18px 50px rgba(0,0,0,.07);padding:26px}
-  #auth h1{font-size:30px;margin:0 0 2px}
-  #auth p.s{color:var(--text-2);font-size:12px;font-weight:600;margin:0 0 18px}
-  #auth .row{display:grid;gap:12px;margin-bottom:14px}
+  #auth h1,#setup h1{font-size:30px;margin:0 0 2px}
+  #auth p.s,#setup p.s{color:var(--text-2);font-size:12px;font-weight:600;margin:0 0 18px}
+  #auth .row,#setup .row{display:grid;gap:12px;margin-bottom:14px}
   .tabsw{display:flex;gap:6px;margin-bottom:18px}
   .tabsw button{flex:1;border:1.5px solid var(--line-strong);background:#fff;border-radius:9px;height:44px;
                 font-weight:800;font-size:12.5px;letter-spacing:.04em;cursor:pointer;color:var(--text-2)}
@@ -1003,6 +1003,40 @@
   .stat b{display:block;font-weight:800;font-size:27px;font-variant-numeric:tabular-nums}
   .stat small{display:block;font-weight:700;font-size:10.5px;letter-spacing:.08em;color:var(--grey);margin-top:3px}
   .stat.alert{background:var(--red-wash);border-color:var(--red-wash-line)}
+  /* device setup (28 Sep) */
+  .setor{display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:var(--grey);font-size:12px;font-weight:700}
+  .setor::before,.setor::after{content:'';flex:1;height:1px;background:var(--line)}
+  .suwho{font-weight:800;font-size:16px;margin:4px 0 10px;line-height:1.4}
+  .suwho b{color:var(--red)}
+  #suCode{text-transform:uppercase;letter-spacing:.12em;font-weight:800}
+  .dvk{display:flex;gap:6px;margin:0 0 6px}
+  .dvk button{flex:1;min-height:44px;font:inherit;font-size:13px;font-weight:800;border-radius:10px;
+              border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;padding:6px}
+  .dvk button[aria-pressed="true"]{background:var(--black);border-color:var(--black);color:#fff}
+  .dvfor{font-weight:800;text-align:center;margin:0 0 8px}
+  .qrbox{width:220px;max-width:70vw;margin:0 auto;background:#fff;padding:8px;border:1px solid var(--line);border-radius:12px}
+  .qrbox svg{display:block;width:100%;height:auto}
+  .dvcode{text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:800;font-size:30px;letter-spacing:.14em;margin:12px 0 6px}
+  .dvcount{text-align:center;font-weight:800;font-size:14px;color:var(--green);margin-top:6px}
+  .dvcount.gone{color:var(--red-deep)}
+  .pendn{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:99px;
+         background:#5B2E9E;color:#fff;font-size:12px;margin-left:6px;padding:0 6px}
+  #hAcct.pend{position:relative}
+  #hAcct.pend::after{content:'';position:absolute;top:0;right:0;width:11px;height:11px;border-radius:50%;
+                     background:#7C3AED;border:2px solid #111}
+  .prow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+  .prow .nm{font-weight:800;min-width:0;overflow-wrap:anywhere}
+  .prow .sub{grid-column:1;font-size:12px;color:var(--grey);font-weight:600;min-width:0;overflow-wrap:anywhere}
+  .prow .act{grid-row:1 / span 2;grid-column:2;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .prow .act button{font:inherit;font-size:12.5px;font-weight:800;border-radius:99px;padding:6px 12px;cursor:pointer;
+                    border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .prow .act button.ok{background:var(--green);border-color:var(--green);color:#fff}
+  .prow .act button.rm{color:var(--red-deep);border-color:var(--red-wash-line)}
+  .prow.off{opacity:.55}
+  .gst{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .gst.pending{color:#5B2E9E} .gst.shared{color:var(--green)} .gst.none,.gst.removed{color:var(--grey)}
+  .logrow{padding:6px 0;border-bottom:1px solid var(--line);color:var(--ink)}
+  .logrow .t{color:var(--grey);font-size:11.5px}
   /* every tile opens what it counts (27 Sep) - a small arrow says so */
   .stat.go{cursor:pointer;position:relative;transition:transform .08s}
   .stat.go:active{transform:scale(.97)}
@@ -1292,6 +1326,45 @@ setTimeout(function(){
     <button class="btn" id="aGo" style="width:100%">Sign in</button>
     <button type="button" class="linky" id="aForgot">Forgot your password?</button>
     <div class="msg" id="aMsg"></div>
+    <!-- 28 Sep: a device can be set up with a one-time code from the counter,
+         office or owner - no password passed around. PLAN-qr-device-setup.md -->
+    <div class="setor"><span>or</span></div>
+    <button type="button" class="btn ghost" id="aSetup" style="width:100%">Set up with a code</button>
+    <p class="small muted" style="text-align:center;margin:6px 0 0">Got a code from the counter? Tap here.</p>
+  </div>
+</section>
+
+<!-- Setting a device up with a code: typed here, or opened from the QR /
+     link (?setup=CODE). The device is not signed in yet. -->
+<section id="setup" hidden>
+  <div class="box">
+    <h1 class="mark">Decal<span class="b">Fix</span> OS</h1>
+    <p class="s">Set up this device</p>
+    <div id="suStep1">
+      <label>Setup code<input id="suCode" autocomplete="off" autocapitalize="characters"
+             spellcheck="false" maxlength="11" placeholder="K7Q4-MZ2P"></label>
+      <button class="btn" id="suCheck" style="width:100%;margin-top:12px">Continue</button>
+    </div>
+    <div id="suStep2" hidden>
+      <p class="suwho" id="suWho"></p>
+      <div id="suNew">
+        <div class="row">
+          <label>Your name<input id="suName" maxlength="60" autocomplete="name"></label>
+          <label>Choose a 4-digit PIN<input id="suPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"></label>
+          <label>The same PIN again<input id="suPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"></label>
+          <label>Your Gmail<input id="suGmail" type="email" inputmode="email" autocomplete="email" placeholder="Your Gmail address"></label>
+        </div>
+        <p class="small muted" style="margin:6px 0 0">Your Gmail is how you open the shop's files. The counter approves it.</p>
+        <button class="btn" id="suJoin" style="width:100%;margin-top:12px">Join</button>
+        <button type="button" class="linky" id="suExisting">I'm already on the staff</button>
+      </div>
+      <div id="suOld" hidden>
+        <p class="small" id="suOldText"></p>
+        <button class="btn" id="suSign" style="width:100%;margin-top:12px">Sign in this device</button>
+      </div>
+    </div>
+    <div class="msg" id="suMsg"></div>
+    <button type="button" class="linky" id="suBack">Back to sign in</button>
   </div>
 </section>
 
@@ -1740,6 +1813,12 @@ setTimeout(function(){
       <div><b id="acName"></b><div class="muted small" id="acMeta"></div></div>
     </div>
 
+    <!-- counter, office and owner: setting up devices and approving Gmail -->
+    <div id="acAdmin" hidden>
+      <button class="btn" id="acAddDev" style="width:100%">Add a device</button>
+      <button class="btn ghost" id="acPeople" style="width:100%;margin-top:8px">People and Gmail <span id="acPend" class="pendn" hidden></span></button>
+    </div>
+
     <div id="acStaff">
       <h3 class="ach">Change my name</h3>
       <div class="grid2">
@@ -1995,6 +2074,50 @@ setTimeout(function(){
     <button class="btn ghost" id="edCancel">Cancel</button>
     <button class="btn" id="edSave">Save the change</button>
   </div>
+</dialog>
+
+<!-- Add a device: a one-time code, shown as a QR and as 8 characters. -->
+<dialog id="devDlg">
+  <div class="dh"><span class="no">Add a device</span></div>
+  <div class="db">
+    <div id="dvForm">
+      <div class="dvk" role="group" aria-label="Who is this device for">
+        <button type="button" data-k="new_person" aria-pressed="true">New person</button>
+        <button type="button" data-k="existing" aria-pressed="false">Existing person, new device</button>
+      </div>
+      <p class="small muted" id="dvKindHint"></p>
+      <label id="dvRoleWrap">Their role<select id="dvRole"></select></label>
+      <label>Device name<input id="dvLabel" maxlength="60" autocomplete="off" placeholder="e.g. Maria's phone, Production PC"></label>
+      <label>Your PIN<input id="dvPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000"></label>
+      <div class="msg" id="dvMsg"></div>
+    </div>
+    <div id="dvShow" hidden>
+      <p class="dvfor" id="dvFor"></p>
+      <div class="qrbox" id="dvQr" aria-label="QR code to scan"></div>
+      <div class="dvcode" id="dvCode"></div>
+      <p class="small muted" style="text-align:center">Scan with the phone's camera - or on the new device open
+        <b>decalfix.github.io</b>, tap <b>Set up with a code</b> and type the code.</p>
+      <p class="small muted" style="text-align:center">On an iPhone: add the app to the Home Screen first, then type the code.</p>
+      <div class="dvcount" id="dvCount"></div>
+    </div>
+  </div>
+  <div class="df">
+    <button class="btn ghost" id="dvClose">Close</button>
+    <button class="btn" id="dvMake">Make code</button>
+  </div>
+</dialog>
+
+<!-- People and Gmail: approve a Gmail onto the Drive folder, remove a person. -->
+<dialog id="pplDlg">
+  <div class="dh"><span class="no">People and Gmail</span></div>
+  <div class="db">
+    <div id="pplList"></div>
+    <div id="pplLogWrap" hidden>
+      <h3 class="ach">Activity</h3>
+      <div id="pplLog" class="small"></div>
+    </div>
+  </div>
+  <div class="df"><button class="btn" id="pplClose">Close</button></div>
 </dialog>
 
 <!-- What a money tile on the dashboard counts, order by order (27 Sep). -->
@@ -2987,7 +3110,13 @@ async function boot(){
   const { data:{ session } } = await sb.auth.getSession();
   if(!session){ window.__up && window.__up();
     $('#auth').hidden = false; $('#app').hidden = true; $('#fab').hidden = true;
-                $('#hCalc').hidden = true; return; }
+                $('#hCalc').hidden = true;
+    if(SETUP_CODE) showSetup(SETUP_CODE);        // opened from a QR or setup link
+    return; }
+  /* A setup link opened on a device that is ALREADY signed in has nothing to
+     do: the person just taps in. The code is left unused for the device it
+     was made for. */
+  if(SETUP_CODE) setTimeout(() => toast('This device is already set up - tap in with your PIN.'), 400);
 
   const { data:mine, error } = await sb.from('shop_users')
     .select('full_name, role, bench, shop_id, shops(id,name,plan,trial_started_on)')
@@ -3076,6 +3205,7 @@ async function openShop(){
   if(claimTile) claimTile.hidden = !canTakeOrders();
   $('#hLock').hidden = !onRoster().length;
   loadDrive();          // not awaited: the Drive card and tools fill in when the Worker answers
+  loadPeople();         // not awaited: the dot on the avatar when a Gmail is waiting
   dropSplash();         // there is a board to look at now; the mark has said its piece
   window.__up && window.__up();   // and the watchdog can stand down
 }
@@ -4111,6 +4241,17 @@ $('#dLinkBtn').onclick = async () => {
    signed-in session and asks for Drive work. Nothing Google-secret is in
    this file. See worker/spawn-drive.js. */
 const DRIVE_API = 'https://spawn-drive.spawnsolutions26.workers.dev';
+/* ?setup=CODE - opened from a device-setup QR or link. Read once and taken
+   off the address, so a reload or a bookmark never carries a code around. */
+const SETUP_CODE = (() => {
+  try{
+    const u = new URL(location.href), c = u.searchParams.get('setup');
+    if(!c) return '';
+    u.searchParams.delete('setup');
+    history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
+    return c;
+  }catch(e){ return ''; }
+})();
 let DRIVE = { connected:false, known:false }, SHARES = {};
 async function driveCall(method, path, params, bytes){
   const { data:{ session } } = await sb.auth.getSession();
@@ -5645,12 +5786,289 @@ function openAccount(){
   cacheName().then(n => { if(n && acctDlg.open) $('#acMeta').textContent = meta + ' · ' + n; });
   $('#acStaff').hidden = !STAFF;
   $('#acNone').hidden = !!STAFF;
+  $('#acAdmin').hidden = !canAddDevice();         // Add a device, People and Gmail
   ['#nName','#nPin','#pOld','#pNew','#pNew2'].forEach(s => { $(s).value = ''; });
   if(STAFF) $('#nName').value = STAFF.name;
   ['#nMsg','#pMsg'].forEach(s => { $(s).textContent = ''; $(s).className = 'msg'; });
   acctDlg.showModal();
 }
 $('#hAcct').onclick = openAccount;
+
+/* ── device setup (28 Sep, PLAN-qr-device-setup.md) ──
+   A counter, office or owner makes a one-time code (setup_code_create, their
+   own PIN, the role table checked in the database). The new device sends the
+   code to the Worker, which checks it and hands back a one-time token for the
+   SHOP's account; the device swaps it for its own session. No password is
+   typed or seen, and the traditional sign-in is untouched. */
+const SETUP_BENCHES = { counter: ['counter','artist','production','office'],
+                        office:  ['counter','artist','production','office'],
+                        owner:   ['counter','artist','production','office','owner'] };
+const niceCode = c => { const t = String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                        return t.length > 4 ? t.slice(0, 4) + '-' + t.slice(4, 8) : t; };
+async function setupCall(path, body){
+  const r = await fetch(DRIVE_API + path, { method: 'POST', headers: { 'content-type': 'application/json' },
+                                            body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || 'The setup service answered ' + r.status + '.');
+  return j;
+}
+let SETUP_PEEK = null;
+function showSetup(code){
+  $('#auth').hidden = true; $('#setup').hidden = false;
+  $('#suStep1').hidden = false; $('#suStep2').hidden = true;
+  $('#suMsg').textContent = ''; $('#suMsg').className = 'msg';
+  $('#suCode').value = code ? niceCode(code) : '';
+  if(code) checkSetupCode(); else setTimeout(() => $('#suCode').focus(), 50);
+}
+async function checkSetupCode(){
+  const msg = $('#suMsg');
+  msg.className = 'msg'; msg.textContent = 'Checking the code…';
+  $('#suCheck').disabled = true;
+  try{
+    SETUP_PEEK = await setupCall('/setup/peek', { code: $('#suCode').value });
+  }catch(e){
+    msg.className = 'msg err'; msg.textContent = e.message;
+    $('#suStep1').hidden = false; $('#suStep2').hidden = true;
+    return;
+  }finally{ $('#suCheck').disabled = false; }
+  msg.textContent = '';
+  const p = SETUP_PEEK;
+  $('#suStep1').hidden = true; $('#suStep2').hidden = false;
+  const newPerson = p.kind === 'new_person';
+  $('#suWho').innerHTML = newPerson
+    ? 'You are joining <b>' + esc(p.shop_name) + '</b> as <b>' + esc(BENCH_NAME[p.bench] || p.bench) + '</b>.'
+    : 'This device will be signed in to <b>' + esc(p.shop_name) + '</b>.';
+  $('#suNew').hidden = !newPerson;
+  $('#suOld').hidden = newPerson;
+  $('#suOldText').textContent = 'You are already on the staff - after this, tap in with your own name and PIN.';
+  if(newPerson) setTimeout(() => $('#suName').focus(), 50);
+}
+async function redeemSetup(asExisting){
+  const msg = $('#suMsg');
+  const bad = t => { msg.className = 'msg err'; msg.textContent = t; };
+  const body = { code: $('#suCode').value, as_existing: asExisting };
+  if(!asExisting){
+    body.name = $('#suName').value.trim();
+    body.pin = $('#suPin').value.trim();
+    body.gmail = $('#suGmail').value.trim();
+    if(body.name.length < 2) return bad('Type your name.');
+    if(!/^[0-9]{4}$/.test(body.pin)) return bad('Your PIN is four digits.');
+    if(body.pin !== $('#suPin2').value.trim()) return bad('The two PINs are not the same.');
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.gmail)) return bad('Type your Gmail - it is how you open the shop\'s files.');
+  }
+  const btn = asExisting ? $('#suSign') : $('#suJoin');
+  btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Setting up this device…';
+  let r;
+  try{ r = await setupCall('/setup/redeem', body); }
+  catch(e){ btn.disabled = false; return bad(e.message); }
+  /* the one-time token becomes this device's own session */
+  let { error } = await sb.auth.verifyOtp({ token_hash: r.token_hash, type: r.verify_type || 'magiclink' });
+  if(error){ ({ error } = await sb.auth.verifyOtp({ token_hash: r.token_hash, type: 'email' })); }
+  if(error){ btn.disabled = false; return bad('The device could not be signed in: ' + error.message); }
+  /* A new person is tapped in straight away: the device remembers who they
+     are, exactly as a tap-in does, and the fresh open within the minute
+     resumes as them. An existing person lands on the PIN pad. */
+  if(r.staff_id){
+    try{ safeStore.setItem(LAST_KEY, JSON.stringify({ id: r.staff_id, name: r.staff_name })); }catch(e){}
+    markTapped(r.staff_id);
+  }
+  msg.className = 'msg ok';
+  msg.textContent = r.staff_id ? 'Welcome, ' + r.staff_name + '! Opening the app…' : 'This device is set up. Opening the app…';
+  setTimeout(() => location.replace(location.origin + location.pathname), 700);
+}
+$('#aSetup').onclick = () => showSetup('');
+$('#suBack').onclick = () => { $('#setup').hidden = true; $('#auth').hidden = false; };
+$('#suCheck').onclick = () => checkSetupCode();
+$('#suCode').addEventListener('keydown', e => { if(e.key === 'Enter') checkSetupCode(); });
+$('#suCode').addEventListener('input', () => { const v = $('#suCode'); const n = niceCode(v.value);
+  if(n !== v.value.toUpperCase()) v.value = n; });
+$('#suJoin').onclick = () => redeemSetup(false);
+$('#suSign').onclick = () => redeemSetup(true);
+$('#suExisting').onclick = () => {           // a "new person" code used for someone already on the staff
+  $('#suNew').hidden = true; $('#suOld').hidden = false;
+  $('#suWho').innerHTML = 'This device will be signed in to <b>' + esc(SETUP_PEEK ? SETUP_PEEK.shop_name : 'the shop') + '</b>.';
+};
+
+/* ── Add a device (counter, office, owner) ── */
+const devDlg = $('#devDlg');
+let DV_KIND = 'new_person', DV_TIMER = null;
+const canAddDevice = () => !!STAFF && ['counter','office','owner'].includes(BENCH);
+function openAddDevice(){
+  if(!canAddDevice()) return toast('Only the counter, office or owner can add a device.');
+  DV_KIND = 'new_person';
+  $('#dvRole').innerHTML = (SETUP_BENCHES[BENCH] || []).map(b =>
+    `<option value="${esc(b)}">${esc(BENCH_NAME[b] || b)}</option>`).join('');
+  $('#dvRole').value = 'artist';
+  $('#dvLabel').value = ''; $('#dvPin').value = '';
+  $('#dvMsg').textContent = ''; $('#dvMsg').className = 'msg';
+  $('#dvForm').hidden = false; $('#dvShow').hidden = true;
+  $('#dvMake').hidden = false; $('#dvMake').disabled = false;
+  paintDevKind();
+  if(!devDlg.open) devDlg.showModal();
+}
+function paintDevKind(){
+  document.querySelectorAll('.dvk button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === DV_KIND)));
+  $('#dvRoleWrap').hidden = DV_KIND !== 'new_person';
+  $('#dvKindHint').textContent = DV_KIND === 'new_person'
+    ? 'Someone joining the shop: they type their name, a PIN and their Gmail on the new device.'
+    : 'Someone already on the staff, on another phone or computer - or a shared device. They tap in with the PIN they already have.';
+}
+document.querySelectorAll('.dvk button').forEach(b => { b.onclick = () => { DV_KIND = b.dataset.k; paintDevKind(); }; });
+/* the QR library is loaded only when a code is made - most opens never need it */
+function loadQrLib(){
+  if(window.qrcode) return Promise.resolve();
+  return new Promise((ok, no) => {
+    const sc = document.createElement('script');
+    sc.src = 'vendor/qrcode.js'; sc.onload = ok; sc.onerror = () => no(new Error('The QR code could not be drawn - use the typed code.'));
+    document.head.appendChild(sc);
+  });
+}
+$('#dvMake').onclick = async () => {
+  const msg = $('#dvMsg');
+  const bad = t => { msg.className = 'msg err'; msg.textContent = t; };
+  const pin = $('#dvPin').value.trim();
+  if(!/^[0-9]{4}$/.test(pin)) return bad('Your PIN is four digits.');
+  try{ assertWritable(); }catch(err){ return bad(err.message); }
+  $('#dvMake').disabled = true; msg.className = 'msg'; msg.textContent = 'Making the code…';
+  const { data, error } = await sb.rpc('setup_code_create', {
+    p_staff: STAFF.id, p_pin: pin, p_kind: DV_KIND,
+    p_bench: DV_KIND === 'new_person' ? $('#dvRole').value : null,
+    p_label: $('#dvLabel').value.trim() || null });
+  $('#dvMake').disabled = false;
+  /* before build19z runs, the door does not exist - say so plainly */
+  if(error) return bad(/schema cache|does not exist|Could not find the function/i.test(error.message)
+    ? 'Device setup is not switched on yet. Set this device up with the shop password for now.' : error.message);
+  if(data === null || data === undefined) return bad('That is not your PIN.');
+  msg.textContent = '';
+  const code = data.code, link = location.origin + location.pathname + '?setup=' + code;
+  $('#dvForm').hidden = true; $('#dvShow').hidden = false; $('#dvMake').hidden = true;
+  $('#dvFor').textContent = data.kind === 'new_person'
+    ? 'For a new ' + (BENCH_NAME[data.bench] || data.bench) + ($('#dvLabel').value.trim() ? ' - ' + $('#dvLabel').value.trim() : '')
+    : 'For someone already on the staff' + ($('#dvLabel').value.trim() ? ' - ' + $('#dvLabel').value.trim() : '');
+  $('#dvCode').textContent = niceCode(code);
+  $('#dvQr').innerHTML = '';
+  try{
+    await loadQrLib();
+    const qr = window.qrcode(0, 'M'); qr.addData(link); qr.make();
+    $('#dvQr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+  }catch(e){ $('#dvQr').textContent = e.message; }
+  /* the countdown: a code nobody scanned in 15 minutes is dead, and says so */
+  const until = new Date(data.expires_at).getTime();
+  clearInterval(DV_TIMER);
+  const tick = () => {
+    const left = Math.max(0, Math.round((until - Date.now()) / 1000));
+    const c = $('#dvCount');
+    if(!left){
+      clearInterval(DV_TIMER);
+      c.textContent = 'This code has expired. Close and make a new one.'; c.classList.add('gone');
+      $('#dvQr').innerHTML = ''; $('#dvCode').textContent = '— expired —';
+      return;
+    }
+    c.classList.remove('gone');
+    c.textContent = 'Works once · expires in ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+  };
+  tick(); DV_TIMER = setInterval(tick, 1000);
+};
+$('#dvClose').onclick = () => devDlg.close();
+devDlg.addEventListener('close', () => { clearInterval(DV_TIMER); $('#dvPin').value = ''; });
+
+/* ── People and Gmail (counter, office, owner) ──
+   A Gmail typed at setup waits here until somebody approves it; approving
+   shares the shop's Job Orders folder with it as Editor, through the Worker
+   the Staff tab already uses. Removing (owner and office, own PIN) switches
+   the person off in the database and takes the Gmail off the folder. */
+const pplDlg = $('#pplDlg');
+let PEOPLE = [];
+async function loadPeople(){
+  if(!canAddDevice()){ PEOPLE = []; return PEOPLE; }
+  const { data, error } = await sb.rpc('staff_people');
+  PEOPLE = error ? [] : (data || []);
+  const n = PEOPLE.filter(r => r.active && r.gmail_status === 'pending').length;
+  $('#hAcct').classList.toggle('pend', n > 0);
+  $('#acPend').hidden = !n; $('#acPend').textContent = String(n);
+  return PEOPLE;
+}
+const GST = { none: 'No Gmail', pending: 'Gmail waiting', shared: 'On the Drive folder', removed: 'Gmail removed' };
+async function openPeople(){
+  await loadPeople();
+  const me = STAFF ? STAFF.id : null;
+  const mayRemove = ['owner','office'].includes(BENCH);
+  const box = $('#pplList');
+  box.innerHTML = '';
+  if(!PEOPLE.length) box.innerHTML = '<div class="empty">Nobody on the staff yet.</div>';
+  PEOPLE.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'prow' + (r.active ? '' : ' off');
+    row.innerHTML = '<span class="nm">' + esc(r.name) + '</span>' +
+      '<span class="sub">' + esc(BENCH_NAME[r.bench] || r.bench) + (r.active ? '' : ' · removed') +
+      (r.gmail ? ' · ' + esc(r.gmail) : '') + ' · <span class="gst ' + esc(r.gmail_status) + '">' +
+      esc(GST[r.gmail_status] || r.gmail_status) + '</span></span><span class="act"></span>';
+    const act = row.querySelector('.act');
+    if(r.active && r.gmail_status === 'pending' && r.gmail){
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'ok'; b.textContent = 'Approve Gmail';
+      b.onclick = () => approveGmail(r, b);
+      act.appendChild(b);
+    }
+    if(mayRemove && r.active && r.id !== me && !(r.bench === 'owner' && BENCH !== 'owner')){
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'rm'; b.textContent = 'Remove';
+      b.onclick = () => removePerson(r);
+      act.appendChild(b);
+    }
+    box.appendChild(row);
+  });
+  // the activity log: the owner reads it, and office too
+  $('#pplLogWrap').hidden = !mayRemove;
+  if(mayRemove){
+    const { data } = await sb.from('onboarding_log').select('action,actor_staff,target_staff,detail,created_at')
+      .order('created_at', { ascending: false }).limit(30);
+    const nm = id => (PEOPLE.find(x => x.id === id) || {}).name || 'someone';
+    const say = { code_created: (l) => nm(l.actor_staff) + ' made a setup code (' + (l.detail || '') + ')',
+                  joined: (l) => nm(l.target_staff) + ' joined (' + (l.detail || '') + ')',
+                  device_added: (l) => 'A device was set up: ' + (l.detail || ''),
+                  gmail_approved: (l) => nm(l.actor_staff) + ' approved ' + nm(l.target_staff) + '\'s Gmail',
+                  gmail_removed: (l) => nm(l.target_staff) + '\'s Gmail was taken off the folder',
+                  staff_removed: (l) => nm(l.actor_staff) + ' removed ' + (l.detail || nm(l.target_staff)) };
+    $('#pplLog').innerHTML = (data || []).length ? (data || []).map(l =>
+      '<div class="logrow">' + esc((say[l.action] || (() => l.action))(l)) + '<div class="t">' +
+      esc(new Date(l.created_at).toLocaleString('en-PH', { timeZone:'Asia/Manila', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })) +
+      '</div></div>').join('') : '<div class="muted">Nothing yet.</div>';
+  }
+  if(!pplDlg.open) pplDlg.showModal();
+}
+async function approveGmail(r, b){
+  if(!DRIVE.connected) return toast('Google Drive is not connected yet - the owner connects it on the Staff tab.');
+  try{ assertWritable(); }catch(err){ return toast(err.message); }
+  b.disabled = true; b.textContent = 'Sharing…';
+  try{ await driveCall('POST', '/share', { staff_id: r.id, email: r.gmail }); }
+  catch(e){ b.disabled = false; b.textContent = 'Approve Gmail'; return toast('Could not share the folder: ' + e.message); }
+  const { error } = await sb.rpc('staff_gmail_set', { p_staff: r.id, p_gmail: r.gmail, p_status: 'shared',
+                                                     p_actor: STAFF ? STAFF.id : null });
+  if(error) toast('Shared on Drive, but the list did not update: ' + error.message);
+  else toast(r.name + ' can open the Job Orders folder now');
+  openPeople();
+}
+async function removePerson(r){
+  const pin = await ask('Remove ' + r.name + '? Their PIN stops working on every device, and their Gmail comes off ' +
+                        'the Drive folder. Devices stay signed in for everybody else.',
+    { head: 'Remove ' + r.name, input: 'Your PIN', pin: true, yes: 'Remove', no: 'Keep them', danger: true });
+  if(pin === null || pin === false) return;
+  try{ assertWritable(); }catch(err){ return toast(err.message); }
+  const { data, error } = await sb.rpc('staff_remove', { p_actor: STAFF.id, p_pin: String(pin), p_target: r.id });
+  if(error) return toast(error.message);
+  if(data === null || data === undefined) return toast('That is not your PIN.');
+  /* then the folder: a person switched off must not keep the files */
+  if(r.gmail && r.gmail_status === 'shared' && DRIVE.connected){
+    try{ await driveCall('POST', '/unshare', { staff_id: r.id }); }
+    catch(e){ toast(r.name + ' is removed, but the Drive folder still has their Gmail: ' + e.message +
+                    '. Remove it from the Staff tab\'s Drive card.'); openPeople(); return; }
+    await sb.rpc('staff_gmail_set', { p_staff: r.id, p_gmail: '', p_status: 'removed', p_actor: STAFF.id });
+  }
+  toast(r.name + ' is removed');
+  openPeople();
+}
+$('#pplClose').onclick = () => pplDlg.close();
+$('#acAddDev').onclick = () => { $('#acctDlg').close(); openAddDevice(); };
+$('#acPeople').onclick = () => { $('#acctDlg').close(); openPeople(); };
 $('#acClose').onclick = () => acctDlg.close();
 
 /* staff_set_own_name answers the way staff_set_own_pin does: false is a
