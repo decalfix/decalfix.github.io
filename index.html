@@ -3929,12 +3929,21 @@ async function loadFiles(o){
      question a badge can answer at a glance, and it is always the last one. */
   const numOf = f => NUM.has(f.id) && upOrder.length > 1
     ? `<span class="fnum${NUM.get(f.id) === upOrder.length ? ' one' : ''}">File ${NUM.get(f.id)}</span>` : '';
+  /* WHO MAY TAKE A FILE OFF. The counter, office and owner, as before - and,
+     from spawn-103, the ARTIST for a file they uploaded themselves while the
+     job is with them. "I cannot delete file if ever I wrongly upload" (the
+     shop, 28 Sep): a wrong upload had no way off the order but asking the
+     counter. Never another person's file, never after the job moves on. It is
+     the same take-off as everyone's - hidden, the bytes stay in Drive - with
+     the same question and the same PIN on the chosen design. */
+  const mayTakeOff = f => canTakeOrders() ||
+    (BENCH === 'artist' && !!STAFF && f.added_by === STAFF.id && o.status === 'layout' && !o.voided);
   const row = f => `<div class="fl">${numOf(f)}${
       f.url ? fileLink(f) : `<span class="flink off">${esc(f.label)}</span>`}${
       (f.kind === 'upload' && f.drive_file_id && !f.backed_up_at)
         ? `<button type="button" class="dl" data-dl="${esc(f.id)}" aria-label="Save ${esc(f.file_name || 'file')} to this device">Save</button>` : ''}${mover(f)}${
       finalBtn(f)}${
-      canTakeOrders() ? `<button type="button" class="x" data-id="${esc(f.id)}" data-kind="${esc(f.kind)}"` +
+      mayTakeOff(f) ? `<button type="button" class="x" data-id="${esc(f.id)}" data-kind="${esc(f.kind)}"` +
         ` data-final="${f.final_at ? '1' : '0'}"` +
         ` data-name="${esc(f.file_name || f.label || '')}"` +
         ` aria-label="Take ${esc(f.file_name || f.label || 'this file')} off the order">×</button>` : ''}</div>`;
@@ -3954,13 +3963,24 @@ async function loadFiles(o){
     const g = groups.find(x => x.id === f.jo_item_id);
     return g ? g.item : 'an item';
   };
-  const fin = rows.find(f => f.final_at);
+  /* ONE FINAL DESIGN PER ITEM, from spawn-103 (it was one per order). An
+     order for a DTF tarp AND a walk-in tarpaulin has two designs to print,
+     and choosing the second used to un-choose the first - found by the shop
+     on 28 Sep: "both should be chosen ... two types of final design". A file
+     with no item belongs to "the whole order", its own group. */
+  const fins = rows.filter(f => f.final_at);
+  /* Items that have designs from the artist but none chosen - production is
+     told, by name, rather than left to notice what is missing. */
+  const unchosen = groups.filter(g => rows.some(f => f.jo_item_id === g.id && fromArtist(f)) &&
+                                      !fins.some(f => f.jo_item_id === g.id)).map(g => g.item);
   /* Drawn for PRODUCTION only. Every other bench reads the sections, where
      the chosen design already carries its star - a summary box above a list
      that repeats it is the duplication the shop kept photographing. */
-  const finHead = fin
-    ? `<div class="finalbox"><div class="k">Final design \u2014 this is what production prints</div>` +
-      row(fin) + `</div>`
+  const finHead = fins.length
+    ? `<div class="finalbox"><div class="k">Final design${fins.length > 1 ? 's' : ''} \u2014 this is what production prints</div>` +
+      fins.map(row).join('') +
+      (unchosen.length ? `<span class="small muted">No final design chosen yet for ${esc(unchosen.join(', '))} ` +
+                         `\u2014 ask the artist or the counter.</span>` : '') + `</div>`
     /* Production cannot start without one, so say so where they will look
        rather than leaving an empty space to interpret. */
     : (BENCH === 'production'
@@ -4173,14 +4193,17 @@ async function loadFiles(o){
       up.appendChild(inp); box2.appendChild(up);
     }
   });
-  /* One final design per order. Marking a second clears the first rather
-     than leaving two, because "the final design" is singular and two of them
-     is exactly the muddle this is here to end. */
-  $('#dlg').querySelectorAll('button[data-final]').forEach(b => { b.onclick = async () => {
+  /* One final design per ITEM (spawn-103; it was per order). Marking a
+     second on the same item clears the first, because two finals for one
+     item is the muddle this is here to end - but another item's design is
+     its own answer and is left alone. */
+  $('#dlg').querySelectorAll('button[data-final]:not(.x)').forEach(b => { b.onclick = async () => {
     try{ assertWritable(); }catch(err){ return toast(err.message); }
     const id = b.dataset.final;
     const already = b.getAttribute('aria-pressed') === 'true';
-    const others = rows.filter(f => f.final_at && f.id !== id).map(f => f.id);
+    const me = rows.find(f => f.id === id) || {};
+    const others = rows.filter(f => f.final_at && f.id !== id &&
+                                    (f.jo_item_id || null) === (me.jo_item_id || null)).map(f => f.id);
     for(const other of others){
       const { error } = await sb.from('jo_files').update({ final_at: null }).eq('id', other);
       if(error) return toast(error.message);
@@ -4600,9 +4623,11 @@ async function markSent(o, fileId){
        round trip either way, and it leans on nothing exotic - which matters
        because the line below used to swallow the difference. */
     const { data: others } = await sb.from('jo_files')
-      .select('id,final_at').eq('job_order_id', o.id);
+      .select('id,final_at,jo_item_id').eq('job_order_id', o.id);
+    const mine = (others || []).find(x => x.id === fileId) || {};
     for(const x of (others || [])){
-      if(!x.final_at || x.id === fileId) continue;
+      /* only this item's earlier choice: another item's design stays chosen */
+      if(!x.final_at || x.id === fileId || (x.jo_item_id || null) !== (mine.jo_item_id || null)) continue;
       await sb.from('jo_files').update({ final_at: null }).eq('id', x.id);
     }
     await sb.from('jo_files').update({ final_at: new Date().toISOString() }).eq('id', fileId);
@@ -7529,7 +7554,7 @@ $('#dNext').onclick = async () => {
        ARE files and none of them has been declared: that is when the counter
        is being handed a guess. */
     const { data: ups } = await sb.from('jo_files')
-      .select('final_at').eq('job_order_id', CUR.id).is('removed_at', null)
+      .select('final_at,jo_item_id,added_by').eq('job_order_id', CUR.id).is('removed_at', null)
       .eq('kind', 'upload');
     const files = ups || [];
     if(!files.length){
@@ -7553,6 +7578,24 @@ $('#dNext').onclick = async () => {
         'Send it for approval anyway?',
         { head: 'Nothing marked', yes: 'Send it anyway', no: 'Go back and mark one' });
       if(!go) return;
+    }
+    else{
+      /* One is chosen - but with a design per item (spawn-103), an item with
+         files and nothing chosen is the same muddle one level down. Named. */
+      /* Only items the ARTIST put designs on: the counter's reference photo
+         is not a design anybody chooses, and counting it asked the artist
+         about files that were never theirs (caught by dirn.mjs). */
+      const isDesign = f => !!f.added_by && ARTISTS.some(a => a.id === f.added_by);
+      const keys = [...new Set(files.filter(isDesign).map(f => f.jo_item_id || null))];
+      const miss = keys.filter(k => !files.some(f => (f.jo_item_id || null) === k && f.final_at));
+      if(miss.length){
+        const names = miss.map(k => k ? ((lineGroups(CUR).find(g => g.id === k) || {}).item || 'an item')
+                                       : 'the whole order');
+        const go = await ask('No design is chosen for ' + names.join(', ') + ' on JO ' + CUR.jo_no + '. ' +
+          'Send it for approval anyway?',
+          { head: 'An item has no design chosen', yes: 'Send it anyway', no: 'Go back and choose one' });
+        if(!go) return;
+      }
     }
   }
   /* Releasing an order that still owes is allowed - a government account
