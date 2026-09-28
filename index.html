@@ -517,6 +517,7 @@
   .fhint button{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:99px;padding:6px 12px;
                 background:#6B4A05;color:#fff;cursor:pointer}
   .fhint button.no{background:none;color:#6B4A05;text-decoration:underline;padding:6px 2px}
+  .fsug .sugnone{padding:10px 12px;font-size:13px;color:var(--grey)}
   .fsug{display:grid;gap:5px;margin:-2px 0 4px;max-height:300px;overflow-y:auto}
   .fsug .why{grid-column:1 / -1;font-size:11px;font-weight:700;color:#8A5A05}
   .cdsim{font-size:12.5px;font-weight:700;color:#6B4A05;background:var(--amber-wash);border-radius:9px;
@@ -702,6 +703,7 @@
          flex:1 1 12rem;min-width:0;overflow-wrap:anywhere}
   .dfiles:empty{display:none}
   .dfiles{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+  .dfiles.first{margin:6px 0 12px;border-top:0;padding-top:0}
   .dfiles .k{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--grey)}
   /* Google Drive: the owner's card, artists' Gmail, the order's folder and uploads */
   .drvrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
@@ -2842,8 +2844,16 @@ const readTapped = (within) => { try{
 /* The tab is remembered the same way and for the same reason: a reload should
    put the counter back where they were, not on the dashboard. */
 const TABKEY = 'df_tab';
-const markTab = id => { try{ safeStore.setItem(TABKEY, id); }catch(e){} };
-const readTab = () => { try{ return safeStore.getItem(TABKEY) || ''; }catch(e){ return ''; } };
+/* The tab a reload puts you back on is YOURS, not the phone's (28 Sep,
+   spawn-102): one shop phone passes between people, and the owner tapping in
+   after the counter was put on the counter's Board instead of Analytics.
+   Stored as {person: tab}; an old plain value reads as nobody's. */
+const tabOwner = () => (STAFF && STAFF.id) || '-';
+const tabMap = () => { try{ const m = JSON.parse(safeStore.getItem(TABKEY) || '{}');
+  return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; }catch(e){ return {}; } };
+const markTab = id => { try{ const m = tabMap(); m[tabOwner()] = id;
+  safeStore.setItem(TABKEY, JSON.stringify(m)); }catch(e){} };
+const readTab = () => tabMap()[tabOwner()] || '';
 const readLast = () => { try { return JSON.parse(safeStore.getItem(LAST_KEY) || 'null'); } catch(e){ return null; } };
 
 function showPerson(r){
@@ -3779,7 +3789,15 @@ $('#fLinkAdd').onclick = () => {
 /* The order's links on its detail. Anyone signed in may add one - an artist
    posts the finished layout; whoever takes orders may remove one, which
    hides it, never deletes it. */
+/* The upload bar may be sitting under an item's upload button, inside a box
+   about to be redrawn - and a redraw by innerHTML would destroy it, and every
+   later upload with it. Home first, before anything redraws (spawn-102). */
+function homeUpBar(){
+  const b = $('#dUpProg');
+  if(b && !$('#dDriveTools').contains(b)) $('#dDriveTools').appendChild(b);
+}
 async function loadFiles(o){
+  homeUpBar();
   const box = $('#dFiles'); box.innerHTML = '';
   /* Folded by default. The boxes are used once per file and read every time
      the order is opened, so the quiet link is the resting state. */
@@ -4079,7 +4097,15 @@ async function loadFiles(o){
         const up = document.createElement('label');
         up.className = 'upl artup'; up.textContent = 'Upload design file';
         const inp = document.createElement('input'); inp.type = 'file'; inp.hidden = true;
-        inp.onchange = () => { const f = inp.files[0]; inp.value = ''; if(f) uploadFile(f, id); };
+        /* The progress bar lived in the drive tools at the foot of the order,
+           out of sight of the button the artist just pressed - five seconds of
+           "No files yet" with nothing moving (live test, 28 Sep). It is moved
+           to sit under this button while the file goes up. */
+        inp.onchange = () => {
+          const f = inp.files[0]; inp.value = ''; if(!f) return;
+          up.after($('#dUpProg'));
+          uploadFile(f, id);
+        };
         up.appendChild(inp); box2.appendChild(up);
       }
       /* Finished art is often a Drive link to a folder rather than a file to
@@ -6248,7 +6274,9 @@ function lensTo(label, keep){
   const tabs = tabsFor();
   BOARD_TAB = tabs ? (tabs.find(x => x.id === 'all') || tabs[0]).id : 'all';
   SEARCH = ''; $('#bSearch').value = ''; CAT_ONLY = null;
-  if($('#vBoard').hidden) $('#nvBoard').click(); else renderBoard();
+  /* showTab directly, not a click on the Board tab: a tab tapped by hand
+     drops the lens (spawn-102), and this one must survive the trip. */
+  if($('#vBoard').hidden) showTab('nvBoard'); else renderBoard();
 }
 function goTile(kind){
   const t = today();
@@ -6641,6 +6669,12 @@ async function suggestCustomers(byPhone){
   const digits = byPhone ? $('#fPhone').value.replace(/\D/g, '') : '';
   if(!SUG_ALL && q.length < 2 && digits.length < 7){ box.hidden = true; box.innerHTML = ''; checkName(); return; }
   const list = await loadCustomers();
+  /* Typed on while the customers loaded: a later call answers. Without this
+     the FIRST call - the slow one that fetches the list - could land last and
+     paint suggestions for "TEST SP" under "TEST SPAWN - NOT A REAL JOB"
+     (live test, 28 Sep, spawn-102). */
+  if(byPhone ? $('#fPhone').value.replace(/\D/g, '') !== digits
+             : normName($('#fCust').value) !== q) return;
   let hits;
   if(SUG_ALL && !q){
     hits = list.slice().sort((a, b) => a.name.localeCompare(b.name)).slice(0, 60);
@@ -6650,6 +6684,14 @@ async function suggestCustomers(byPhone){
       .filter(x => x.r > 0)
       .sort((a, b) => (b.r - a.r) || String(b.c.last || '').localeCompare(String(a.c.last || '')))
       .slice(0, SUG_ALL ? 60 : 5).map(x => x.c);
+  }
+  /* The dropdown was asked for and nothing matches: say so. An empty drop
+     read as a broken button (live test, 28 Sep). */
+  if(SUG_ALL && !hits.length){
+    box.innerHTML = '<div class="sugnone">' + (list.length
+      ? 'No saved customer matches this name - it will be saved as a new one.'
+      : 'No saved customers yet.') + '</div>';
+    box.hidden = false; checkName(); return;
   }
   // an exact name already typed needs no list - unless the dropdown was asked for
   if(!hits.length || (!SUG_ALL && hits.length === 1 && normName(hits[0].name) === q)){
@@ -6805,11 +6847,9 @@ const DEPT_KEEP = {
   late:     o => isLate(o),
   owing:    o => o.status === 'claimed' && Number(o.balance) > 0
 };
-/* Which board tab each door opens. "Released owing" has no tab of its own -
-   Released is the nearest question the board can ask - so the door is honest
-   about landing you one step wider rather than inventing a tab for it. */
-const DEPT_TAB = { new:'all', artist:'artist', approval:'artist', printing:'printing',
-                   ready:'ready', late:'late', owing:'claimed' };
+/* Each door used to open the nearest board TAB (DEPT_TAB), one step wider
+   than the number on it. From spawn-102 it opens a lens on DEPT_KEEP itself,
+   so the cards shown are exactly the count tapped. */
 
 function renderDepts(live, t){
   const box = $('#dDepts');
@@ -6827,7 +6867,9 @@ function renderDepts(live, t){
                                  ' - ' + d.sub);
     b.innerHTML = '<b>' + n + '</b><small>' + esc(d.label) + '</small>' +
                   '<span class="sub">' + esc(d.sub) + '</span>';
-    b.onclick = () => { BOARD_TAB = DEPT_TAB[d.key] || 'all'; $('#nvBoard').click(); };
+    /* Exactly the orders the cell counted (spawn-102), through the same lens
+       the money tiles use - "To approve 0" used to open all of With artist. */
+    b.onclick = () => lensTo(d.label.toLowerCase() + ' (' + d.sub + ')', DEPT_KEEP[d.key]);
     grid.appendChild(b);
   });
 }
@@ -7181,6 +7223,7 @@ function manifest(g){
 }
 
 function openDetail(o){
+  homeUpBar();
   CUR = o;
   $('#dNo').textContent = 'JO ' + o.jo_no;
   $('#dChip').className = 'chip ' + o.status;
@@ -7303,6 +7346,19 @@ function openDetail(o){
   $('#dAddLine').hidden = !canTakeOrders() || o.voided;
   loadHands(o);
   loadPays(o);
+  /* FILES FIRST WHEN THE FILES ARE THE JOB (spawn-102). A counter or owner
+     deciding on a design, and an artist reading why it came back, opened the
+     order to the lines, the money and the payments and had to scroll past all
+     of it to reach the one thing they came for - found by the live test on
+     28 Sep. For those two moments the files (and the correction box) move up
+     under the header, the way production's final design already sits there.
+     Every other time they stay where they were. */
+  const filesFirst = !o.voided &&
+    ((canTakeOrders() && o.status === 'for_approval') ||
+     (BENCH === 'artist' && o.status === 'layout' && cameBack(o)));
+  if(filesFirst) $('#dLines').before($('#dFiles'), $('#dCorrBox'));
+  else $('#dAddWhole').before($('#dFiles'), $('#dCorrBox'));
+  $('#dFiles').classList.toggle('first', filesFirst);
   loadFiles(o);
   // the folder and upload only once the shop's Drive is connected
   /* The correction box is the reviewer's, and only while a design waits.
@@ -8619,7 +8675,11 @@ function showTab(id, quiet, noHist){
   if(!quiet && id!=='nvNew') refresh();
   return true;
 }
-Object.keys(views).forEach(id=>{ $('#'+id).onclick = () => showTab(id); });
+/* A tab tapped by hand drops any tile's lens (spawn-102). It used to survive
+   a trip to another tab and back, so "For claim" went on narrowing the board
+   until somebody found "Show everything" - Released read "Nothing released"
+   with a released order on the shop. */
+Object.keys(views).forEach(id=>{ $('#'+id).onclick = () => { LENS = null; showTab(id); }; });
 
 /* Put the counter back on the tab they were on. Never the new-order form - a
    half-typed order is gone after a reload, and landing on an empty one looks
