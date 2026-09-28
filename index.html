@@ -5805,9 +5805,20 @@ const SETUP_BENCHES = { counter: ['counter','artist','production','office'],
                         owner:   ['counter','artist','production','office','owner'] };
 const niceCode = c => { const t = String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
                         return t.length > 4 ? t.slice(0, 4) + '-' + t.slice(4, 8) : t; };
+/* A slow line must end in words, never in "Checking the code…" for ever:
+   20 seconds, then say so. Nothing is used up by a call that never arrived -
+   the code stays good until setup_redeem actually runs. */
 async function setupCall(path, body){
-  const r = await fetch(DRIVE_API + path, { method: 'POST', headers: { 'content-type': 'application/json' },
-                                            body: JSON.stringify(body) });
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), 20000);
+  let r;
+  try{
+    r = await fetch(DRIVE_API + path, { method: 'POST', headers: { 'content-type': 'application/json' },
+                                        body: JSON.stringify(body), signal: ac.signal });
+  }catch(e){
+    throw new Error(e && e.name === 'AbortError'
+      ? 'The line is too slow right now. Check the signal and tap again - the code still works.'
+      : 'Could not reach the setup service. Check the internet and tap again.');
+  }finally{ clearTimeout(t); }
   const j = await r.json().catch(() => ({}));
   if(!r.ok) throw new Error(j.error || 'The setup service answered ' + r.status + '.');
   return j;
@@ -5905,6 +5916,7 @@ function openAddDevice(){
   $('#dvMake').hidden = false; $('#dvMake').disabled = false;
   paintDevKind();
   if(!devDlg.open) devDlg.showModal();
+  loadQrLib().catch(() => {});   // fetch it while the PIN is typed, so the QR is ready with the code
 }
 function paintDevKind(){
   document.querySelectorAll('.dvk button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === DV_KIND)));
@@ -5915,13 +5927,17 @@ function paintDevKind(){
 }
 document.querySelectorAll('.dvk button').forEach(b => { b.onclick = () => { DV_KIND = b.dataset.k; paintDevKind(); }; });
 /* the QR library is loaded only when a code is made - most opens never need it */
+let QR_LOAD = null;
 function loadQrLib(){
   if(window.qrcode) return Promise.resolve();
-  return new Promise((ok, no) => {
+  if(QR_LOAD) return QR_LOAD;                   // one download, however many times it is asked for
+  QR_LOAD = new Promise((ok, no) => {
     const sc = document.createElement('script');
-    sc.src = 'vendor/qrcode.js'; sc.onload = ok; sc.onerror = () => no(new Error('The QR code could not be drawn - use the typed code.'));
+    sc.src = 'vendor/qrcode.js'; sc.onload = ok;
+    sc.onerror = () => { QR_LOAD = null; sc.remove(); no(new Error('The QR code could not be drawn - use the typed code.')); };
     document.head.appendChild(sc);
   });
+  return QR_LOAD;
 }
 $('#dvMake').onclick = async () => {
   const msg = $('#dvMsg');
@@ -5990,6 +6006,18 @@ async function loadPeople(){
 }
 const GST = { none: 'No Gmail', pending: 'Gmail waiting', shared: 'On the Drive folder', removed: 'Gmail removed' };
 async function openPeople(){
+  /* open FIRST, then fill: a tap that shows nothing for two seconds reads as
+     a dead button on a shop's line. The staff list and the log are asked at
+     the same time, not one after the other. */
+  const mayLog = ['owner','office'].includes(BENCH);
+  if(!pplDlg.open){
+    $('#pplList').innerHTML = '<div class="muted">Loading the staff…</div>';
+    $('#pplLogWrap').hidden = !mayLog;
+    if(mayLog) $('#pplLog').innerHTML = '<div class="muted">Loading…</div>';
+    pplDlg.showModal();
+  }
+  const logQ = mayLog ? sb.from('onboarding_log').select('action,actor_staff,target_staff,detail,created_at')
+      .order('created_at', { ascending: false }).limit(30) : Promise.resolve({ data: [] });
   await loadPeople();
   const me = STAFF ? STAFF.id : null;
   const mayRemove = ['owner','office'].includes(BENCH);
@@ -6019,8 +6047,7 @@ async function openPeople(){
   // the activity log: the owner reads it, and office too
   $('#pplLogWrap').hidden = !mayRemove;
   if(mayRemove){
-    const { data } = await sb.from('onboarding_log').select('action,actor_staff,target_staff,detail,created_at')
-      .order('created_at', { ascending: false }).limit(30);
+    const { data } = await logQ;
     const nm = id => (PEOPLE.find(x => x.id === id) || {}).name || 'someone';
     const say = { code_created: (l) => nm(l.actor_staff) + ' made a setup code (' + (l.detail || '') + ')',
                   joined: (l) => nm(l.target_staff) + ' joined (' + (l.detail || '') + ')',
@@ -6053,6 +6080,7 @@ async function removePerson(r){
     { head: 'Remove ' + r.name, input: 'Your PIN', pin: true, yes: 'Remove', no: 'Keep them', danger: true });
   if(pin === null || pin === false) return;
   try{ assertWritable(); }catch(err){ return toast(err.message); }
+  toast('Removing ' + r.name + '…');
   const { data, error } = await sb.rpc('staff_remove', { p_actor: STAFF.id, p_pin: String(pin), p_target: r.id });
   if(error) return toast(error.message);
   if(data === null || data === undefined) return toast('That is not your PIN.');
