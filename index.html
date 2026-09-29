@@ -2853,7 +2853,7 @@ const tabMap = () => { try{ const m = JSON.parse(safeStore.getItem(TABKEY) || '{
   return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; }catch(e){ return {}; } };
 const markTab = id => { try{ const m = tabMap(); m[tabOwner()] = id;
   safeStore.setItem(TABKEY, JSON.stringify(m)); }catch(e){} };
-const readTab = () => tabMap()[tabOwner()] || '';
+const readTab = who => tabMap()[who || tabOwner()] || '';
 const readLast = () => { try { return JSON.parse(safeStore.getItem(LAST_KEY) || 'null'); } catch(e){ return null; } };
 
 function showPerson(r){
@@ -3899,17 +3899,29 @@ async function loadFiles(o){
   /* **Only on a design.** "Use this" appeared on the customer's reference
      photo, where it meant "send the customer's photo for approval" - nobody
      means that. Where the direction is known, only an artist's file offers it. */
-  const finalBtn = f => (!canFinal || f.kind !== 'upload' || !f.drive_file_id || f.backed_up_at ||
+  const canChoose = f => canFinal && f.kind === 'upload' && !!f.drive_file_id && !f.backed_up_at &&
                          /* Only an artist's file where artist files EXIST - the
                             reference photo is not the design then. On an order
                             with no artist upload (the customer brought a print-
                             ready file) any upload can be the final one, or
                             production is told to ask and nobody can answer. */
-                         (rows.some(fromArtist) && !fromArtist(f))) ? ''
-    : `<button type="button" class="markfinal" data-final="${esc(f.id)}"` +
+                         !(rows.some(fromArtist) && !fromArtist(f));
+  /* AN ITEM CAN PRINT SEVERAL FILES (spawn-104, "not every design only has
+     one file for printing"): a front and a back are two files and one job.
+     `Use this` stays a REPLACE - the everyday move is still one design per
+     item - and `+ Also print` is the deliberate second choice, shown only
+     while the item already has one, so the set is built on purpose and never
+     by accident. Tapping a chosen file's \u2605 still takes just that one off. */
+  const finalBtn = f => { if(!canChoose(f)) return '';
+    const main = `<button type="button" class="markfinal" data-final="${esc(f.id)}"` +
       ` aria-pressed="${f.final_at ? 'true' : 'false'}"` +
       ` aria-label="${f.final_at ? 'This is the chosen design' : 'Choose ' + esc(f.file_name || 'this file') + ' as the design'}">` +
       `${f.final_at ? '\u2605 ' + finWord : markWord}</button>`;
+    const also = !f.final_at && rows.some(x => x.final_at && x.id !== f.id &&
+                                              (x.jo_item_id || null) === (f.jo_item_id || null))
+      ? `<button type="button" class="markfinal" data-alsofinal="${esc(f.id)}"` +
+        ` aria-label="Also print ${esc(f.file_name || 'this file')} - it joins the chosen designs">+ Also print</button>` : '';
+    return main + also; };
   /* Newest first, 1 at the top. Built once here so every list that draws a
      row - the item's, the whole order's, the final box and the newest-file
      header - says the same number for the same file. */
@@ -3978,7 +3990,21 @@ async function loadFiles(o){
      that repeats it is the duplication the shop kept photographing. */
   const finHead = fins.length
     ? `<div class="finalbox"><div class="k">Final design${fins.length > 1 ? 's' : ''} \u2014 this is what production prints</div>` +
-      fins.map(row).join('') +
+      /* Each final names its item (spawn-104). With a design per item, two
+         filenames under "Final designs" still left production to guess which
+         goes on the DTF tarp and which on the tarpaulin. `rowWithItem` is
+         declared further down, so the label is built here. */
+      [...new Set(fins.map(f => f.jo_item_id || ''))].map(k => {
+        const set = fins.filter(f => (f.jo_item_id || '') === k);
+        return set.map(f => row(f) + (groups.length > 1
+          ? `<span class="when">for ${esc(itemOfFile(f))}</span>` : '')).join('') +
+          /* An item printing several files gets ONE tap for the set - Save,
+             file by file, is four taps and a missed back page. Same /file
+             route as Save, so a phone with no Google account still works. */
+          (set.length > 1 ? `<button type="button" class="dl" data-saveall="${esc(k)}"` +
+            ` aria-label="Save all ${set.length} files${groups.length > 1 ? ' for ' + esc(itemOfFile(set[0])) : ''}">` +
+            `Save all (${set.length})</button>` : '');
+      }).join('') +
       (unchosen.length ? `<span class="small muted">No final design chosen yet for ${esc(unchosen.join(', '))} ` +
                          `\u2014 ask the artist or the counter.</span>` : '') + `</div>`
     /* Production cannot start without one, so say so where they will look
@@ -4067,6 +4093,7 @@ async function loadFiles(o){
   const secDesigns = section('Design files by the artist', designs, 'des');
   const secEarlier = section('Earlier corrections', earlier, 'old');
 
+  homeUpBar();   // again, and synchronously: see the note on the batch above
   if(BENCH === 'production'){
     /* **ONLY THE FINAL DESIGN.** "so it is easy no way to be confuse." The
        drafts, the reference photos, the corrections - none of it reaches
@@ -4116,15 +4143,29 @@ async function loadFiles(o){
       if(DRIVE.connected){
         const up = document.createElement('label');
         up.className = 'upl artup'; up.textContent = 'Upload design file';
-        const inp = document.createElement('input'); inp.type = 'file'; inp.hidden = true;
+        up.dataset.item = id || '';
+        const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.hidden = true;
         /* The progress bar lived in the drive tools at the foot of the order,
            out of sight of the button the artist just pressed - five seconds of
            "No files yet" with nothing moving (live test, 28 Sep). It is moved
            to sit under this button while the file goes up. */
-        inp.onchange = () => {
-          const f = inp.files[0]; inp.value = ''; if(!f) return;
-          up.after($('#dUpProg'));
-          uploadFile(f, id);
+        inp.onchange = async () => {
+          const fs = [...inp.files]; inp.value = ''; if(!fs.length) return;
+          /* PICKED TOGETHER = PRINTED TOGETHER (spawn-104): a front and a
+             back chosen in one picking both arrive \u2605 - the first replaces
+             the item's earlier choice, the rest JOIN it - where marking each
+             on its own would leave only the last one chosen. One at a time,
+             so the progress bar means something on a shop line; each redraw
+             rebuilds this label, so the bar is re-homed under it by
+             data-item before every file. */
+          let joined = false;
+          for(const f of fs){
+            const lab = [...document.querySelectorAll('#dlg label.artup')]
+              .find(l => l.dataset.item === (id || ''));
+            if(lab) lab.after($('#dUpProg'));
+            const got = await uploadFile(f, id, joined);
+            if(got) joined = true;
+          }
         };
         up.appendChild(inp); box2.appendChild(up);
       }
@@ -4188,8 +4229,13 @@ async function loadFiles(o){
     }
     if(DRIVE.connected){
       const up = document.createElement('label'); up.className = 'upl'; up.textContent = 'or upload a file';
-      const inp = document.createElement('input'); inp.type = 'file'; inp.hidden = true;
-      inp.onchange = () => { const f = inp.files[0]; inp.value = ''; if(f) uploadFile(f, id); };
+      const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.hidden = true;
+      /* Several at once for the counter and owner too ("owner counter in all
+         file feature they can add multiple files") - one at a time on the
+         wire, so the progress bar stays honest. These are not designs, so
+         nothing here touches the chosen set (markSent is artist-only). */
+      inp.onchange = async () => { const fs = [...inp.files]; inp.value = '';
+        for(const f of fs) await uploadFile(f, id); };
       up.appendChild(inp); box2.appendChild(up);
     }
   });
@@ -4217,12 +4263,50 @@ async function loadFiles(o){
   $('#dlg').querySelectorAll('button[data-dl]').forEach(b => {
     b.onclick = () => saveFile(rows.find(f => f.id === b.dataset.dl) || {});
   });
+  /* + Also print: this file JOINS the item's chosen set - nothing is cleared,
+     which is the whole difference from Use this. */
+  $('#dlg').querySelectorAll('button[data-alsofinal]').forEach(b => { b.onclick = async () => {
+    try{ assertWritable(); }catch(err){ return toast(err.message); }
+    const me = rows.find(f => f.id === b.dataset.alsofinal) || {};
+    const { error } = await sb.from('jo_files')
+      .update({ final_at: new Date().toISOString() }).eq('id', b.dataset.alsofinal);
+    if(error) return toast(error.message);
+    const n = rows.filter(f => f.final_at && (f.jo_item_id || null) === (me.jo_item_id || null)).length + 1;
+    toast('Also chosen \u2014 ' + n + ' files print for ' + (me.jo_item_id ? 'this item' : 'the whole order'));
+    loadFiles(o);
+  }; });
+  /* Save all: the set, one after another, through the same route as Save. */
+  $('#dlg').querySelectorAll('button[data-saveall]').forEach(b => { b.onclick = async () => {
+    const list = rows.filter(f => f.final_at && (f.jo_item_id || '') === b.dataset.saveall &&
+                                  f.drive_file_id && !f.backed_up_at);
+    for(let i = 0; i < list.length; i++){
+      toast('Saving ' + (i + 1) + ' of ' + list.length + '\u2026');
+      await saveFile(list[i]);
+    }
+  }; });
   $('#dlg').querySelectorAll('select.fmove').forEach(sel => { sel.onchange = async () => {
     const to = sel.value || null, name = sel.options[sel.selectedIndex].textContent;
     try{ assertWritable(); }catch(err){ loadFiles(o); return toast(err.message); }
     const { error } = await sb.from('jo_files').update({ jo_item_id: to }).eq('id', sel.dataset.id);
     if(error){ loadFiles(o); return toast(error.message); }
-    toast(to ? 'Moved to ' + name : 'Moved to the whole order');
+    /* A CHOSEN design moved onto an item that already has one would leave
+       that item with two (spawn-104, found in audit). The one being moved
+       was chosen on purpose and is being put where it belongs, so it keeps
+       its choice and the item's earlier one steps down. */
+    const moved = rows.find(f => f.id === sel.dataset.id) || {};
+    let demoted = '';
+    if(moved.final_at){
+      const olds = rows.filter(f => f.final_at && f.id !== moved.id && (f.jo_item_id || null) === to);
+      for(const x of olds){
+        const { error: e2 } = await sb.from('jo_files').update({ final_at: null }).eq('id', x.id);
+        if(e2){ loadFiles(o); return toast(e2.message); }
+      }
+      /* Said out loud, with the way back: losing a \u2605 in silence is how an
+         old draft gets printed. + Also print restores it on purpose. */
+      if(olds.length) demoted = ' ' + (olds[0].file_name || olds[0].label || 'Its earlier design') +
+        ' is no longer chosen \u2014 tap "+ Also print" on it if both should print.';
+    }
+    toast((to ? 'Moved to ' + name : 'Moved to the whole order') + demoted);
     loadFiles(o);
   }; });
   box.querySelectorAll('button[data-id]').forEach(b => { b.onclick = async () => {
@@ -4600,7 +4684,7 @@ $('#dUpload').onchange = () => {
 
 /* joItemId null means the file belongs to the order; otherwise it is that
    item's. Either way the bytes go into the order's own Drive folder. */
-async function uploadFile(file, joItemId){ return uploadFileTo(CUR, file, joItemId, '#dUp'); }
+async function uploadFile(file, joItemId, keep){ return uploadFileTo(CUR, file, joItemId, '#dUp', null, keep); }
 
 /* Used twice: from the order detail, and straight after a new order is saved
    for the files the counter picked on the form. The bars are different
@@ -4615,7 +4699,7 @@ async function uploadFile(file, joItemId){ return uploadFileTo(CUR, file, joItem
    Best effort: if the mark fails the file is still attached and the old
    "Nothing marked" dialog still catches it, which is the honest degradation.
    It is not silent about failing, it simply does not block the upload. */
-async function markSent(o, fileId){
+async function markSent(o, fileId, keep){
   if(!fileId) return;
   if(BENCH !== 'artist' || !['layout','for_approval'].includes(o.status)) return;
   try{
@@ -4625,13 +4709,21 @@ async function markSent(o, fileId){
     const { data: others } = await sb.from('jo_files')
       .select('id,final_at,jo_item_id').eq('job_order_id', o.id);
     const mine = (others || []).find(x => x.id === fileId) || {};
-    for(const x of (others || [])){
+    /* `keep` = this file is the second or third of one picking, joining the
+       set the first one started - so nothing is cleared, or the last file of
+       a front-and-back would quietly un-choose the front. */
+    for(const x of (keep ? [] : (others || []))){
       /* only this item's earlier choice: another item's design stays chosen */
       if(!x.final_at || x.id === fileId || (x.jo_item_id || null) !== (mine.jo_item_id || null)) continue;
-      await sb.from('jo_files').update({ final_at: null }).eq('id', x.id);
+      const { error: e1 } = await sb.from('jo_files').update({ final_at: null }).eq('id', x.id);
+      if(e1) throw e1;
     }
-    await sb.from('jo_files').update({ final_at: new Date().toISOString() }).eq('id', fileId);
+    /* supabase-js answers {error}; it does not throw - so a refused update
+       used to pass this catch by entirely (spawn-104, found in audit). */
+    const { error: e2 } = await sb.from('jo_files').update({ final_at: new Date().toISOString() }).eq('id', fileId);
+    if(e2) throw e2;
   }catch(e){
+    toast('The file is uploaded, but it could not be marked as the one being sent. Tap Use this on it.');
     /* **SAID, NOT SWALLOWED.** The first version of this caught silently, and
        the first thing it caught was not a dropped line but a TypeError - the
        test stub has no `.not()`, so the whole feature did nothing while every
@@ -4642,13 +4734,17 @@ async function markSent(o, fileId){
   }
 }
 
-async function uploadFileTo(o, file, joItemId, bar, reviewId){
+async function uploadFileTo(o, file, joItemId, bar, reviewId, keep){
   try{ assertWritable(); }catch(err){ toast(err.message); return null; }
-  const prog = $(bar + 'Prog');
   const show = (done, text) => {
+    /* Re-found every time, and skipped when gone: the bar is one DOM node
+       moved between homes, and if a redraw ever eats it the UPLOAD must not
+       die with it - a crashed progress bar cost a real file (multi104). */
+    const prog = $(bar + 'Prog'), fill = $(bar + 'Fill'), tx = $(bar + 'Text');
+    if(!prog || !fill || !tx) return;
     prog.hidden = false;
-    $(bar + 'Fill').style.width = Math.round(done / file.size * 100) + '%';
-    $(bar + 'Text').textContent = text;
+    fill.style.width = Math.round(done / file.size * 100) + '%';
+    tx.textContent = text;
   };
   try{
     show(0, 'Starting ' + file.name + '…');
@@ -4681,12 +4777,12 @@ async function uploadFileTo(o, file, joItemId, bar, reviewId){
       ...(reviewId ? { jo_review_id: reviewId } : {}) })
       .select('id').single();
     if(error) throw error;
-    await markSent(o, insId ? insId.id : null);
+    await markSent(o, insId ? insId.id : null, keep);
     toast(got.name + ' is in the job folder.');
     if(CUR === o) loadFiles(o);
     return got;
   }catch(e){ toast('Upload stopped: ' + e.message); return null; }
-  finally{ if(bar === '#dUp') setTimeout(() => { prog.hidden = true; }, 2500); }
+  finally{ if(bar === '#dUp') setTimeout(() => { const b = $(bar + 'Prog'); if(b) b.hidden = true; }, 2500); }
 }
 
 /* Government accounts the shop bills. Picked on a government order; the
@@ -5862,15 +5958,21 @@ const niceCode = c => { const t = String(c || '').toUpperCase().replace(/[^A-Z0-
 async function setupCall(path, body){
   const ac = new AbortController(), t = setTimeout(() => ac.abort(), 20000);
   let r;
+  /* A timed-out REDEEM may have reached the Worker and used the code before
+     the answer was lost, so only a peek may promise the code still works
+     (spawn-104). The timer also covers reading the answer. */
+  const slow = path === '/setup/redeem'
+    ? 'The line is too slow right now. Check the signal and tap again. If it then says the code is used, ask for a new one.'
+    : 'The line is too slow right now. Check the signal and tap again - the code still works.';
+  let j;
   try{
     r = await fetch(DRIVE_API + path, { method: 'POST', headers: { 'content-type': 'application/json' },
                                         body: JSON.stringify(body), signal: ac.signal });
+    j = await r.json().catch(e => { if(e && e.name === 'AbortError') throw e; return {}; });
   }catch(e){
-    throw new Error(e && e.name === 'AbortError'
-      ? 'The line is too slow right now. Check the signal and tap again - the code still works.'
+    throw new Error(e && e.name === 'AbortError' ? slow
       : 'Could not reach the setup service. Check the internet and tap again.');
   }finally{ clearTimeout(t); }
-  const j = await r.json().catch(() => ({}));
   if(!r.ok) throw new Error(j.error || 'The setup service answered ' + r.status + '.');
   return j;
 }
@@ -6067,8 +6169,11 @@ async function openPeople(){
     if(mayLog) $('#pplLog').innerHTML = '<div class="muted">Loading…</div>';
     pplDlg.showModal();
   }
+  /* `.then()` SENDS it now: a supabase-js query goes out only when awaited,
+     so without it the log waited for the list after all (spawn-104). */
   const logQ = mayLog ? sb.from('onboarding_log').select('action,actor_staff,target_staff,detail,created_at')
-      .order('created_at', { ascending: false }).limit(30) : Promise.resolve({ data: [] });
+      .order('created_at', { ascending: false }).limit(30).then(x => x, e => ({ error: e }))
+    : Promise.resolve({ data: [] });
   await loadPeople();
   const me = STAFF ? STAFF.id : null;
   const mayRemove = ['owner','office'].includes(BENCH);
@@ -6135,12 +6240,21 @@ async function removePerson(r){
   const { data, error } = await sb.rpc('staff_remove', { p_actor: STAFF.id, p_pin: String(pin), p_target: r.id });
   if(error) return toast(error.message);
   if(data === null || data === undefined) return toast('That is not your PIN.');
-  /* then the folder: a person switched off must not keep the files */
-  if(r.gmail && r.gmail_status === 'shared' && DRIVE.connected){
+  /* then the folder: a person switched off must not keep the files.
+     **Asked of the Worker whatever `gmail_status` says** (spawn-104, found in
+     audit): a Gmail shared from the Staff tab's Drive card never set that
+     status, so Remove skipped it and said "removed" while they kept Editor.
+     `/unshare` answers ok when there is nothing to take off, so asking is
+     free. Drive's state is fetched first if it has not answered yet. */
+  if(!DRIVE.known) await loadDrive();
+  if(DRIVE.connected){
     try{ await driveCall('POST', '/unshare', { staff_id: r.id }); }
-    catch(e){ toast(r.name + ' is removed, but the Drive folder still has their Gmail: ' + e.message +
+    catch(e){ toast(r.name + ' is removed, but the Drive folder may still have their Gmail: ' + e.message +
                     '. Remove it from the Staff tab\'s Drive card.'); openPeople(); return; }
-    await sb.rpc('staff_gmail_set', { p_staff: r.id, p_gmail: '', p_status: 'removed', p_actor: STAFF.id });
+    if(r.gmail){
+      const { error: ge } = await sb.rpc('staff_gmail_set', { p_staff: r.id, p_gmail: '', p_status: 'removed', p_actor: STAFF.id });
+      if(ge) console.error('staff_gmail_set after remove:', ge);
+    }
   }
   toast(r.name + ' is removed');
   openPeople();
@@ -7553,10 +7667,14 @@ $('#dNext').onclick = async () => {
        commonest move in the shop. The question is worth asking when there
        ARE files and none of them has been declared: that is when the counter
        is being handed a guess. */
+    /* Uploads, and the ARTIST's pasted links (spawn-104): a link can be the
+       design and is marked as the one sent, so leaving links out asked
+       "nothing marked" about a design that was marked. The counter's pasted
+       links are still left out, as they always were. */
     const { data: ups } = await sb.from('jo_files')
-      .select('final_at,jo_item_id,added_by').eq('job_order_id', CUR.id).is('removed_at', null)
-      .eq('kind', 'upload');
-    const files = ups || [];
+      .select('final_at,jo_item_id,added_by,kind').eq('job_order_id', CUR.id).is('removed_at', null);
+    const byArtist = f => !!f.added_by && ARTISTS.some(a => a.id === f.added_by);
+    const files = (ups || []).filter(f => f.kind === 'upload' || byArtist(f));
     if(!files.length){
       /* NOTHING ATTACHED AT ALL. The old rule only spoke when there were
          files and none was marked, so the emptiest case - the one where the
@@ -8757,7 +8875,10 @@ if(openedWorth() && readTapped(openedWorth())){
      Safe to do before the bench is known: this runs only when the same person
      is resuming, and they were on that tab a moment ago, so their bench
      allows it. openShop corrects it either way. */
-  try{ restoreTab(readTab(), true); }catch(e){}
+  /* STAFF is not set yet at this point, so the tab is read by the id in the
+     resume marker - reading it by `tabOwner()` found nothing once tabs became
+     per person, and the 4-second dashboard flash was back (spawn-104). */
+  try{ restoreTab(readTab((readTapped(openedWorth()) || {}).id), true); }catch(e){}
 }
 
 boot().catch(e => {
