@@ -926,6 +926,10 @@
          text-decoration:underline;text-underline-offset:3px;cursor:pointer}
   .linky:hover{color:var(--text)}
   .linky:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .stay{display:flex;flex-direction:row;align-items:center;gap:9px;
+        font-weight:700;font-size:13px;color:var(--text)}
+  .stay input{width:18px;height:18px;margin:0;accent-color:var(--red)}
+  #aStayNote{margin:2px 0 0;text-align:left;line-height:1.45}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:#1A1A1A;color:#fff;
          padding:12px 18px;border-radius:9px;font-weight:800;font-size:13px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.3)}
   /* Sits where the toast sits - above both thumb buttons, never over them. */
@@ -1343,6 +1347,15 @@ setTimeout(function(){
                   aria-pressed="false">Show</button>
         </span>
       </label>
+      <!-- 30 Sep: whose computer is this? A shop device keeps its session for
+           ever - that is the model. The owner's own laptop, or a borrowed
+           one, should not: unticked, the session lives in sessionStorage and
+           dies when the browser closes. Only the person typing the shop
+           password ever sees this box; staff tap a PIN and never do. -->
+      <label class="stay"><input type="checkbox" id="aStay" checked>
+        <span>Keep this device signed in</span></label>
+      <p class="small muted" id="aStayNote">Untick on a shared or personal computer -
+        closing the browser then signs the shop out, and the password is needed again.</p>
       <label id="wrapName" hidden>Your name<input id="aName" autocomplete="name"></label>
       <label id="wrapCode" hidden>Join code<input id="aCode" placeholder="Code from the owner" autocomplete="off"></label>
     </div>
@@ -2412,8 +2425,27 @@ const safeStore = (() => {
   catch { return { getItem:k=>mem.get(k)??null, setItem:(k,v)=>mem.set(k,v), removeItem:k=>mem.delete(k) }; }
 })();
 
+/* Where the session lives is the sign-in screen's choice (30 Sep). The
+   default is localStorage - a shop device stays signed in for ever, which is
+   the whole model. Unticking "Keep this device signed in" writes df_stay='0'
+   and the session goes to sessionStorage instead, so closing the browser
+   signs the device out - the owner's laptop, or a borrowed one. Routed on
+   every call rather than chosen once, and each write clears the other
+   store's copy, so flipping the choice can never leave a stale session
+   behind. A second tab on a not-keep computer is signed out - sessionStorage
+   is per tab, and that is the point of the setting. */
+const stayHere = () => { try{ return safeStore.getItem('df_stay') !== '0'; }catch(e){ return true; } };
+const authStore = {
+  getItem: k => { try{ return stayHere() ? safeStore.getItem(k) : sessionStorage.getItem(k); }catch(e){ return null; } },
+  setItem: (k, v) => { try{
+      if(stayHere()){ safeStore.setItem(k, v); sessionStorage.removeItem(k); }
+      else { sessionStorage.setItem(k, v); safeStore.removeItem(k); }
+    }catch(e){} },
+  removeItem: k => { try{ safeStore.removeItem(k); }catch(e){} try{ sessionStorage.removeItem(k); }catch(e){} }
+};
+window.__authStore = authStore;   // for the suites; the page can read its own storage anyway
 const sb = createClient(URL_, ANON, {
-  auth:{ persistSession:true, autoRefreshToken:true, storage:safeStore }
+  auth:{ persistSession:true, autoRefreshToken:true, storage:authStore }
 });
 
 const $  = s => document.querySelector(s);
@@ -2575,6 +2607,9 @@ const setMode = m => {
   $('#aMsg').textContent = '';
 };
 $('#authTabs').hidden = !SIGNUP_OPEN;
+/* A not-keep laptop signs out on close, so its owner sees this form again -
+   already unticked, the way they left it. */
+try{ $('#aStay').checked = safeStore.getItem('df_stay') !== '0'; }catch(e){}
 $('#tabIn').onclick = ()=>setMode('in');
 $('#tabUp').onclick = ()=>setMode('up');
 
@@ -2631,6 +2666,9 @@ $('#aGo').onclick = async () => {
   const email = $('#aEmail').value.trim(), pass = $('#aPass').value;
   if(!email || !pass){ msg.className='msg err'; msg.textContent='Email and password are needed.'; return; }
   $('#aGo').disabled = true; msg.className='msg'; msg.textContent='Working…';
+  /* Written BEFORE the call: supabase stores the session as part of it,
+     through authStore, which reads this marker at write time. */
+  try{ safeStore.setItem('df_stay', $('#aStay').checked ? '1' : '0'); }catch(e){}
   try{
     if(mode==='in'){
       const { error } = await sb.auth.signInWithPassword({ email, password:pass });
@@ -2840,7 +2878,12 @@ const LAST_KEY = 'df_last';
    the shop's own session, which is why the bench limits are app rules. This
    only decides whether the pad is shown again. */
 const TAP_KEY = 'df_tapped';
-const TAP_FOR = 15 * 60 * 1000;          // the same window as the idle lock
+/* A computer is left unattended more than a phone in a hand, and its screen
+   is read from further away - so its idle lock is five minutes, a touch
+   screen's fifteen. Read once at load; a hybrid gets the answer for how it
+   opened. */
+const FINE_POINTER = matchMedia('(hover:hover) and (pointer:fine)').matches;
+const TAP_FOR = (FINE_POINTER ? 5 : 15) * 60 * 1000;   // the same window as the idle lock
 /* A fresh launch from the home screen is not a reload, and it used to mean the
    PIN every time - because the marker lived in sessionStorage and died with
    the tab. On a phone that is wrong far more often than it is right: back at
@@ -6056,6 +6099,9 @@ async function redeemSetup(asExisting){
   try{ r = await setupCall('/setup/redeem', body); }
   catch(e){ btn.disabled = false; return bad(e.message); }
   /* the one-time token becomes this device's own session */
+  /* A device set up with a code has no password to type again, so its
+     session always keeps - whatever the sign-in box on this browser said. */
+  try{ safeStore.setItem('df_stay', '1'); }catch(e){}
   let { error } = await sb.auth.verifyOtp({ token_hash: r.token_hash, type: r.verify_type || 'magiclink' });
   if(error){ ({ error } = await sb.auth.verifyOtp({ token_hash: r.token_hash, type: 'email' })); }
   if(error){ btn.disabled = false; return bad('The device could not be signed in: ' + error.message); }
@@ -8802,7 +8848,8 @@ $('#lOut').onclick  = async () => {
 $('#hLock').onclick = () => showPicker();
 
 /* Idling back to the picker only means something when there is a roster. */
-const IDLE_FOR = 15 * 60 * 1000;   // and TAP_FOR above must match it
+const IDLE_FOR = TAP_FOR;          // one window - the comment above TAP_FOR says why
+window.__lockWin = IDLE_FOR;       // for the suites
 let idle, lastMark = 0;
 const resetIdle = () => {
   clearTimeout(idle);
