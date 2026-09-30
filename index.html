@@ -1173,6 +1173,27 @@
                 border-radius:9px;font-weight:800;font-size:14px;cursor:pointer;text-align:left;padding:0 14px}
   #lHits button:hover{border-color:#1A1A1A}
   #lock .msg{min-height:1.4em;color:var(--red);font-weight:700;padding:0 20px}
+  /* A shop phone is tapped all shift: no double-tap zoom on "1 1", no grey
+     flash, no text selection on a long press. `.hit` is a typed key showing
+     which button it pressed, the same colour as a tap. */
+  .pad button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+              -webkit-user-select:none;user-select:none}
+  .pad button.hit{background:var(--red);border-color:var(--red);color:#fff}
+  .pad button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .kbhint{display:none;margin:10px 20px 0;font-weight:700;font-size:11.5px;color:var(--grey)}
+  @media (hover:hover) and (pointer:fine){
+    .pad button:hover{border-color:#1A1A1A}
+    .kbhint{display:block}
+  }
+  /* A short screen - a small phone, or a laptop at 768 - lost "Someone else"
+     below the edge to the logo band. The band gives the height back. */
+  @media (max-height:800px){
+    .sband{padding:14px 22px 12px}
+    .sband img{max-width:230px}
+    #lWho{margin-top:8px}
+    .dots{margin:10px 0 8px}
+    .pad button{height:56px}
+  }
   .forgot{font-weight:600;font-size:11px;color:var(--grey);padding:2px 20px 12px}
 
   #slip{display:none}
@@ -1405,6 +1426,7 @@ setTimeout(function(){
     <div class="dots" id="lDots"></div>
     <p id="lHint">Enter your PIN</p>
     <div id="lPadWrap"><div class="pad" id="lPad"></div></div>
+    <p class="kbhint" id="lKb">On a computer, just type your PIN on the keyboard.</p>
     <div class="msg" id="lMsg"></div>
     <button class="linkbtn" id="lElse">Someone else</button>
     <div class="forgot">Forgot your PIN? Ask the owner to reset it.</div>
@@ -2968,6 +2990,14 @@ async function showPicker(){
 }
 
 $('#lElse').onclick = () => showSearch();
+/* Enter picks the name when there is exactly one - with two, the person has
+   to say which, so it does nothing rather than guess. */
+$('#lQ').addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  const hits = $('#lHits').querySelectorAll('button');
+  if(hits.length !== 1) return;
+  e.preventDefault(); $('#lQ').blur(); hits[0].click();
+});
 
 let findTimer = 0;
 $('#lQ').oninput = () => {
@@ -8696,6 +8726,26 @@ function buildPad(){
     };
   });
 }
+
+/* On a computer the PIN is typed. Number keys (the number pad too), Backspace
+   takes one off, Escape or Delete clears - each by clicking the button it
+   stands for, so a typed PIN and a tapped one are the same path. Stays out
+   of the way whenever typing means something else: the name box, any other
+   field, a question open over the pad, a held-down key, a shortcut. */
+addEventListener('keydown', e => {
+  if($('#lock').hidden || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if(document.querySelector('dialog[open]')) return;
+  const t = e.target;
+  if(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  const k = /^[0-9]$/.test(e.key) ? e.key
+          : e.key === 'Backspace' ? 'back'
+          : (e.key === 'Escape' || e.key === 'Delete') ? 'clear' : '';
+  const b = k && $('#lPad button[data-k="' + k + '"]');
+  if(!b) return;
+  e.preventDefault();
+  b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 130);
+  b.click();
+});
 
 async function submitPin(){
   const msg = $('#lMsg'), val = entry;
