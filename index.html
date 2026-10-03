@@ -4982,11 +4982,13 @@ function renderGovs(){
 
 let GOVS = [];
 async function loadGovs(){
-  const { data } = await sb.from('gov_accounts').select('id,name,active').order('name');
+  const { data, error } = await sb.from('gov_accounts').select('id,name,active').order('name');
+  if(error) return;                       // keep the list this device has
+  const keep = $('#fGov').value;
   GOVS = (data || []).sort((a,b) => a.name.localeCompare(b.name));
   renderGovs();
   renderDemoReset();
-  fillGovs();
+  fillGovs(keep && keep !== '__add' && GOVS.some(g => g.id === keep && g.active) ? keep : undefined);
 }
 function fillGovs(sel){
   $('#fGov').innerHTML = '<option value="">Pick the account…</option>' +
@@ -5056,12 +5058,39 @@ const govLine = o => o.order_type === 'government'
 /* Artists the counter can send work to - names only, from staff_artists(),
    so the roster itself never reaches this device. */
 let ARTISTS = [];
+/* Re-read every time the order form is opened (30 Sep: test artists were
+   switched off while a counter had the form open, and four saves in two
+   minutes were refused because the list still offered them). A call that
+   does not answer keeps the list it had - an empty list would hide the
+   whole "Send to artist" box on a bad line - and a person still on the list
+   keeps being the one chosen. */
 async function loadArtists(){
-  const { data } = await sb.rpc('staff_artists');
+  const { data, error } = await sb.rpc('staff_artists');
+  if(error) return;
+  const keep = $('#fArtist').value;
   ARTISTS = data || [];
   $('#fArtist').innerHTML = '<option value="">Not yet - any artist can pick it up</option>' +
     ARTISTS.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+  if(keep && ARTISTS.some(a => a.id === keep)) $('#fArtist').value = keep;
   $('#fArtWrap').hidden = !ARTISTS.length;
+}
+/* The database's three refusals for something switched off since this
+   device last looked (jo_refs_same_shop, and jo_create for the person
+   tapped in). Said in the shop's words, with the out-of-date list read
+   again so the next try can succeed. '' for anything else. */
+function refsRefused(error){
+  const raw = String((error && error.message) || '');
+  if(/that artist is not on this shop/i.test(raw)){
+    loadArtists().then(() => { if(CUR && dlg.open) paintDetailArtist(CUR); }).catch(() => {});
+    return 'That artist was switched off, so the order cannot go to them. The list is up to date now - pick another artist, or nobody yet, and try again.';
+  }
+  if(/that government account is not on this shop/i.test(raw)){
+    loadGovs().catch(() => {});
+    return 'That government account was switched off. The list is up to date now - pick the account again and try again.';
+  }
+  if(/that person is not on this shop/i.test(raw))
+    return 'You are no longer switched on for this shop, so the app cannot record this under your name. Ask the owner, then tap in again.';
+  return '';
 }
 const artistName = id => (ARTISTS.find(a => a.id === id) || {}).name || '';
 /* An artist's board and dashboard: what was sent to them, plus anything
@@ -5714,8 +5743,12 @@ $('#save').onclick = async () => {
       stopWith('JO ' + (orderNo || '') + ' is saved. The app could not finish showing it (' +
                (e.message || 'no reason given') + ') - open it from the board.',
                null, 'Saved, but not shown');
-    else
-      stopWith(e.message || 'Could not save.', null, 'Could not save');
+    else{
+      const why = refsRefused(e);
+      stopWith(why || e.message || 'Could not save.',
+               /artist/.test(why) ? $('#fArtist') : /government/.test(why) ? $('#fGov') : null,
+               'Could not save');
+    }
   }finally{ $('#save').disabled = false; }
 };
 
@@ -7529,12 +7562,7 @@ function openDetail(o){
 
   /* Who the order is sent to. Before it leaves Received, choosing an artist
      turns Move into "Send to ..."; after that, a change reassigns it. */
-  $('#dArtWrap').hidden = !canTakeOrders() || !ARTISTS.length || o.voided || o.status === 'claimed';
-  const known = ARTISTS.some(a => a.id === o.artist_id);
-  $('#dArtist').innerHTML = '<option value="">Any artist</option>' +
-    ARTISTS.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('') +
-    (o.artist_id && !known ? `<option value="${esc(o.artist_id)}">(switched off)</option>` : '');
-  $('#dArtist').value = o.artist_id || '';
+  paintDetailArtist(o);
 
   const nx = FLOW[FLOW.indexOf(o.status)+1];
   const owns = (MOVES[BENCH] || []).includes(o.status);
@@ -7649,13 +7677,21 @@ function nextLabel(){
     : (nx === 'layout' && to && canTakeOrders()) ? 'Send to ' + artistName(to)
     : 'Move to ' + LABEL[nx];
 }
+function paintDetailArtist(o){
+  $('#dArtWrap').hidden = !canTakeOrders() || !ARTISTS.length || o.voided || o.status === 'claimed';
+  const known = ARTISTS.some(a => a.id === o.artist_id);
+  $('#dArtist').innerHTML = '<option value="">Any artist</option>' +
+    ARTISTS.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('') +
+    (o.artist_id && !known ? `<option value="${esc(o.artist_id)}">(switched off)</option>` : '');
+  $('#dArtist').value = o.artist_id || '';
+}
 $('#dArtist').onchange = async () => {
   const to = $('#dArtist').value || null;
   if(CUR.status === 'new'){ nextLabel(); return; }        // it goes with "Send to ..."
   try{ assertWritable(); }catch(err){ return toast(err.message); }
   const { error } = await sb.from('job_orders')
     .update({ artist_id: to, updated_at: new Date().toISOString() }).eq('id', CUR.id);
-  if(error){ $('#dArtist').value = CUR.artist_id || ''; return toast(error.message); }
+  if(error){ $('#dArtist').value = CUR.artist_id || ''; return toast(refsRefused(error) || error.message); }
   CUR.artist_id = to;
   toast('JO ' + CUR.jo_no + (to ? ' sent to ' + artistName(to) : ' is open to any artist'));
   refresh();
@@ -7817,7 +7853,7 @@ $('#dNext').onclick = async () => {
     if(!go) return;
   }
   const { error } = await sb.from('job_orders').update(patch).eq('id', CUR.id);
-  if(error) return toast(error.message);
+  if(error) return toast(refsRefused(error) || error.message);
   /* THE MOVE IS THE FACT; the note is a description of it. Written after,
      and never allowed to fail the move - the same rule the send-back note
      keeps. It also means this degrades safely before `build19v` widens the
@@ -7897,7 +7933,7 @@ async function sendBack(o){
   const patch = { status: 'layout', updated_at: new Date().toISOString() };
   if(to !== undefined) patch.artist_id = to;
   const { error } = await sb.from('job_orders').update(patch).eq('id', o.id);
-  if(error){ CORR_FILE = back; return toast(error.message); }   // nothing moved: keep the file
+  if(error){ CORR_FILE = back; return toast(refsRefused(error) || error.message); }   // nothing moved: keep the file
 
   /* The move is the fact; the note describes it and is written after. */
   const rev = await recordReview('sent_back', why || null, o);
@@ -8931,6 +8967,8 @@ function showTab(id, quiet, noHist){
   $('#fab').hidden = id==='nvNew' || id==='nvStaff' || !canTakeOrders();
   markTab(id);
   if(!quiet && id!=='nvNew') refresh();
+  /* The form's two lists are as old as the tap-in otherwise - see loadArtists. */
+  if(id === 'nvNew' && now !== 'nvNew' && SHOP){ loadArtists().catch(() => {}); loadGovs().catch(() => {}); }
   return true;
 }
 /* A tab tapped by hand drops any tile's lens (spawn-102). It used to survive
