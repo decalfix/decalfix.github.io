@@ -454,6 +454,9 @@
   .corrbox .small{margin-top:7px}
   /* The artist's per-item upload: the one control that matters on that
      bench, so it reads as a button rather than a footnote. */
+  .upl.zipup{display:inline-block;font-size:14px;font-weight:700;margin-left:8px;
+             padding:8px 12px;border:1px solid var(--amber);border-radius:8px;
+             background:var(--amber-wash);text-decoration:none;color:var(--text)}
   .upl.artup{display:inline-block;font-size:14px;font-weight:800;
              padding:8px 12px;border:1px solid var(--amber);border-radius:8px;
              background:var(--amber-wash);text-decoration:none;color:var(--text)}
@@ -921,6 +924,12 @@
              font:inherit;font-size:16px;font-weight:600;text-transform:none;
              letter-spacing:normal;color:var(--text);background:var(--card)}
   .pwl input:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+  /* the release-to picker: who the finished work is handed to */
+  #pmHits{display:flex;flex-direction:column;gap:7px;margin-top:9px}
+  #pmHits button{min-height:44px;border:1.5px solid var(--line-strong);background:#fff;
+                 border-radius:9px;font-weight:800;font-size:14px;cursor:pointer;
+                 text-align:left;padding:0 12px}
+  #pmHits button.sel{border-color:var(--red);box-shadow:0 0 0 2px rgba(216,35,42,.18)}
   .linky{display:block;margin:10px auto 0;background:none;border:0;padding:6px 8px;
          font:inherit;font-size:12.5px;font-weight:700;color:var(--grey);
          text-decoration:underline;text-underline-offset:3px;cursor:pointer}
@@ -1684,6 +1693,10 @@ setTimeout(function(){
 
   <!-- sales -->
   <section class="view" id="vSales" hidden>
+    <!-- The same banners as the dashboard and the board, because the OWNER
+         lands here first (spawn-99) - without them, designs could sit
+         waiting while the front page showed only charts (asked 3 Oct). -->
+    <div id="alertsSales" class="alerts"></div>
     <!-- THE SHOP'S ORDER, top to bottom (27 Sep): the drawer first, then
          today, then the month, then everything still owed. One per row, so it
          reads like a report on a phone. Each says in a line what it counts:
@@ -2110,6 +2123,28 @@ setTimeout(function(){
   <div class="df">
     <button class="btn ghost" id="edCancel">Cancel</button>
     <button class="btn" id="edSave">Save the change</button>
+  </div>
+</dialog>
+
+<!-- Production's PIN-signed moves: Done printing, and Move to Released with
+     "who is it handed to". DRAFT (3 Oct) - needs build20a before shipping. -->
+<dialog id="pmDlg">
+  <div class="dh"><span class="no" id="pmHead">Done printing</span></div>
+  <div class="db">
+    <p class="small muted" id="pmWhat"></p>
+    <label class="pwl" id="pmPinWrap">Your 4-digit PIN
+      <input id="pmPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000">
+    </label>
+    <div id="pmRel" hidden>
+      <label class="wide">Release to?<input id="pmQ" autocomplete="off"
+        placeholder="Type two letters of their name"></label>
+      <div id="pmHits"></div>
+    </div>
+    <div class="msg" id="pmMsg"></div>
+  </div>
+  <div class="df">
+    <button class="btn ghost" id="pmCancel">Cancel</button>
+    <button class="btn" id="pmGo">Done printing</button>
   </div>
 </dialog>
 
@@ -4241,6 +4276,32 @@ async function loadFiles(o){
           }
         };
         up.appendChild(inp); box2.appendChild(up);
+
+        /* The folder control beside it. On a computer it picks a folder;
+           on a phone the same control falls back to picking several files -
+           either way ONE zip goes up, named after the folder, and marks
+           itself as the design the way any artist upload does. */
+        const zp = document.createElement('label');
+        zp.className = 'upl zipup'; zp.textContent = 'Upload a folder (as one zip)';
+        zp.dataset.item = id || '';
+        const zinp = document.createElement('input'); zinp.type = 'file';
+        zinp.multiple = true; zinp.hidden = true;
+        try{ zinp.webkitdirectory = true; }catch(e){}
+        zinp.onchange = async () => {
+          const fs = [...zinp.files]; zinp.value = ''; if(!fs.length) return;
+          const folder = String(fs[0].webkitRelativePath || '').split('/')[0];
+          const name = (folder || 'JO-' + o.jo_no + '-files') + '.zip';
+          let z;
+          try{
+            toast('Zipping ' + fs.length + (fs.length === 1 ? ' file…' : ' files…'));
+            z = await zipUp(fs, name);
+          }catch(err){ return toast(err.message); }
+          const lab = [...document.querySelectorAll('#dlg label.zipup')]
+            .find(l => l.dataset.item === (id || ''));
+          if(lab) lab.after($('#dUpProg'));
+          await uploadFile(z, id);
+        };
+        zp.appendChild(zinp); box2.appendChild(zp);
       }
       /* Finished art is often a Drive link to a folder rather than a file to
          upload twice. A pasted design takes the same mark an upload takes. */
@@ -4758,6 +4819,59 @@ $('#dUpload').onchange = () => {
 /* joItemId null means the file belongs to the order; otherwise it is that
    item's. Either way the bytes go into the order's own Drive folder. */
 async function uploadFile(file, joItemId, keep){ return uploadFileTo(CUR, file, joItemId, '#dUp', null, keep); }
+
+/* ── A FOLDER ARRIVES AS ONE ZIP (3 Oct - "upload folder mostly ila gina
+   gamit, they prefer if it will be zip file"). Built here, in the browser,
+   as a STORE zip: no compression, because designs are PNG/PDF and already
+   compressed, and no library, because the format's container is 100 lines.
+   Memory stays flat - the zip Blob references the files rather than copying
+   them, and the CRC is computed in 4 MB slices that are let go of. The one
+   real limit is zip32: 4 GB or 65,000 entries, refused in words. */
+const CRC_T = (() => { const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){ let c = n;
+    for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0; } return t; })();
+async function crc32Of(file){
+  let c = 0xFFFFFFFF;
+  for(let p = 0; p < file.size; p += 4194304){
+    const buf = new Uint8Array(await file.slice(p, p + 4194304).arrayBuffer());
+    for(let i = 0; i < buf.length; i++) c = CRC_T[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+async function zipUp(files, name){
+  const total = files.reduce((s, f) => s + f.size, 0);
+  if(files.length > 65000 || total > 3.8 * 1024 * 1024 * 1024 || files.some(f => f.size > 3.8 * 1024 * 1024 * 1024))
+    throw new Error('That folder is too big to zip here - upload the files on their own.');
+  const enc = new TextEncoder(), parts = [], centr = [];
+  let off = 0;
+  const now = new Date();
+  const dosT = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
+  const dosD = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+  for(const f of files){
+    const nm = enc.encode(String(f.webkitRelativePath || f.name).replace(/\\/g, '/'));
+    const crc = await crc32Of(f);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true);
+    h.setUint16(10, dosT, true); h.setUint16(12, dosD, true);
+    h.setUint32(14, crc, true); h.setUint32(18, f.size, true); h.setUint32(22, f.size, true);
+    h.setUint16(26, nm.length, true);
+    parts.push(h.buffer, nm, f);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true);
+    c.setUint16(8, 0x0800, true); c.setUint16(12, dosT, true); c.setUint16(14, dosD, true);
+    c.setUint32(16, crc, true); c.setUint32(20, f.size, true); c.setUint32(24, f.size, true);
+    c.setUint16(28, nm.length, true); c.setUint32(42, off, true);
+    centr.push(c.buffer, nm);
+    off += 30 + nm.length + f.size;
+  }
+  let cl = 0; centr.forEach(p => { cl += p.byteLength; });
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, cl, true); e.setUint32(16, off, true);
+  return new File([...parts, ...centr, e.buffer], name, { type: 'application/zip' });
+}
+window.__zipUp = zipUp;   // the suites prove the writer against known bytes
 
 /* Used twice: from the order detail, and straight after a new order is saved
    for the files the counter picked on the form. The bars are different
@@ -6679,8 +6793,13 @@ BOARD_TABS.splice(3, 0, { id:'redo', label:'Came back', warn:true, keep:cameBack
    off the press, waiting for the customer - as well as Released, because to
    production both are done; the chip on each card says which. */
 const PROD_TABS = [
-  { id:'todo', label:'To be produced', keep:o => o.status === 'printing' },
-  { id:'done', label:'Released',       keep:o => ['ready','claimed'].includes(o.status) }
+  { id:'todo',    label:'To be produced', keep:o => o.status === 'printing' && !o.printed_at },
+  /* Done printing is NOT released (3 Oct): the print is off the machine but
+     the job still needs finishing - press, cut, pack. It stays at status
+     `printing` with `printed_at` stamped, so no new status and nothing else
+     in the app changes meaning. */
+  { id:'printed', label:'Done printing',  keep:o => o.status === 'printing' && !!o.printed_at },
+  { id:'done',    label:'Released',       keep:o => ['ready','claimed'].includes(o.status) }
 ];
 const tabsFor = () => BENCH === 'artist' ? ARTIST_TABS
                     : BENCH === 'production' ? PROD_TABS
@@ -7178,6 +7297,12 @@ function paintAlerts(seen, mine){
   if(fresh) rows.push({ cls:'fresh', tab:'all', n:fresh,
     what: fresh === 1 ? 'job order has something new' : 'job orders have something new',
     go: 'See what arrived' });
+  if(BENCH === 'production'){
+    const n = seen.filter(o => o.status === 'printing' && o.printed_at).length;
+    if(n) rows.push({ cls:'appr', tab:'printed', n,
+      what: n === 1 ? 'job is done printing' : 'jobs are done printing',
+      go: 'Finish and move to Released' });
+  }
   if(BENCH === 'artist'){
     const n = seen.filter(cameBack).length;
     if(n) rows.push({ cls:'redo', tab:'redo', n,
@@ -7204,7 +7329,7 @@ function paintAlerts(seen, mine){
                     : 'jobs are finished and waiting for customers',
       go: 'Hand over and collect' });
   }
-  ['#alertsBoard', '#alertsDash'].forEach(sel => {
+  ['#alertsBoard', '#alertsDash', '#alertsSales'].forEach(sel => {
     const box = $(sel); if(!box) return;
     box.textContent = '';
     rows.forEach(r => {
@@ -7506,6 +7631,10 @@ function openDetail(o){
     (paper && o.customer_contact ? ' \u00b7 ' + o.customer_contact : '') +
     (paper && o.customer_fb ? ' \u00b7 FB ' + o.customer_fb : '')));
   $('#dMeta').textContent = metaText(o);
+  /* who production handed the finished work to (needs build20a) */
+  if(o.released_to) staffName(o.released_to).then(nm => {
+    if(nm && CUR === o) $('#dMeta').textContent = metaText(o) + ' · Handed to ' + nm;
+  });
   const gs = lineGroups(o);
   // every priced row, by id, so the edit dialog can find the one tapped
   LINES_BY_ID = {};
@@ -7668,7 +7797,10 @@ function nextLabel(){
   const o = CUR, nx = FLOW[FLOW.indexOf(o.status)+1];
   const owns = (MOVES[BENCH] || []).includes(o.status);
   const to = $('#dArtist').value;
-  $('#dNext').textContent = !owns ? 'Not your bench'
+  $('#dNext').textContent =
+      BENCH === 'production' && o.status === 'printing'
+        ? (o.printed_at ? 'Move to Released' : 'Done printing')
+    : !owns ? 'Not your bench'
     : !nx ? 'Done'
     // on an order waiting for a yes, moving it on IS the yes - say so
     : o.status === 'for_approval' ? 'Approve'
@@ -7763,6 +7895,9 @@ function paintRushWhy(){
 let SUBMIT_NOTE = '';
 
 $('#dNext').onclick = async () => {
+  /* Production's moves are PIN-signed and recorded - a separate path, so
+     the rules here stay exactly as they were for every other bench. */
+  if(BENCH === 'production') return prodMove();
   SUBMIT_NOTE = '';
   const nx = FLOW[FLOW.indexOf(CUR.status)+1]; if(!nx) return;
   try{ assertWritable(); }catch(err){ return toast(err.message); }
@@ -7869,6 +8004,106 @@ $('#dNext').onclick = async () => {
   toast('JO ' + CUR.jo_no + (to ? ' sent to ' + artistName(to)
         : approving ? ' approved → ' + LABEL[nx] : ' → ' + LABEL[nx]));
   refresh();
+};
+
+/* ── PRODUCTION'S MOVES ARE SIGNED WITH A PIN (3 Oct, DRAFT - not released).
+   "Done printing" (printing -> ready): any switched-on production person's
+   PIN - whoever is tapped in types theirs, and the move is recorded under
+   their name (`moved_by`, granted since build19y and sent here for the first
+   time). "Move to Released" (ready -> claimed): a production PIN first, then
+   "Release to?" - the staff member the finished work is HANDED to, found by
+   name through staff_search so the roster never reaches the device.
+   The PIN is attribution on a shared floor phone, not authentication - the
+   same rule as every PIN in this app.
+   An order still owing is refused in words WITHOUT a figure (production
+   sees no money): the counter releases an order that owes, because the
+   counter is the bench that can see and collect the balance.
+   `released_to` NEEDS build20a (a draft, NOT applied) before this branch
+   can ever ship - an UPDATE naming a column that does not exist fails
+   whole, the build19a lesson. */
+let PM_O = null, PM_RELEASING = false, PM_STAGE = 'pin', PM_REL = null, pmTimer = 0;
+const pmDlg = $('#pmDlg');
+function prodMove(){
+  const o = CUR;
+  if(!o || o.voided || !STAFF) return;
+  if(o.status !== 'printing') return;
+  try{ assertWritable(); }catch(err){ return toast(err.message); }
+  /* Done printing first, Move to Released second - two stamps, in order.
+     Released here means READY FOR THE COUNTER: the money question stays the
+     counter's, exactly where it has always lived. */
+  const releasing = !!o.printed_at;
+  PM_O = o; PM_RELEASING = releasing; PM_STAGE = 'pin'; PM_REL = null;
+  $('#pmHead').textContent = releasing ? 'Move to Released' : 'Done printing';
+  $('#pmWhat').textContent = 'JO ' + o.jo_no + (releasing
+    ? ' is finished and goes to the front. Your PIN first, ' + STAFF.name + ' - the move is recorded under your name.'
+    : ' is off the printer. Type your PIN, ' + STAFF.name + ' - it is recorded under your name.');
+  $('#pmPin').value = ''; $('#pmMsg').textContent = '';
+  $('#pmPinWrap').hidden = false;
+  $('#pmRel').hidden = true; $('#pmQ').value = ''; $('#pmHits').innerHTML = '';
+  $('#pmGo').textContent = releasing ? 'Check my PIN' : 'Done printing';
+  pmDlg.showModal();
+  $('#pmPin').focus();
+}
+$('#pmGo').onclick = async () => {
+  const msg = $('#pmMsg'); msg.textContent = '';
+  if(PM_STAGE === 'pin'){
+    const pin = $('#pmPin').value.replace(/[^0-9]/g, '');
+    if(pin.length !== 4){ msg.textContent = 'Type your 4-digit PIN.'; return; }
+    $('#pmGo').disabled = true;
+    /* the gate is the tapped-in person's own PIN, checked where the caller
+       cannot reach it; the button only exists on the production bench */
+    const { data, error } = await sb.rpc('staff_check', { p_staff: STAFF.id, p_pin: pin });
+    $('#pmGo').disabled = false;
+    if(error){ msg.textContent = error.message; return; }      // a lockout says until when
+    const row = (data || [])[0];
+    if(!row){ msg.textContent = 'Wrong PIN.'; return; }
+    if(row.bench !== 'production'){ msg.textContent = 'A production PIN is needed here.'; return; }
+    if(!PM_RELEASING)
+      return pmFinish({ printed_at: new Date().toISOString() },
+                      ' done printing - ' + STAFF.name);
+    PM_STAGE = 'who';
+    $('#pmPinWrap').hidden = true;
+    $('#pmRel').hidden = false;
+    $('#pmWhat').textContent = 'Who is JO ' + PM_O.jo_no + ' handed to?';
+    $('#pmGo').textContent = 'Release';
+    $('#pmQ').focus();
+    return;
+  }
+  if(!PM_REL){ msg.textContent = 'Pick who it is released to.'; return; }
+  pmFinish({ status:'ready', ready_at: new Date().toISOString(), released_to: PM_REL.id },
+           ' moved to Released - handed to ' + PM_REL.name + ' by ' + STAFF.name);
+};
+async function pmFinish(extra, said){
+  const patch = Object.assign({ updated_at: new Date().toISOString(), moved_by: STAFF.id }, extra);
+  const { error } = await sb.from('job_orders').update(patch).eq('id', PM_O.id);
+  if(error){ $('#pmMsg').textContent = error.message; return; }
+  pmDlg.close(); dlg.close();
+  toast('JO ' + PM_O.jo_no + said);
+  refresh();
+}
+$('#pmCancel').onclick = () => pmDlg.close();
+$('#pmQ').oninput = () => {
+  clearTimeout(pmTimer);
+  const q2 = $('#pmQ').value.trim(), box = $('#pmHits');
+  PM_REL = null;
+  if(q2.length < 2){ box.innerHTML = ''; return; }
+  pmTimer = setTimeout(async () => {
+    const { data, error } = await sb.rpc('staff_search', { p_q: q2 });
+    if(error){ box.innerHTML = '<div class="small muted">' + esc(error.message) + '</div>'; return; }
+    /* not to yourself - a handover needs a second pair of hands */
+    const hits = (data || []).filter(r => r.id !== STAFF.id);
+    box.innerHTML = hits.length
+      ? hits.map(r => '<button type="button" data-id="' + esc(r.id) + '">' + esc(r.name) +
+                      ' · <span class="small muted">' + esc(BENCH_NAME[r.bench] || r.bench) + '</span></button>').join('')
+      : '<div class="small muted">No one by that name.</div>';
+    box.querySelectorAll('button').forEach(b => {
+      b.onclick = () => {
+        PM_REL = hits.find(r => r.id === b.dataset.id) || null;
+        box.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b));
+        $('#pmMsg').textContent = '';
+      };
+    });
+  }, 220);
 };
 /* The round trip. `for_approval` already means "the artist says it is done,
    somebody has to say yes", so Move on is the yes and this is the no. Sending
