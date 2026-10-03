@@ -1823,6 +1823,15 @@ setTimeout(function(){
       <button type="button" class="btn danger" id="dmoGo">Clear the demo</button><!-- relabelled per shop -->
       <div class="msg" id="dmoMsg"></div>
     </div>
+    <!-- Who may move jobs to Released (3 Oct). Owner only; null = the whole
+         production bench, which is every shop that never touches this. -->
+    <div class="card" style="margin-top:12px" id="relCard" hidden>
+      <h2>Who moves jobs to Released</h2>
+      <p class="small muted">Production's "Move to Released" asks for this person's PIN.
+        "Done printing" stays open to everyone on the production bench.</p>
+      <select id="relWho" style="max-width:100%"></select>
+      <div class="msg" id="relMsg"></div>
+    </div>
     <div class="card" style="margin-top:12px">
       <h2>Who can use this device</h2>
       <p class="small muted">These people sign in by tapping their name and typing a PIN.
@@ -2132,7 +2141,7 @@ setTimeout(function(){
   <div class="dh"><span class="no" id="pmHead">Done printing</span></div>
   <div class="db">
     <p class="small muted" id="pmWhat"></p>
-    <label class="pwl" id="pmPinWrap">Your 4-digit PIN
+    <label class="pwl" id="pmPinWrap"><span id="pmPinLab">Your 4-digit PIN</span>
       <input id="pmPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000">
     </label>
     <div id="pmRel" hidden>
@@ -2887,7 +2896,9 @@ async function loadRoster(){
      manage. This list is for the Staff tab; the sign-in screen never
      renders from it. */
   const { data, error } = await sb.rpc('staff_roster');
-  ROSTER = error ? [] : (data || []);
+  /* A failed call keeps the list this device has - the Staff tab re-reads
+     on every open now, and an empty answer on a bad line would blank it. */
+  if(!error) ROSTER = data || [];
   return ROSTER;
 }
 const onRoster = () => ROSTER.filter(r => r.active);
@@ -3128,6 +3139,16 @@ function staffGuard(r, next){
 function renderStaff(){
   const box = $('#stList');
   if(!box) return;
+  const rc = $('#relCard');
+  if(rc){
+    const prods = ROSTER.filter(r => r.bench === 'production' && r.active);
+    rc.hidden = ROLE !== 'owner' || !prods.length;
+    if(!rc.hidden){
+      $('#relWho').innerHTML = '<option value="">Any production person</option>' +
+        prods.map(r => `<option value="${esc(r.id)}">${esc(r.name)} only</option>`).join('');
+      $('#relWho').value = prods.some(r => r.id === SHOP.release_staff) ? SHOP.release_staff : '';
+    }
+  }
   $('#hLock').hidden = !onRoster().length;
   box.innerHTML = ROSTER.length
     ? ROSTER.map(r =>
@@ -3237,7 +3258,7 @@ async function boot(){
   if(SETUP_CODE) setTimeout(() => toast('This device is already set up - tap in with your PIN.'), 400);
 
   const { data:mine, error } = await sb.from('shop_users')
-    .select('full_name, role, bench, shop_id, shops(id,name,plan,trial_started_on)')
+    .select('full_name, role, bench, shop_id, shops(id,name,plan,trial_started_on,release_staff)')
     .limit(1);
   if(error || !mine || !mine.length){
     $('#aMsg').className='msg err';
@@ -8006,6 +8027,18 @@ $('#dNext').onclick = async () => {
   refresh();
 };
 
+$('#relWho').onchange = async () => {
+  const to = $('#relWho').value || null;
+  try{ assertWritable(); }catch(err){ return toast(err.message); }
+  const was = SHOP.release_staff || null;
+  const { error } = await sb.from('shops').update({ release_staff: to }).eq('id', SHOP.id);
+  if(error){ $('#relWho').value = was || ''; $('#relMsg').textContent = error.message; return; }
+  SHOP.release_staff = to;
+  $('#relMsg').textContent = '';
+  toast(to ? 'Only ' + (ROSTER.find(r => r.id === to) || {}).name + ' moves jobs to Released now.'
+           : 'Any production person can move jobs to Released.');
+};
+
 /* ── PRODUCTION'S MOVES ARE SIGNED WITH A PIN (3 Oct, DRAFT - not released).
    "Done printing" (printing -> ready): any switched-on production person's
    PIN - whoever is tapped in types theirs, and the move is recorded under
@@ -8021,9 +8054,10 @@ $('#dNext').onclick = async () => {
    `released_to` NEEDS build20a (a draft, NOT applied) before this branch
    can ever ship - an UPDATE naming a column that does not exist fails
    whole, the build19a lesson. */
-let PM_O = null, PM_RELEASING = false, PM_STAGE = 'pin', PM_REL = null, pmTimer = 0;
+let PM_O = null, PM_RELEASING = false, PM_STAGE = 'pin', PM_REL = null, PM_WHO = null,
+    PM_SIGNER = null, pmTimer = 0;
 const pmDlg = $('#pmDlg');
-function prodMove(){
+async function prodMove(){
   const o = CUR;
   if(!o || o.voided || !STAFF) return;
   if(o.status !== 'printing') return;
@@ -8032,11 +8066,24 @@ function prodMove(){
      Released here means READY FOR THE COUNTER: the money question stays the
      counter's, exactly where it has always lived. */
   const releasing = !!o.printed_at;
-  PM_O = o; PM_RELEASING = releasing; PM_STAGE = 'pin'; PM_REL = null;
+  /* The shop may DESIGNATE who releases (shops.release_staff, 3 Oct - "pam
+     also is a production"): Done printing stays open to the whole bench,
+     Move to Released then takes ONLY that person's PIN, whoever is tapped
+     in. Unset, any production PIN - a shop that never sets it loses
+     nothing. */
+  PM_WHO = null;
+  if(releasing && SHOP.release_staff){
+    const nm = await staffName(SHOP.release_staff);
+    PM_WHO = { id: SHOP.release_staff, name: nm || 'the person the owner chose' };
+  }
+  PM_O = o; PM_RELEASING = releasing; PM_STAGE = 'pin'; PM_REL = null; PM_SIGNER = null;
   $('#pmHead').textContent = releasing ? 'Move to Released' : 'Done printing';
   $('#pmWhat').textContent = 'JO ' + o.jo_no + (releasing
-    ? ' is finished and goes to the front. Your PIN first, ' + STAFF.name + ' - the move is recorded under your name.'
+    ? ' is finished and goes to the front. ' + (PM_WHO
+        ? 'Only ' + PM_WHO.name + '\u2019s PIN moves jobs to Released.'
+        : 'Your PIN first, ' + STAFF.name + ' - the move is recorded under your name.')
     : ' is off the printer. Type your PIN, ' + STAFF.name + ' - it is recorded under your name.');
+  $('#pmPinLab').textContent = PM_WHO ? PM_WHO.name + '\u2019s 4-digit PIN' : 'Your 4-digit PIN';
   $('#pmPin').value = ''; $('#pmMsg').textContent = '';
   $('#pmPinWrap').hidden = false;
   $('#pmRel').hidden = true; $('#pmQ').value = ''; $('#pmHits').innerHTML = '';
@@ -8050,17 +8097,25 @@ $('#pmGo').onclick = async () => {
     const pin = $('#pmPin').value.replace(/[^0-9]/g, '');
     if(pin.length !== 4){ msg.textContent = 'Type your 4-digit PIN.'; return; }
     $('#pmGo').disabled = true;
-    /* the gate is the tapped-in person's own PIN, checked where the caller
-       cannot reach it; the button only exists on the production bench */
-    const { data, error } = await sb.rpc('staff_check', { p_staff: STAFF.id, p_pin: pin });
+    /* the PIN checked is the DESIGNATED releaser's when one is set, the
+       tapped-in person's otherwise - verified where the caller cannot reach
+       it, and a wrong try burns on the person whose PIN it claims to be */
+    const who = (PM_RELEASING && PM_WHO) ? PM_WHO.id : STAFF.id;
+    const { data, error } = await sb.rpc('staff_check', { p_staff: who, p_pin: pin });
     $('#pmGo').disabled = false;
     if(error){ msg.textContent = error.message; return; }      // a lockout says until when
     const row = (data || [])[0];
-    if(!row){ msg.textContent = 'Wrong PIN.'; return; }
-    if(row.bench !== 'production'){ msg.textContent = 'A production PIN is needed here.'; return; }
+    if(!row){
+      msg.textContent = (PM_RELEASING && PM_WHO) ? 'That is not ' + PM_WHO.name + '\u2019s PIN.' : 'Wrong PIN.';
+      return;
+    }
+    /* a designated releaser is the authority BY designation; without one,
+       the bench is */
+    if(!PM_WHO && row.bench !== 'production'){ msg.textContent = 'A production PIN is needed here.'; return; }
+    PM_SIGNER = row;
     if(!PM_RELEASING)
       return pmFinish({ printed_at: new Date().toISOString() },
-                      ' done printing - ' + STAFF.name);
+                      ' done printing - ' + PM_SIGNER.name);
     PM_STAGE = 'who';
     $('#pmPinWrap').hidden = true;
     $('#pmRel').hidden = false;
@@ -8071,10 +8126,13 @@ $('#pmGo').onclick = async () => {
   }
   if(!PM_REL){ msg.textContent = 'Pick who it is released to.'; return; }
   pmFinish({ status:'ready', ready_at: new Date().toISOString(), released_to: PM_REL.id },
-           ' moved to Released - handed to ' + PM_REL.name + ' by ' + STAFF.name);
+           ' moved to Released - handed to ' + PM_REL.name + ' by ' + PM_SIGNER.name);
 };
 async function pmFinish(extra, said){
-  const patch = Object.assign({ updated_at: new Date().toISOString(), moved_by: STAFF.id }, extra);
+  /* signed by whoever's PIN passed - the designated releaser's name when
+     Steven types his PIN on Pam's phone, not the phone's tap-in */
+  const patch = Object.assign({ updated_at: new Date().toISOString(),
+                                moved_by: (PM_SIGNER || STAFF).id }, extra);
   const { error } = await sb.from('job_orders').update(patch).eq('id', PM_O.id);
   if(error){ $('#pmMsg').textContent = error.message; return; }
   pmDlg.close(); dlg.close();
@@ -9204,6 +9262,9 @@ function showTab(id, quiet, noHist){
   if(!quiet && id!=='nvNew') refresh();
   /* The form's two lists are as old as the tap-in otherwise - see loadArtists. */
   if(id === 'nvNew' && now !== 'nvNew' && SHOP){ loadArtists().catch(() => {}); loadGovs().catch(() => {}); }
+  /* Same for the roster: someone set up by code on another phone (3 Oct -
+     Pam) did not appear on the owner's Staff tab until a reload. */
+  if(id === 'nvStaff' && now !== 'nvStaff' && ROLE === 'owner'){ loadRoster().then(renderStaff).catch(() => {}); }
   return true;
 }
 /* A tab tapped by hand drops any tile's lens (spawn-102). It used to survive
