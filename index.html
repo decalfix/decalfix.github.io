@@ -1514,6 +1514,7 @@ setTimeout(function(){
         </div>
       </div>
       <label class="upl" id="fUpWrap">+ Add file<input type="file" id="fUpload" multiple hidden></label>
+      <label class="upl" id="fUpFolderWrap" style="margin-left:12px">+ Add folder (as one zip)<input type="file" id="fUpFolder" multiple hidden></label>
       <div id="fFileList"></div>
     </div>
 
@@ -1670,6 +1671,7 @@ setTimeout(function(){
         <option value="taken_new">Date taken: newest first</option>
         <option value="due_soon">Due date: soonest first</option>
         <option value="due_late">Due date: latest first</option>
+        <option value="type">Job type: apparel, mugs, tarp…</option>
       </select>
     </label>
     <div id="bCats" class="bcats" aria-label="Job types"></div>
@@ -3662,6 +3664,14 @@ function renderLines(){
         inp.setAttribute('aria-label', 'Add a file to item ' + (idx + 1));
         inp.onchange = () => { b.up = (b.up || []).concat([...inp.files]); inp.value = ''; renderLines(); };
         up.appendChild(inp); fw.appendChild(up);
+        /* and a whole folder as ONE zip, queued the same way (3 Oct) */
+        const zl = document.createElement('label'); zl.className = 'upl'; zl.style.marginLeft = '12px';
+        zl.textContent = '+ Add folder (as one zip)';
+        const zi = document.createElement('input'); zi.type = 'file'; zi.multiple = true; zi.hidden = true;
+        try{ zi.webkitdirectory = true; }catch(e){}
+        zi.setAttribute('aria-label', 'Add a folder as one zip to item ' + (idx + 1));
+        zi.onchange = async () => { const z = await zipPicked(zi); if(!z) return; b.up = (b.up || []).concat([z]); renderLines(); };
+        zl.appendChild(zi); fw.appendChild(zl);
       }else{
         const fnote = document.createElement('div');
         fnote.className = 'small muted ifnote';
@@ -3907,6 +3917,11 @@ $('#fUpload').onchange = () => {
   UPQ = UPQ.concat([...$('#fUpload').files]);
   $('#fUpload').value = '';
   renderFiles();
+};
+try{ $('#fUpFolder').webkitdirectory = true; }catch(e){}
+$('#fUpFolder').onchange = async () => {
+  const z = await zipPicked($('#fUpFolder')); if(!z) return;
+  UPQ = UPQ.concat([z]); renderFiles();
 };
 $('#fLinkAdd').onclick = () => {
   const url = driveUrl($('#fLinkUrl').value);
@@ -4893,6 +4908,15 @@ async function zipUp(files, name){
   return new File([...parts, ...centr, e.buffer], name, { type: 'application/zip' });
 }
 window.__zipUp = zipUp;   // the suites prove the writer against known bytes
+/* A folder picker's files -> one zip named after the folder, or null after
+   saying why. Shared by the artist's control and the order form's two. */
+async function zipPicked(inp){
+  const fs = [...inp.files]; inp.value = ''; if(!fs.length) return null;
+  const folder = String(fs[0].webkitRelativePath || '').split('/')[0];
+  const name = (folder || 'files') + '.zip';
+  toast('Zipping ' + fs.length + (fs.length === 1 ? ' file\u2026' : ' files\u2026'));
+  try{ return await zipUp(fs, name); }catch(err){ toast(err.message); return null; }
+}
 
 /* Used twice: from the order detail, and straight after a new order is saved
    for the files the counter picked on the form. The bars are different
@@ -5950,6 +5974,32 @@ function qtyBadge(o){
          esc(t) + '</b><small>' + esc(bg.unit) + '</small></div>';
 }
 
+/* A staff name for a card, without waiting: the tap-in, the roster or the
+   name cache answer at once; an unknown id is fetched ONCE and the board
+   redrawn when it lands. */
+const NAME_FETCH = new Set();
+function nameNow(id){
+  if(!id) return '';
+  if(STAFF && STAFF.id === id) return STAFF.name;
+  const r = ROSTER.find(x => x.id === id); if(r) return r.name;
+  if(id in NAMES) return NAMES[id];
+  if(!NAME_FETCH.has(id)){ NAME_FETCH.add(id); staffName(id).then(n => { if(n) renderBoard(); }).catch(() => {}); }
+  return '';
+}
+/* "when is this released, who was this released to" (3 Oct) - the line a
+   card carries once production has handed a job over, and once the counter
+   has released it to the customer. */
+const whenShort = t => t ? new Date(t).toLocaleString('en-PH',
+  { timeZone:'Asia/Manila', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '';
+function handedLine(o){
+  const bits = [];
+  if(o.released_to){
+    const nm = nameNow(o.released_to);
+    bits.push('handed to ' + (nm || 'the front') + (o.ready_at ? ' \u00b7 ' + whenShort(o.ready_at) : ''));
+  }
+  if(o.status === 'claimed' && o.claimed_at) bits.push('released ' + whenShort(o.claimed_at));
+  return bits.length ? '<span class="muted small dates">' + esc(bits.join(' \u00b7 ')) + '</span>' : '';
+}
 function badgeOf(o){
   const ls = (o.jo_items || []);
   if(!ls.length){ const n = Number(o.qty) || 0; return { n, unit: plural(n, uomOf(o)) }; }
@@ -7315,9 +7365,15 @@ function paintAlerts(seen, mine){
      instead of trusting the number. */
   const onBoard = mine ? seen.filter(o => mine.includes(o.status)) : seen;
   const fresh = onBoard.filter(hasNew).length;
+  /* For the artist and production a new file or note IS the job arriving -
+     "has something new" read as redundant to them (3 Oct). The counter and
+     owner keep the wider phrase: for them it is also a reply, a correction,
+     a design sent back. */
+  const arrives = BENCH === 'artist' || BENCH === 'production';
   if(fresh) rows.push({ cls:'fresh', tab:'all', n:fresh,
-    what: fresh === 1 ? 'job order has something new' : 'job orders have something new',
-    go: 'See what arrived' });
+    what: arrives ? (fresh === 1 ? 'job order arrived' : 'job orders arrived')
+                  : (fresh === 1 ? 'job order has something new' : 'job orders have something new'),
+    go: arrives ? (fresh === 1 ? 'Open it' : 'See them') : 'See what arrived' });
   if(BENCH === 'production'){
     const n = seen.filter(o => o.status === 'printing' && o.printed_at).length;
     if(n) rows.push({ cls:'appr', tab:'printed', n,
@@ -7488,12 +7544,19 @@ function renderBoard(){
     if(x !== y){ if(!x) return 1; if(!y) return -1; return dir * (x < y ? -1 : 1); }
     return dir * (a.jo_no - b.jo_no);
   };
+  /* By job type (3 Oct): the board's own type order - apparel, mugs,
+     tarpaulin, stickers, signage, other - so one press setup runs together;
+     inside a type the default order still applies. */
+  const TYPE_ORDER = [...CATS, CAT_OTHER].map(c => c.id);
+  const typeIdx = o => { const c = catsOf(o)[0]; return TYPE_ORDER.indexOf(c ? c.id : 'other'); };
+  const byDefault = (a,b)=> (!!b.rush - !!a.rush) || (isLate(b)-isLate(a)) || (b.jo_no-a.jo_no);
   open.sort(SORT === 'taken_old' ? byDate('order_date', 1)
           : SORT === 'taken_new' ? byDate('order_date', -1)
           : SORT === 'due_soon'  ? byDate('target_date', 1)
           : SORT === 'due_late'  ? byDate('target_date', -1)
+          : SORT === 'type'      ? ((a,b) => (typeIdx(a) - typeIdx(b)) || byDefault(a,b))
           // the default, as it always was: rush first, then late, then newest
-          : (a,b)=> (!!b.rush - !!a.rush) || (isLate(b)-isLate(a)) || (b.jo_no-a.jo_no));
+          : byDefault);
 
   /* the three numbers a counter actually wants on opening the app */
   const t = today();
@@ -7564,6 +7627,7 @@ function renderBoard(){
              ${o.artist_id && BENCH !== 'artist' ? `<span class="small to">→ ${esc(artistName(o.artist_id) || 'artist')}</span>` : ''}
              <span class="muted small dates">${o.order_date ? 'taken ' + esc(o.order_date) : ''}${
                o.order_date && o.target_date ? ' \u00b7 ' : ''}${o.target_date ? 'due ' + esc(o.target_date) : ''}</span>
+             ${handedLine(o)}
            </div>
          </div>
        </div>`;
@@ -8027,10 +8091,29 @@ $('#dNext').onclick = async () => {
   refresh();
 };
 
+$('#relWho').onclick = () => { $('#relWho').dataset.was = SHOP.release_staff || ''; };
 $('#relWho').onchange = async () => {
   const to = $('#relWho').value || null;
-  try{ assertWritable(); }catch(err){ return toast(err.message); }
   const was = SHOP.release_staff || null;
+  if(to === was) return;
+  const back = () => { $('#relWho').value = was || ''; };
+  try{ assertWritable(); }catch(err){ back(); return toast(err.message); }
+  const name = to ? ((ROSTER.find(r => r.id === to) || {}).name || 'that person') : '';
+  /* Asked for 3 Oct ("add pin after confirming this"): this decides whose
+     PIN releases every job, so it is confirmed with the owner's own PIN -
+     the same gate as Remove and Edit, checked by staff_check where the
+     caller cannot reach it. With no roster there is no PIN to ask for. */
+  if(STAFF){
+    const pin = await ask(to
+        ? 'From now on only ' + name + '\u2019s PIN moves jobs to Released. Confirm with your PIN.'
+        : 'Any production person will be able to move jobs to Released. Confirm with your PIN.',
+      { head: 'Who moves jobs to Released', input: 'Your PIN', pin: true, yes: 'Save', no: 'Cancel' });
+    if(pin === null || pin === false){ back(); return; }
+    const { data, error } = await sb.rpc('staff_check',
+      { p_staff: STAFF.id, p_pin: String(pin).replace(/[^0-9]/g, '') });
+    if(error){ back(); return toast(error.message); }
+    if(!(data || [])[0]){ back(); return toast('That is not your PIN. Nothing changed.'); }
+  }
   const { error } = await sb.from('shops').update({ release_staff: to }).eq('id', SHOP.id);
   if(error){ $('#relWho').value = was || ''; $('#relMsg').textContent = error.message; return; }
   SHOP.release_staff = to;
