@@ -250,6 +250,39 @@
   /* After .gov on purpose: a late government order shows red. Urgency
      outranks filing, and the account chip still names it. */
   .jo.late{border-left-color:var(--red);background:var(--red-wash)}
+  /* STATUS ON THE EDGE (5 Oct): the left border is the order's status, the
+     hexagon is still its job type. One colour per status, none of them a
+     job-type colour; late (red) wins over all; the edge is 6px so it reads
+     from across a counter. */
+  .jo{border-left-width:6px}
+  .jo.st-new{border-left-color:var(--st-new)}
+  .jo.st-layout{border-left-color:var(--st-layout)}
+  .jo.st-for_approval{border-left-color:var(--st-appr)}
+  .jo.st-printing{border-left-color:var(--st-print)}
+  .jo.st-ready{border-left-color:var(--st-ready)}
+  .jo.st-claimed{border-left-color:var(--st-done)}
+  .jo.late{border-left-color:var(--red)}
+  :root{--st-new:#9A9A95;--st-layout:#7C3AED;--st-appr:#D97706;--st-print:#1A1A1A;
+        --st-ready:#4ADE80;--st-done:#0C6647}
+  /* the legend above the board: one line, folded; the whole key on tap */
+  .bkey{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--text-2)}
+  .bkey summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
+  .bkey summary::-webkit-details-marker{display:none}
+  .bkey summary::after{content:'Key \25BE';margin-left:auto;color:var(--red);font-weight:800}
+  .bkey[open] summary::after{content:'Close \25B4'}
+  .bkeys{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 12px;padding:8px 0 2px}
+  .bkeys span{display:flex;align-items:center;gap:7px;font-weight:600;color:var(--text)}
+  .bkeys i{flex:none;width:14px;height:14px;border-radius:4px;border-left:6px solid var(--k);background:#fff;
+           box-shadow:0 0 0 1px var(--line)}
+  /* the floor tiles wear the same edge, so the two screens agree */
+  .dcell{border-left:6px solid var(--line)}
+  .dcell.k-new{border-left-color:var(--st-new)}
+  .dcell.k-artist{border-left-color:var(--st-layout)}
+  .dcell.k-approval{border-left-color:var(--st-appr)}
+  .dcell.k-printing{border-left-color:var(--st-print)}
+  .dcell.k-ready{border-left-color:var(--st-ready)}
+  .dcell.k-released,.dcell.k-owing{border-left-color:var(--st-done)}
+  .dcell.k-late{border-left-color:var(--red)}
   .jorow{display:flex;align-items:center;gap:12px;padding:13px 14px}
   .jo .qty{width:48px;height:54px;flex:none;background:#1A1A1A;clip-path:var(--hex);
            display:grid;place-items:center;text-align:center;line-height:1}
@@ -1690,6 +1723,20 @@ setTimeout(function(){
       </select>
     </label>
     <div id="bCats" class="bcats" aria-label="Job types"></div>
+    <!-- Colour is explained where it is used (5 Oct): the edge is status,
+         the hexagon is job type. Folded to one line; the key on tap. -->
+    <details class="bkey" id="bKey">
+      <summary>Coloured edge = status &middot; hexagon = job type</summary>
+      <div class="bkeys">
+        <span><i style="--k:var(--st-new)"></i>Received</span>
+        <span><i style="--k:var(--st-layout)"></i>With artist</span>
+        <span><i style="--k:var(--st-appr)"></i>For approval</span>
+        <span><i style="--k:var(--st-print)"></i>Producing</span>
+        <span><i style="--k:var(--st-ready)"></i>Ready to release</span>
+        <span><i style="--k:var(--st-done)"></i>Released</span>
+        <span><i style="--k:var(--red)"></i>Late (any status)</span>
+      </div>
+    </details>
     <div id="boardList"></div>
   </section>
 
@@ -7341,7 +7388,7 @@ function renderDepts(live, t){
     const n = live.filter(DEPT_KEEP[d.key]).length;
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'dcell' + (d.warn && n ? ' warn' : '') + (n ? '' : ' zero');
+    b.className = 'dcell k-' + d.key + (d.warn && n ? ' warn' : '') + (n ? '' : ' zero');
     b.setAttribute('aria-label', d.label + ', ' + n + (n === 1 ? ' order' : ' orders') +
                                  ' - ' + d.sub);
     b.innerHTML = '<b>' + n + '</b><small>' + esc(d.label) + '</small>' +
@@ -7634,7 +7681,7 @@ function renderBoard(){
     /* `paper` and not `money`: which books an order is billed against is a
        counter's business, the same rule the account chip already takes. On an
        artist's board it would be a stripe they cannot act on. */
-    b.className = 'jo'
+    b.className = 'jo st-' + String(o.status).replace(/[^a-z_]/g, '')
       + (canTakeOrders() && o.order_type === 'government' ? ' gov' : '')
       + (isLate(o) ? ' late' : '');
     /* the quantity leads, in a hexagon, the way the shop counts work */
