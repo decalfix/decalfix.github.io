@@ -6852,8 +6852,15 @@ function lineText(o){
    Each one reads over the same bench-filtered set, so nothing here widens
    what a bench may see. */
 const BOARD_TABS = [
-  { id:'all',      label:'All',          keep:(o, m) => m.includes(o.status) &&
-                                                       !(o.status === 'claimed' && Number(o.balance) <= 0) },
+  /* ALL MEANS ALL (5 Oct). It used to drop a released order once it was
+     paid, so "All 0" sat beside a Released tab holding a card - "why is
+     there no job order on All?" Every order this bench may see, finished
+     and paid included; the board reads the newest 300 anyway. */
+  /* `claimed` is kept for every bench with this strip, whatever SEES says:
+     the counter's SEES leaves it out (its dashboard is work in hand), yet
+     its strip has a Released tab - and a lens from the Released tiles lands
+     on this tab, which used to show nothing for a counter. */
+  { id:'all',      label:'All',          keep:(o, m) => m.includes(o.status) || o.status === 'claimed' },
   { id:'late',     label:'Past due',     warn:true, keep:o => isLate(o) },
   { id:'today',    label:'Today',        keep:o => o.target_date === today() &&
                                                    !['claimed','cancelled'].includes(o.status) },
@@ -7304,7 +7311,10 @@ const DEPTS = [
   { label:'Producing',      key:'printing',     sub:'on the machines' },
   { label:'To release',     key:'ready',        sub:'finished, not collected' },
   { label:'Past due',       key:'late',         sub:'promised before today',  warn:true },
-  { label:'Released owing', key:'owing',        sub:'gone, still unpaid',     warn:true }
+  { label:'Released owing', key:'owing',        sub:'gone, still unpaid',     warn:true },
+  /* "where is the released?" (5 Oct): a finished, paid job fitted none of
+     the seven and vanished from the grid - the one tile that is good news */
+  { label:'Released',       key:'released',     sub:'done, paid up' }
 ];
 const DEPT_KEEP = {
   new:      o => o.status === 'new',
@@ -7313,7 +7323,8 @@ const DEPT_KEEP = {
   printing: o => o.status === 'printing',
   ready:    o => o.status === 'ready',
   late:     o => isLate(o),
-  owing:    o => o.status === 'claimed' && Number(o.balance) > 0
+  owing:    o => o.status === 'claimed' && Number(o.balance) > 0,
+  released: o => o.status === 'claimed' && Number(o.balance) <= 0
 };
 /* Each door used to open the nearest board TAB (DEPT_TAB), one step wider
    than the number on it. From spawn-102 it opens a lens on DEPT_KEEP itself,
