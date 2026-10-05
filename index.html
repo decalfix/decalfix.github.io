@@ -924,6 +924,21 @@
              font:inherit;font-size:16px;font-weight:600;text-transform:none;
              letter-spacing:normal;color:var(--text);background:var(--card)}
   .pwl input:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+  /* the guide dialog's drawn example */
+  .gdmock{display:grid;gap:8px;margin:12px 0 4px}
+  .gdrow{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:9px;
+         padding:9px 12px;font-size:13px;font-weight:600;background:#fff}
+  .gdrow .nm{flex:1 1 8rem;min-width:0;color:var(--red);text-decoration:underline;text-underline-offset:3px}
+  .gdrow .gdbtn{flex:none;border:1.5px solid var(--line-strong);border-radius:7px;padding:6px 10px;
+                font-size:12px;font-weight:800;background:#fff}
+  .gdrow .gdbtn.hot{border-color:var(--red);box-shadow:0 0 0 3px rgba(216,35,42,.18)}
+  .gdrow .gdtap{flex:none;color:var(--red);font-weight:800;font-size:12px}
+  .gdrow .gdchosen{flex:none;font-size:12px;font-weight:800;color:#fff;background:var(--red);
+                   border-radius:7px;padding:6px 10px}
+  /* the real button, pointed at after "Show me the files" */
+  @keyframes gdpulse{0%,100%{box-shadow:0 0 0 0 rgba(216,35,42,0)}50%{box-shadow:0 0 0 8px rgba(216,35,42,.35)}}
+  .gdpulse{animation:gdpulse 1.1s ease-in-out 3}
+  @media (prefers-reduced-motion:reduce){ .gdpulse{animation:none;outline:3px solid var(--red)} }
   /* the release-to picker: who the finished work is handed to */
   #pmHits{display:flex;flex-direction:column;gap:7px;margin-top:9px}
   #pmHits button{min-height:44px;border:1.5px solid var(--line-strong);background:#fff;
@@ -2032,6 +2047,21 @@ setTimeout(function(){
 <!-- Every question the app asks. The browser's own confirm() and prompt()
      freeze the whole page while they are up - fine on a laptop, but it locks
      a shop tablet and it looks nothing like the rest of the app. -->
+<!-- A block that teaches (5 Oct): when the approval loop refuses to go on,
+     it says in one sentence how to put it right and DRAWS the button to tap -
+     a mock file row, not a screenshot, so it always matches the real one. -->
+<dialog id="gdDlg">
+  <div class="dh"><span class="no" id="gdHead"></span></div>
+  <div class="db">
+    <p id="gdText"></p>
+    <div class="gdmock" id="gdMock"></div>
+    <p class="small muted" id="gdMore"></p>
+  </div>
+  <div class="df">
+    <button class="btn" id="gdGo">Show me the files</button>
+  </div>
+</dialog>
+
 <dialog id="askDlg">
   <div class="dh"><span class="no" id="askHead">Are you sure?</span></div>
   <div class="db">
@@ -7979,6 +8009,67 @@ function paintRushWhy(){
    a note typed on one order can never ride along to the next. */
 let SUBMIT_NOTE = '';
 
+/* ── THE APPROVAL LOOP IS AIRTIGHT (5 Oct, asked as "they cannot save or
+   send if files are not uploaded ... and if there is no chosen final file").
+   Two doors lead to printing - the artist's Send for approval and the
+   approver's Approve - and both now REFUSE when production would be handed
+   nothing: no design uploaded, or designs uploaded and none chosen. The
+   refusal teaches rather than scolds (guideBlock). Send back is never
+   blocked; production is warned, not blocked; the counter's Save never asks.
+   The escape hatch for a job that truly has no design file: the office or
+   owner may still move it on from layout, knowingly - the artist cannot. */
+async function designState(orderId){
+  const { data: ups } = await sb.from('jo_files')
+    .select('final_at,jo_item_id,added_by,kind').eq('job_order_id', orderId).is('removed_at', null);
+  const byArtist = f => !!f.added_by && ARTISTS.some(a => a.id === f.added_by);
+  const files = (ups || []).filter(f => f.kind === 'upload' || byArtist(f));
+  const keys = [...new Set(files.filter(byArtist).map(f => f.jo_item_id || null))];
+  const miss = keys.filter(k => !files.some(f => (f.jo_item_id || null) === k && f.final_at));
+  const names = miss.map(k => k ? ((lineGroups(CUR).find(g => g.id === k) || {}).item || 'an item')
+                                : 'the whole order');
+  return { files, chosen: files.some(f => f.final_at), missNames: names };
+}
+const gdDlg = $('#gdDlg');
+/* kind: 'upload' (nothing attached) or 'choose' (attached, none chosen);
+   who: 'artist' or 'approver' - changes the verb in the sentence. */
+function guideBlock(kind, who, itemNames){
+  const row = (name, right) => '<div class="gdrow"><span class="nm">' + name + '</span>' + right + '</div>';
+  if(kind === 'upload'){
+    $('#gdHead').textContent = 'Upload the design first';
+    $('#gdText').textContent = 'Tap "Upload design file" under the item, pick the file or the folder, and it is chosen automatically.';
+    $('#gdMock').innerHTML = row('<span style="color:var(--text);text-decoration:none">Jersey, upper only</span>',
+      '<span class="gdbtn hot">Upload design file</span><b class="gdtap">\u2190 tap</b>');
+    $('#gdMore').textContent = 'No design file for this job? Ask the office or owner to move it on.';
+    $('#gdGo').textContent = 'Go to upload';
+  }else{
+    const where = itemNames && itemNames.length ? ' for ' + itemNames.join(', ') : '';
+    $('#gdHead').textContent = 'Choose the design to print first';
+    $('#gdText').textContent = 'Tap "Use this" beside the file production should print' + where +
+      '. It turns into \u2605 Being sent' + (who === 'approver' ? ' - then approve.' : '.');
+    $('#gdMock').innerHTML =
+      row('Lozano.jpg', '<span class="gdbtn hot">Use this</span><b class="gdtap">\u2190 tap</b>') +
+      row('Lozano.jpg', '<span class="gdchosen">\u2605 Being sent</span>');
+    $('#gdMore').textContent = 'Several files for one item? Tap "Use this" on the first, then "+ Also print" on the others.';
+    $('#gdGo').textContent = 'Show me the files';
+  }
+  return new Promise(res => {
+    const done = () => { gdDlg.removeEventListener('close', done); res(); };
+    gdDlg.addEventListener('close', done);
+    $('#gdGo').onclick = () => {
+      gdDlg.close();
+      /* point at the real control: the first unchosen Use this, or the upload */
+      const t = kind === 'upload'
+        ? $('#dlg label.artup')
+        : ($('#dlg button.markfinal[aria-pressed="false"]') || $('#dlg button.markfinal'));
+      if(t){
+        t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        t.classList.add('gdpulse'); setTimeout(() => t.classList.remove('gdpulse'), 4000);
+      }
+    };
+    gdDlg.showModal();
+  });
+}
+
 $('#dNext').onclick = async () => {
   /* Production's moves are PIN-signed and recorded - a separate path, so
      the rules here stay exactly as they were for every other bench. */
@@ -8007,6 +8098,16 @@ $('#dNext').onclick = async () => {
       .select('final_at,jo_item_id,added_by,kind').eq('job_order_id', CUR.id).is('removed_at', null);
     const byArtist = f => !!f.added_by && ARTISTS.some(a => a.id === f.added_by);
     const files = (ups || []).filter(f => f.kind === 'upload' || byArtist(f));
+    /* THE ARTIST IS BLOCKED, not asked (5 Oct): nothing uploaded, or
+       nothing chosen, cannot be sent - and the refusal shows how. The
+       office and owner keep the questions below: they are the escape hatch
+       for a job that truly has no design file. */
+    if(BENCH === 'artist'){
+      const st = await designState(CUR.id);
+      if(!st.files.length) return guideBlock('upload', 'artist');
+      if(!st.chosen) return guideBlock('choose', 'artist');
+      if(st.missNames.length) return guideBlock('choose', 'artist', st.missNames);
+    }
     if(!files.length){
       /* NOTHING ATTACHED AT ALL. The old rule only spoke when there were
          files and none was marked, so the emptiest case - the one where the
@@ -8064,6 +8165,20 @@ $('#dNext').onclick = async () => {
   if(to !== undefined) patch.artist_id = to;
   const submitting = nx === 'for_approval' && CUR.status === 'layout';
   const approving = CUR.status === 'for_approval';
+  /* APPROVING WITH NOTHING CHOSEN IS BLOCKED (5 Oct): production only ever
+     sees the chosen designs, so an approval with none would hand them "No
+     final design yet". With NO file at all it asks instead - that is the
+     office's deliberate no-file job arriving, and Send back stays open. */
+  if(approving){
+    const st = await designState(CUR.id);
+    if(st.files.length && !st.chosen) return guideBlock('choose', 'approver');
+    if(st.files.length && st.missNames.length) return guideBlock('choose', 'approver', st.missNames);
+    if(!st.files.length){
+      const go = await ask('There is no design on JO ' + CUR.jo_no + '. Approve it anyway, or send it back to the artist?',
+        { head: 'No design on this order', yes: 'Approve anyway', no: 'Go back', danger: true });
+      if(!go) return;
+    }
+  }
   /* A correction typed and then Approve pressed: the two buttons sit side by
      side, and approving would drop the note and the photo without a word. */
   if(approving && ($('#dCorrNote').value.trim() || CORR_FILE)){
@@ -8149,6 +8264,16 @@ async function prodMove(){
      Released here means READY FOR THE COUNTER: the money question stays the
      counter's, exactly where it has always lived. */
   const releasing = !!o.printed_at;
+  /* Done printing with no chosen design is WARNED, not blocked (5 Oct):
+     production reports what already happened on the machine. */
+  if(!releasing){
+    const { data: fs } = await sb.from('jo_files').select('final_at').eq('job_order_id', o.id).is('removed_at', null);
+    if(!(fs || []).some(f => f.final_at)){
+      const go = await ask('No final design is chosen on JO ' + o.jo_no + ' - nothing is marked to print from. Mark it done printing anyway?',
+        { head: 'No final design chosen', yes: 'Done anyway', no: 'Go back' });
+      if(!go) return;
+    }
+  }
   /* The shop may DESIGNATE who releases (shops.release_staff, 3 Oct - "pam
      also is a production"): Done printing stays open to the whole bench,
      Move to Released then takes ONLY that person's PIN, whoever is tapped
