@@ -2,7 +2,7 @@
    Network-first: always fresh when online, still opens when the line drops.
    API calls are never cached — stale job order data is worse than no data.
    Bump CACHE on every deploy. */
-const CACHE = 'spawn-116';
+const CACHE = 'spawn-117';
 /* '/' only, never '/index.html': Cloudflare answers that with a 308 to
    '/', and a worker that hands a redirected response to a page load
    fails - fine in testing, broken on a counter phone days later. */
@@ -44,14 +44,17 @@ self.addEventListener('activate', e => {
        page that answers busy is left alone and shows its own bar. */
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     await Promise.all(wins.map(async c => {
-      const busy = await new Promise(res => {
+      /* Reload on 'idle', or on silence (an older build has no listener).
+         Any other answer - 'busy', or 'fresh' from a page this worker is the
+         FIRST install for - leaves the page alone. */
+      const go = await new Promise(res => {
         const ch = new MessageChannel();
-        const t = setTimeout(() => res(false), 1200);
-        ch.port1.onmessage = ev => { clearTimeout(t); res(ev.data === 'busy'); };
+        const t = setTimeout(() => res(true), 1200);
+        ch.port1.onmessage = ev => { clearTimeout(t); res(ev.data === 'idle'); };
         try { c.postMessage({ type: 'reload?' }, [ch.port2]); }
-        catch (e) { clearTimeout(t); res(false); }
+        catch (e) { clearTimeout(t); res(true); }
       });
-      if (!busy && typeof c.navigate === 'function') await c.navigate(c.url).catch(() => {});
+      if (go && typeof c.navigate === 'function') await c.navigate(c.url).catch(() => {});
     }));
   })());
 });

@@ -9913,12 +9913,19 @@ function newBuildArrived(){
   setTimeout(() => location.reload(), 2500);
 }
 window.__newBuildArrived = newBuildArrived;
+/* Three answers to the worker's "reload?": 'idle' (go ahead), 'busy' (leave
+   me, I will show the bar), and 'fresh' - this page had NO controller when
+   it loaded, so the worker that is asking is a first install, not a new
+   build, and reloading it would be the same lie as the bar on a first open
+   (found by the update suite, 6 Oct: every first install reloaded once). */
+window.__swHad = null;
 if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message', e => {
     if(!e.data || e.data.type !== 'reload?') return;
     const busy = appBusy();
-    if(e.ports && e.ports[0]) e.ports[0].postMessage(busy ? 'busy' : 'idle');
-    if(busy) showUpdateBar();
+    const ans = window.__swHad === false ? 'fresh' : (busy ? 'busy' : 'idle');
+    if(e.ports && e.ports[0]) e.ports[0].postMessage(ans);
+    if(busy && window.__swHad !== false) showUpdateBar();
   });
 }
 
@@ -9932,6 +9939,7 @@ if('serviceWorker' in navigator && location.pathname === '/'){
        that teaches people to ignore the next one. Only a change while a
        worker was already in charge means a new build took over. */
     const had = !!navigator.serviceWorker.controller;
+    window.__swHad = had;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if(had) newBuildArrived();
     });
