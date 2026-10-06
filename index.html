@@ -123,6 +123,11 @@
      so the 44px target is the plain button around it. */
   .avbtn{width:44px;height:44px;flex:none;display:grid;place-items:center;background:none;
          border:0;padding:0;cursor:pointer;border-radius:10px}
+  /* Move to Released with two designated people: whose PIN is this? */
+  .pmwho{display:flex;gap:8px;margin:0 0 10px}
+  .pmwho button{flex:1 1 0;min-width:0;height:42px;border:1.5px solid var(--line);border-radius:10px;
+                background:#fff;font:inherit;font-weight:800;color:var(--text);cursor:pointer}
+  .pmwho button[aria-pressed="true"]{border-color:var(--red);background:var(--red-wash);color:var(--red-deep)}
   /* the bell (6 Oct): a count of what is waiting, red; it swings when
      something new lands */
   .bellb{position:relative}
@@ -1935,6 +1940,13 @@ setTimeout(function(){
       <p class="small muted">Production's "Move to Released" asks for this person's PIN.
         "Done printing" stays open to everyone on the production bench.</p>
       <select id="relWho" style="max-width:100%"></select>
+      <!-- 6 Oct: a second person - EITHER PIN moves it. Anyone switched on,
+           because the second name is a counter ("Mel counter PIN"). Shown
+           only once a first person is chosen. -->
+      <label id="relWho2Wrap" style="display:block;margin-top:10px" hidden>
+        <span class="small muted">and also - either PIN moves jobs to Released</span>
+        <select id="relWho2" style="max-width:100%"></select>
+      </label>
       <div class="msg" id="relMsg"></div>
     </div>
     <div class="card" style="margin-top:12px">
@@ -2293,6 +2305,7 @@ setTimeout(function(){
   <div class="dh"><span class="no" id="pmHead">Done printing</span></div>
   <div class="db">
     <p class="small muted" id="pmWhat"></p>
+    <div class="pmwho" id="pmWhoPick" hidden></div>
     <label class="pwl" id="pmPinWrap"><span id="pmPinLab">Your 4-digit PIN</span>
       <input id="pmPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000">
     </label>
@@ -3310,6 +3323,13 @@ function renderStaff(){
       $('#relWho').innerHTML = '<option value="">Any production person</option>' +
         prods.map(r => `<option value="${esc(r.id)}">${esc(r.name)} only</option>`).join('');
       $('#relWho').value = prods.some(r => r.id === SHOP.release_staff) ? SHOP.release_staff : '';
+      /* the second list is everyone switched on but the first choice */
+      const w2 = $('#relWho2Wrap');
+      w2.hidden = !SHOP.release_staff;
+      const others = ROSTER.filter(r => r.active && r.id !== SHOP.release_staff);
+      $('#relWho2').innerHTML = '<option value="">Nobody else</option>' +
+        others.map(r => `<option value="${esc(r.id)}">${esc(r.name)} (${esc(r.bench)})</option>`).join('');
+      $('#relWho2').value = others.some(r => r.id === SHOP.release_staff2) ? SHOP.release_staff2 : '';
     }
   }
   $('#hLock').hidden = !onRoster().length;
@@ -3421,7 +3441,7 @@ async function boot(){
   if(SETUP_CODE) setTimeout(() => toast('This device is already set up - tap in with your PIN.'), 400);
 
   const { data:mine, error } = await sb.from('shop_users')
-    .select('full_name, role, bench, shop_id, shops(id,name,plan,trial_started_on,release_staff)')
+    .select('full_name, role, bench, shop_id, shops(id,name,plan,trial_started_on,release_staff,release_staff2)')
     .limit(1);
   if(error || !mine || !mine.length){
     $('#aMsg').className='msg err';
@@ -8468,22 +8488,29 @@ $('#dNext').onclick = async () => {
   refresh();
 };
 
-$('#relWho').onclick = () => { $('#relWho').dataset.was = SHOP.release_staff || ''; };
-$('#relWho').onchange = async () => {
-  const to = $('#relWho').value || null;
-  const was = SHOP.release_staff || null;
+/* One handler for both dropdowns (6 Oct). Asked for 3 Oct ("add pin after
+   confirming this"): this decides whose PIN releases every job, so each
+   change is confirmed with the owner's own PIN - the same gate as Remove
+   and Edit, checked by staff_check where the caller cannot reach it. With
+   no roster there is no PIN to ask for. Clearing the FIRST person clears the
+   second too: "nobody, and also Mel" is not a rule anyone meant. */
+async function relChange(sel, col){
+  const el = $(sel);
+  const to = el.value || null;
+  const was = SHOP[col] || null;
   if(to === was) return;
-  const back = () => { $('#relWho').value = was || ''; };
+  const back = () => { el.value = was || ''; };
   try{ assertWritable(); }catch(err){ back(); return toast(err.message); }
-  const name = to ? ((ROSTER.find(r => r.id === to) || {}).name || 'that person') : '';
-  /* Asked for 3 Oct ("add pin after confirming this"): this decides whose
-     PIN releases every job, so it is confirmed with the owner's own PIN -
-     the same gate as Remove and Edit, checked by staff_check where the
-     caller cannot reach it. With no roster there is no PIN to ask for. */
+  const nameOf = id => (ROSTER.find(r => r.id === id) || {}).name || 'that person';
+  const name = to ? nameOf(to) : '';
+  const first = SHOP.release_staff ? nameOf(SHOP.release_staff) : '';
+  const text = col === 'release_staff'
+    ? (to ? 'From now on only ' + name + '\u2019s PIN moves jobs to Released. Confirm with your PIN.'
+          : 'Any production person will be able to move jobs to Released. Confirm with your PIN.')
+    : (to ? name + '\u2019s PIN will also move jobs to Released, beside ' + first + '\u2019s. Confirm with your PIN.'
+          : 'Only ' + first + '\u2019s PIN will move jobs to Released. Confirm with your PIN.');
   if(STAFF){
-    const pin = await ask(to
-        ? 'From now on only ' + name + '\u2019s PIN moves jobs to Released. Confirm with your PIN.'
-        : 'Any production person will be able to move jobs to Released. Confirm with your PIN.',
+    const pin = await ask(text,
       { head: 'Who moves jobs to Released', input: 'Your PIN', pin: true, yes: 'Save', no: 'Cancel' });
     if(pin === null || pin === false){ back(); return; }
     const { data, error } = await sb.rpc('staff_check',
@@ -8491,13 +8518,30 @@ $('#relWho').onchange = async () => {
     if(error){ back(); return toast(error.message); }
     if(!(data || [])[0]){ back(); return toast('That is not your PIN. Nothing changed.'); }
   }
-  const { error } = await sb.from('shops').update({ release_staff: to }).eq('id', SHOP.id);
-  if(error){ $('#relWho').value = was || ''; $('#relMsg').textContent = error.message; return; }
-  SHOP.release_staff = to;
+  const patch = {}; patch[col] = to;
+  if(col === 'release_staff' && !to) patch.release_staff2 = null;
+  /* the database refuses the same person in both slots (build20g CHECK);
+     moving the second person up to first empties the second rather than
+     bouncing off that refusal */
+  if(col === 'release_staff' && to && to === SHOP.release_staff2) patch.release_staff2 = null;
+  const { error } = await sb.from('shops').update(patch).eq('id', SHOP.id);
+  if(error){
+    back();
+    /* build20g's two refusals, in the shop's words rather than Postgres's */
+    $('#relMsg').textContent = error.code === '23514' ? 'The same person cannot hold both slots.'
+      : /not on this shop/.test(error.message || '') ? 'That person is not on this shop.'
+      : error.message;
+    return;
+  }
+  Object.assign(SHOP, patch);
   $('#relMsg').textContent = '';
-  toast(to ? 'Only ' + (ROSTER.find(r => r.id === to) || {}).name + ' moves jobs to Released now.'
-           : 'Any production person can move jobs to Released.');
-};
+  toast(col === 'release_staff'
+    ? (to ? 'Only ' + name + ' moves jobs to Released now.' : 'Any production person can move jobs to Released.')
+    : (to ? name + ' can also move jobs to Released now.' : 'Only ' + first + ' moves jobs to Released now.'));
+  renderStaff();
+}
+$('#relWho').onchange = () => relChange('#relWho', 'release_staff');
+$('#relWho2').onchange = () => relChange('#relWho2', 'release_staff2');
 
 /* ── PRODUCTION'S MOVES ARE SIGNED WITH A PIN (3 Oct, DRAFT - not released).
    "Done printing" (printing -> ready): any switched-on production person's
@@ -8515,7 +8559,23 @@ $('#relWho').onchange = async () => {
    can ever ship - an UPDATE naming a column that does not exist fails
    whole, the build19a lesson. */
 let PM_O = null, PM_RELEASING = false, PM_STAGE = 'pin', PM_REL = null, PM_WHO = null,
-    PM_SIGNER = null, pmTimer = 0;
+    PM_SIGNER = null, pmTimer = 0, PM_WHOS = [];
+/* Two designated people (6 Oct): a picker of the two names above the PIN
+   box says whose PIN is being typed. It defaults to whoever is tapped in
+   when they are one of the two. */
+function paintPmWho(){
+  const box = $('#pmWhoPick');
+  box.innerHTML = '';
+  box.hidden = PM_WHOS.length < 2;
+  if(box.hidden) return;
+  PM_WHOS.forEach(p => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = p.name;
+    b.setAttribute('aria-pressed', String(PM_WHO && PM_WHO.id === p.id));
+    b.onclick = () => { PM_WHO = p; paintPmWho(); $('#pmPinLab').textContent = p.name + '\u2019s 4-digit PIN'; $('#pmMsg').textContent = ''; $('#pmPin').focus(); };
+    box.append(b);
+  });
+}
 const pmDlg = $('#pmDlg');
 async function prodMove(){
   const o = CUR;
@@ -8541,19 +8601,25 @@ async function prodMove(){
      Move to Released then takes ONLY that person's PIN, whoever is tapped
      in. Unset, any production PIN - a shop that never sets it loses
      nothing. */
-  PM_WHO = null;
-  if(releasing && SHOP.release_staff){
-    const nm = await staffName(SHOP.release_staff);
-    PM_WHO = { id: SHOP.release_staff, name: nm || 'the person the owner chose' };
+  PM_WHO = null; PM_WHOS = [];
+  if(releasing){
+    for(const id of [SHOP.release_staff, SHOP.release_staff2].filter(Boolean)){
+      const nm = await staffName(id);
+      PM_WHOS.push({ id, name: nm || 'the person the owner chose' });
+    }
+    if(PM_WHOS.length) PM_WHO = PM_WHOS.find(p => STAFF && p.id === STAFF.id) || PM_WHOS[0];
   }
   PM_O = o; PM_RELEASING = releasing; PM_STAGE = 'pin'; PM_REL = null; PM_SIGNER = null;
   $('#pmHead').textContent = releasing ? 'Move to Released' : 'Done printing';
+  const whoText = PM_WHOS.length > 1
+    ? 'Only ' + PM_WHOS.map(p => p.name).join('\u2019s or ') + '\u2019s PIN moves jobs to Released.'
+    : PM_WHO ? 'Only ' + PM_WHO.name + '\u2019s PIN moves jobs to Released.' : '';
   $('#pmWhat').textContent = 'JO ' + o.jo_no + (releasing
-    ? ' is finished and goes to the front. ' + (PM_WHO
-        ? 'Only ' + PM_WHO.name + '\u2019s PIN moves jobs to Released.'
+    ? ' is finished and goes to the front. ' + (PM_WHO ? whoText
         : 'Your PIN first, ' + STAFF.name + ' - the move is recorded under your name.')
     : ' is off the printer. Type your PIN, ' + STAFF.name + ' - it is recorded under your name.');
   $('#pmPinLab').textContent = PM_WHO ? PM_WHO.name + '\u2019s 4-digit PIN' : 'Your 4-digit PIN';
+  paintPmWho();
   $('#pmPin').value = ''; $('#pmMsg').textContent = '';
   $('#pmPinWrap').hidden = false;
   $('#pmRel').hidden = true; $('#pmQ').value = ''; $('#pmHits').innerHTML = '';
@@ -8587,7 +8653,7 @@ $('#pmGo').onclick = async () => {
       return pmFinish({ printed_at: new Date().toISOString() },
                       ' done printing - ' + PM_SIGNER.name);
     PM_STAGE = 'who';
-    $('#pmPinWrap').hidden = true;
+    $('#pmPinWrap').hidden = true; $('#pmWhoPick').hidden = true;
     $('#pmRel').hidden = false;
     $('#pmWhat').textContent = 'Who is JO ' + PM_O.jo_no + ' handed to?';
     $('#pmGo').textContent = 'Release';
