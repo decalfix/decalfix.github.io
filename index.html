@@ -10,6 +10,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,600;0,700;0,800;0,900;1,900&display=swap">
 <title>Decal Fix OS</title>
+<script>
+/* SPAWN NOTEBOOK'S OWN ADDRESS (notebook stage 4). spwnapp.github.io serves
+   the same build as decalfix.github.io, for every shop that is not Decal
+   Fix. Before anyone signs in there is no shop to brand from, so the ADDRESS
+   says whose app this is: html.spwn swaps every "Decal Fix OS" a signed-out
+   person can see for "Spawn Notebook" (.df-only / .spwn-only), here in the
+   head, before the first paint. Decal Fix's own addresses never match. */
+(function(){
+  var h = location.hostname.replace(/\.$/, '').toLowerCase();
+  /* both of Spawn Notebook's addresses: the GitHub one and its Cloudflare
+     backup (claimed 6 Oct). Decal Fix's addresses never match. */
+  if(h === 'spwnapp.github.io' || h === 'spwnapp.pages.dev'){
+    document.documentElement.classList.add('spwn');
+    document.title = 'Spawn Notebook';
+  }
+})();
+</script>
 <style>
   /* ============================================================
      Decal Fix Counter OS - visual system from the handoff kit.
@@ -95,12 +112,12 @@
   #stop .srow .btn{flex:1}
 
   /* auth */
-  #auth,#setup{min-height:100dvh;display:grid;place-items:center;padding:24px}
-  #auth .box,#setup .box{width:100%;max-width:400px;background:#fff;border-radius:var(--r-lg);
+  #auth,#setup,#shopnew{min-height:100dvh;display:grid;place-items:center;padding:24px}
+  #auth .box,#setup .box,#shopnew .box{width:100%;max-width:400px;background:#fff;border-radius:var(--r-lg);
              box-shadow:0 1px 2px rgba(0,0,0,.05),0 18px 50px rgba(0,0,0,.07);padding:26px}
-  #auth h1,#setup h1{font-size:30px;margin:0 0 2px}
-  #auth p.s,#setup p.s{color:var(--text-2);font-size:12px;font-weight:600;margin:0 0 18px}
-  #auth .row,#setup .row{display:grid;gap:12px;margin-bottom:14px}
+  #auth h1,#setup h1,#shopnew h1{font-size:30px;margin:0 0 2px}
+  #auth p.s,#setup p.s,#shopnew p.s{color:var(--text-2);font-size:12px;font-weight:600;margin:0 0 18px}
+  #auth .row,#setup .row,#shopnew .row{display:grid;gap:12px;margin-bottom:14px}
   .tabsw{display:flex;gap:6px;margin-bottom:18px}
   .tabsw button{flex:1;border:1.5px solid var(--line-strong);background:#fff;border-radius:9px;height:44px;
                 font-weight:800;font-size:12.5px;letter-spacing:.04em;cursor:pointer;color:var(--text-2)}
@@ -1087,7 +1104,7 @@
   #splash .osname{font-weight:800;font-size:13px;color:#fff;letter-spacing:.32em;margin-top:22px}
   #splash .bar{width:100%;max-width:230px;height:5px;background:rgba(255,255,255,.14);
                border-radius:99px;overflow:hidden;margin-top:24px}
-  #splash .bar i{display:block;height:100%;background:var(--red);border-radius:99px;width:4%;transition:width .5s ease}
+  #splash .bar i{display:block;height:100%;background:var(--sp-c,var(--red));border-radius:99px;width:4%;transition:width .5s ease}
   #splash .boot{font-weight:700;font-size:11.5px;color:#B4B4B0;letter-spacing:.1em;margin-top:12px}
 
   /* ---------- footer band ---------- */
@@ -1309,6 +1326,9 @@
     #slip .cut{border-top:1px dashed #000;margin:16px 0 0;padding-top:14px}
     #slip .rule{height:4px;background:#000;margin-bottom:8px}
     #slip h3{margin:0;font-size:15px;font-weight:800;letter-spacing:-.01em}
+    /* a notebook shop's own logo, address and phone (stage 2) */
+    #slip .slogo{display:block;max-height:46px;max-width:150px;margin:0 0 4px}
+    #slip .sinfo{font-size:10px;font-weight:600;margin-top:1px}
     #slip .kind{font-size:9px;font-weight:800;letter-spacing:.18em;margin-top:2px}
     #slip .ref{font-size:11px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
     #slip .cust{font-size:12px;font-weight:700;margin-top:6px}
@@ -1365,6 +1385,117 @@
     nav button{flex:0 0 auto;padding:12px 14px;white-space:nowrap}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  /* ── THE NOTEBOOK EDITION (5 Oct, build20c) ──
+     Every rule that changes what a shop sees is under `body.nb`, which only
+     applyEdition() sets and only for a shop whose `edition` is 'notebook'.
+     A full shop matches none of them. The base rules here only style
+     elements a full shop never shows (they carry `hidden` or stay empty). */
+  /* Spawn Notebook's address (stage 4): one class on <html>, set in <head> */
+  .spwn-only{display:none}
+  html.spwn .spwn-only{display:inline}
+  html.spwn .df-only{display:none}
+  /* the visible "New shop?" link is Spawn Notebook's alone: Decal Fix's sign-in
+     screen never offers to start a shop. A ?shopcode= link still opens
+     anywhere - a full-edition code opens the address it was made on. */
+  html:not(.spwn) #aShopNew{display:none}
+  .hshop,.lshop{display:none}
+  .hhome{flex:none;height:36px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.4);
+         background:transparent;color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+  .hhome[hidden]{display:none}
+  body.nb header .hmark{display:none}
+  body.nb .hshop{display:block;flex:1 1 auto;min-width:0;font-size:17px;font-weight:800;color:#fff;
+                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.nb nav{display:none}
+  body.nb #lock .sband,body.nb #lock .sawtooth,body.nb #lock .osline{display:none}
+  body.nb .lshop{display:block;font-size:24px;font-weight:800;text-align:center;
+                 padding:32px 16px 6px;overflow-wrap:anywhere}
+  /* files, Drive, artists, production, approvals and government work: none
+     of it exists in a notebook shop */
+  body.nb #drvCard,body.nb #relCard,body.nb #govCard,body.nb #acPeople,body.nb .stdrive,
+  body.nb .ifiles,body.nb #fType,body.nb #fGovWrap,body.nb #fArtWrap,
+  body.nb #dFiles,body.nb #dCorrBox,body.nb #dAddWhole,body.nb #dLinkRow,body.nb #dDriveTools,
+  body.nb #dPrintFile,body.nb #dArtWrap,body.nb #dSendBack,body.nb #dPoRow,
+  body.nb #vSales .nbhide{display:none!important}
+
+  /* The header holds Home, the screen's name and the avatar. Lock is a tile,
+     and on a phone the name and clock gave way to a title cut to "Ord…"
+     (seen at 360px on the first screenshot). The avatar still says who. */
+  body.nb #hLock{display:none!important}
+  @media (max-width:520px){ body.nb header .who{display:none} }
+  /* room under the last tiles for the calculator button */
+  .nbhome{padding:2px 0 96px}
+  .nbday{font-size:13px;font-weight:700;color:var(--grey);margin:2px 2px 12px}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ntile{appearance:none;border:0;border-radius:var(--r);min-height:104px;min-width:0;padding:14px;
+         color:#fff;text-align:left;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;
+         font:inherit;cursor:pointer;position:relative;overflow:hidden;
+         -webkit-tap-highlight-color:transparent;transition:transform .08s}
+  .ntile[hidden]{display:none}
+  .ntile.wide{grid-column:1/-1}
+  .ntile .tl{font-size:18px;font-weight:800}
+  .ntile .tn{font-size:13px;font-weight:600;opacity:.92;overflow-wrap:anywhere}
+  .ntile .ti{position:absolute;top:6px;right:14px;font-size:46px;font-weight:300;line-height:1;opacity:.9}
+  .ntile:active{transform:scale(.98)}
+  .ntile:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  /* Solid colours with white text, every one at least 5:1. The brand colour
+     will come from the shop's logo (stage 2); until then, teal. Past due is
+     red only while something is late - a red tile reading "Nothing late"
+     would teach people to ignore the red one. */
+  .t-new{background:var(--nb-brand,#0F766E)}
+  .t-orders{background:#1D4ED8}
+  .t-ready{background:#0C6647}
+  .t-late{background:#B91C1C}
+  .t-late.calm{background:#64748B}
+  .t-cust{background:#6D28D9}
+  .t-sales{background:#141414}
+  .t-set{background:#334155}
+  .t-lock{background:#57534E}
+  @media (min-width:700px){
+    .tiles{grid-template-columns:repeat(4,1fr)}
+    .ntile.wide{grid-column:span 2}
+  }
+
+  /* ── THE SHOP'S OWN LOOK (stage 2) ── `body.brand` is set by applyBrand()
+     only in a notebook shop with a saved colour. Danger buttons, late, owed
+     and paid are deliberately left alone: their colour is their meaning. */
+  .hlogo{height:38px;width:auto;max-width:96px;flex:none;border-radius:8px;object-fit:contain}
+  .hlogo[hidden],.llogo[hidden]{display:none}
+  body.nb #hHome:not([hidden]) ~ .hlogo{display:none}      /* Home + title already fill it */
+  .llogo{display:block;margin:28px auto 0;max-height:96px;max-width:200px;object-fit:contain}
+  body.nb .llogo + .lshop{padding-top:12px}
+  #splash img.nblogo{max-width:180px;max-height:180px;border-radius:18px;object-fit:contain}
+  #splash .nbname{font-size:20px;letter-spacing:.02em;text-align:center;margin-top:18px}
+  body.nb.brand header{background-color:var(--nb-brand-deep);background-image:none}
+  body.nb.brand header::after{background:var(--nb-brand-deep);
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='16' preserveAspectRatio='none'%3E%3Cpath d='M0,0 H120 V8 C105,26 95,-10 80,8 C65,26 55,-10 40,8 C25,26 15,-10 0,8 Z' fill='%23000'/%3E%3C/svg%3E") repeat-x 0 0/120px 16px;
+            mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='16' preserveAspectRatio='none'%3E%3Cpath d='M0,0 H120 V8 C105,26 95,-10 80,8 C65,26 55,-10 40,8 C25,26 15,-10 0,8 Z' fill='%23000'/%3E%3C/svg%3E") repeat-x 0 0/120px 16px}
+  body.nb.brand .btn:not(.ghost):not(.danger):not(.dark):not(:disabled){background:var(--nb-brand)}
+  body.nb.brand .btn:not(.ghost):not(.danger):not(.dark):not(:disabled):hover{background:var(--nb-brand-deep)}
+  body.nb.brand .fab:not(.calcfab){box-shadow:0 8px 24px rgba(0,0,0,.28)}
+  body.nb.brand .avatar{background:var(--nb-brand)}
+  body.nb.brand .lshop{color:var(--nb-brand-deep)}
+  .brlogo{display:grid;place-items:center;min-height:110px;border:1.5px dashed var(--line-strong);
+          border-radius:var(--r);background:var(--surface-2);margin-bottom:10px}
+  .brlogo img{max-height:96px;max-width:70%;object-fit:contain}
+  .brlogo img[hidden],.brlogo span[hidden]{display:none}
+  .brbtns{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+  /* a label dressed as a button: the form-label look (column, 11.5px capitals)
+     has to be undone, or the words sit at the top of the box in capitals */
+  .brbtns label.btn{display:inline-flex;flex-direction:row;align-items:center;justify-content:center;
+                    font-size:15px;text-transform:none;letter-spacing:.04em;cursor:pointer}
+  /* with a brand, Orders takes its deep shade so it never sits beside a
+     same-looking New order tile (a blue logo next to the blue Orders tile) */
+  body.nb.brand .t-orders{background:var(--nb-brand-deep)}
+  .swatches{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .sw{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 8px;border-radius:24px;
+      border:1.5px solid var(--line-strong);background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+  .sw i{width:26px;height:26px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+  .sw[aria-pressed=true]{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+  /* Spawn's shop-code card (stage 3) */
+  .scout{margin-top:12px;padding:12px;border-radius:var(--r);background:var(--surface-2);text-align:center}
+  .sccode{font-size:28px;font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+  .sclink{overflow-wrap:anywhere;margin-top:6px;color:var(--text-2)}
 </style>
 </head>
 <body>
@@ -1410,7 +1541,8 @@ setTimeout(function(){
      the wifi, then try again.</p>
   <button type="button" onclick="location.reload()">Try again</button>
   <p style="font-size:13px">If it keeps failing on this phone, open
-     <strong>decalfix.github.io</strong> in the browser and tell Spawn what it says.</p>
+     <strong class="df-only">decalfix.github.io</strong><strong class="spwn-only">spwnapp.github.io</strong>
+     in the browser and tell Spawn what it says.</p>
 </div>
 
 <div id="splash">
@@ -1422,6 +1554,35 @@ setTimeout(function(){
   </div>
   <div class="appfoot"><i class="bullet"></i><span>Powered by <strong>Spawn Solutions</strong></span></div>
 </div>
+<script>
+/* A NOTEBOOK SHOP'S OWN SPLASH (stage 2). This runs before there is a
+   session, so it reads what the app kept last time: `df_brand` is written
+   only by a notebook shop and removed by a full one, so Decal Fix's splash
+   is untouched. Plain script, like the watchdog - no module, no import. */
+try{
+  var nbB = JSON.parse(localStorage.getItem('df_brand') || 'null');
+  if(nbB && nbB.edition === 'notebook'){
+    var nbS = document.getElementById('splash');
+    var nbI = nbS && nbS.querySelector('img'), nbO = nbS && nbS.querySelector('.osname');
+    if(nbI){
+      if(nbB.logo && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/]+=*$/.test(nbB.logo)){
+        nbI.src = nbB.logo; nbI.alt = nbB.name || ''; nbI.className = 'nblogo';
+      }else nbI.remove();
+    }
+    if(nbO){ nbO.textContent = nbB.name || ''; nbO.className = 'osname nbname'; }
+    if(nbS) nbS.style.backgroundImage = 'none';     // Decal Fix's red hexagons are Decal Fix's
+    if(nbB.color && /^#[0-9a-f]{6}$/i.test(nbB.color)) nbS.style.setProperty('--sp-c', nbB.color);
+  }else if(document.documentElement.classList.contains('spwn')){
+    /* Spawn's address, a phone that has not opened its shop yet: no
+       Decal Fix mark, just the app's name. */
+    var spS = document.getElementById('splash');
+    var spI = spS && spS.querySelector('img'), spO = spS && spS.querySelector('.osname');
+    if(spI) spI.remove();
+    if(spO){ spO.textContent = 'SPAWN NOTEBOOK'; spO.className = 'osname nbname'; }
+    if(spS) spS.style.backgroundImage = 'none';
+  }
+}catch(e){}
+</script>
 
 <!-- ───────── sign in ───────── -->
 <!-- Hidden until boot() decides. It used to paint first, so every reload
@@ -1430,8 +1591,8 @@ setTimeout(function(){
      a slow line. boot() reveals it, and so does its own failure path. -->
 <section id="auth" hidden>
   <div class="box">
-    <h1 class="mark">Decal<span class="b">Fix</span> OS</h1>
-    <p class="s">Job orders, balances and sales.</p>
+    <h1 class="mark"><span class="df-only">Decal<span class="b">Fix</span> OS</span><span class="spwn-only">Spawn<span class="b"> Notebook</span></span></h1>
+    <p class="s"><span class="df-only">Job orders, balances and sales.</span><span class="spwn-only">Your shop's orders, payments and sales.</span></p>
     <!-- One account per shop, and public sign-up is off from 16 Sep, so
          "New account" pointed at an endpoint the server refuses. It is hidden
          rather than deleted: onboarding shop #2 needs it back for as long as
@@ -1469,6 +1630,41 @@ setTimeout(function(){
     <div class="setor"><span>or</span></div>
     <button type="button" class="btn ghost" id="aSetup" style="width:100%">Set up with a code</button>
     <p class="small muted" style="text-align:center;margin:6px 0 0">Got a code from the counter? Tap here.</p>
+    <!-- notebook stage 3: a NEW shop, with a code from Spawn -->
+    <button type="button" class="linky" id="aShopNew" style="margin-top:14px">New shop? Start with a code from Spawn</button>
+  </div>
+</section>
+
+<!-- A NEW SHOP SETS ITSELF UP (5 Oct, notebook stage 3, build20e). Spawn
+     gives the owner a one-time shop code; this screen makes the owner's
+     account and the shop through the Worker (/signup/*), then signs in.
+     Public sign-up stays closed - the code is the door. -->
+<section id="shopnew" hidden>
+  <div class="box">
+    <h1>Start your shop</h1>
+    <p class="s">With the code Spawn gave you</p>
+    <div id="snStep1">
+      <label>Shop code<input id="snCode" autocomplete="off" autocapitalize="characters"
+             spellcheck="false" maxlength="13" placeholder="K7Q4M-ZP9RW"></label>
+      <button class="btn" id="snCheck" style="width:100%;margin-top:12px">Continue</button>
+    </div>
+    <div id="snStep2" hidden>
+      <p class="suwho" id="snFor"></p>
+      <div class="row">
+        <label>Shop name<input id="snShop" maxlength="60" autocomplete="organization"></label>
+        <label>Your name<input id="snName" maxlength="60" autocomplete="name"></label>
+        <label>Email - you sign in with it<input id="snEmail" type="email" inputmode="email" autocomplete="email"></label>
+        <label>Password - at least 8 characters<input id="snPass" type="password" autocomplete="new-password"></label>
+        <label>The same password again<input id="snPass2" type="password" autocomplete="new-password"></label>
+        <label>Address (optional)<input id="snAddr" maxlength="160" autocomplete="street-address"></label>
+        <label>Phone (optional)<input id="snPhone" maxlength="60" inputmode="tel" autocomplete="tel"></label>
+      </div>
+      <p class="small muted" style="margin:6px 0 0">Write the email and password down somewhere safe.
+        A forgotten password is reset by email - look in spam.</p>
+      <button class="btn" id="snGo" style="width:100%;margin-top:12px">Create my shop</button>
+    </div>
+    <div class="msg" id="snMsg"></div>
+    <button type="button" class="linky" id="snBack">Back to sign in</button>
   </div>
 </section>
 
@@ -1476,7 +1672,7 @@ setTimeout(function(){
      link (?setup=CODE). The device is not signed in yet. -->
 <section id="setup" hidden>
   <div class="box">
-    <h1 class="mark">Decal<span class="b">Fix</span> OS</h1>
+    <h1 class="mark"><span class="df-only">Decal<span class="b">Fix</span> OS</span><span class="spwn-only">Spawn<span class="b"> Notebook</span></span></h1>
     <p class="s">Set up this device</p>
     <div id="suStep1">
       <label>Setup code<input id="suCode" autocomplete="off" autocapitalize="characters"
@@ -1515,6 +1711,10 @@ setTimeout(function(){
 <header>
   <div class="in">
     <img class="hmark" src="mark-600.png" alt="Decal Fix">
+    <!-- notebook edition only: the way back to the tiles, and the shop's own name -->
+    <button type="button" class="hhome" id="hHome" hidden aria-label="Back to the home screen">&#8249; Home</button>
+    <img class="hlogo" id="hLogo" hidden alt="">
+    <span class="hshop" id="hShop"></span>
     <span class="who"><span id="hWho"></span><span id="hClock"></span></span>
     <button class="avbtn bellb" id="hBell" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="bn" id="hBellN" hidden></span></button>
     <button class="avbtn" id="hAcct" type="button" aria-label="Your account"><span class="avatar" id="hAv"></span></button>
@@ -1527,6 +1727,8 @@ setTimeout(function(){
     <div class="sband"><img src="mark-600.png" alt="Decal Fix"></div>
     <div class="sawtooth"></div>
     <div class="osline">COUNTER OS</div>
+    <img class="llogo" id="lLogo" hidden alt="">
+    <div class="lshop" id="lShop"></div>
 
     <div id="lPerson">
       <p id="lWho">Signing in as</p>
@@ -1554,6 +1756,8 @@ setTimeout(function(){
   <div class="in" role="tablist">
     <!-- Analytics first (27 Sep): it is the owner's front page. Hidden for
          every bench that may not see sales, so for them Dashboard still leads. -->
+    <!-- the notebook edition's front page; never shown in the full edition -->
+    <button id="nvHome"  role="tab" aria-selected="false" hidden>Home</button>
     <button id="nvSales" role="tab" aria-selected="false">Analytics</button>
     <button id="nvDash"  role="tab" aria-selected="true">Dashboard</button>
     <button id="nvNew"   role="tab" aria-selected="false">New order</button>
@@ -1564,6 +1768,51 @@ setTimeout(function(){
 </nav>
 
 <main>
+  <!-- THE NOTEBOOK EDITION'S HOME (5 Oct): big tiles, each opening its own
+       screen, the way a phone's home screen opens apps. Asked for with a
+       picture of the Windows 8 start screen. The numbers on the tiles are
+       live, like that screen's weather tile. Drawn by renderHome(). -->
+  <section class="view" id="vHome" hidden>
+    <div class="nbhome">
+      <div class="nbday" id="hmDay"></div>
+      <div class="tiles" id="hmTiles">
+        <button type="button" class="ntile wide t-new" data-go="new">
+          <span class="ti" aria-hidden="true">+</span>
+          <span class="tl">New order</span>
+          <span class="tn">Take a job order</span>
+        </button>
+        <button type="button" class="ntile t-orders" data-go="orders">
+          <span class="tl">Orders</span>
+          <span class="tn" id="hmOpen">0 open</span>
+        </button>
+        <button type="button" class="ntile t-ready" data-go="ready">
+          <span class="tl">Ready</span>
+          <span class="tn" id="hmReady">0 to claim</span>
+        </button>
+        <button type="button" class="ntile t-late" data-go="late" id="hmLateTile">
+          <span class="tl">Past due</span>
+          <span class="tn" id="hmLate">0 late</span>
+        </button>
+        <button type="button" class="ntile t-cust" data-go="cust" id="hmCustTile">
+          <span class="tl">Customers</span>
+          <span class="tn" id="hmCust">Who owes</span>
+        </button>
+        <button type="button" class="ntile wide t-sales" data-go="sales" id="hmSalesTile">
+          <span class="tl">Sales</span>
+          <span class="tn" id="hmSales">Cash today ₱0</span>
+        </button>
+        <button type="button" class="ntile t-set" data-go="staff" id="hmStaffTile">
+          <span class="tl">Settings</span>
+          <span class="tn">People and PINs</span>
+        </button>
+        <button type="button" class="ntile t-lock" data-go="lock" id="hmLockTile">
+          <span class="tl">Lock</span>
+          <span class="tn">Hand the phone over</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
   <!-- new order -->
   <section class="view" id="vNew" hidden>
     <div class="card">
@@ -1816,7 +2065,7 @@ setTimeout(function(){
       <div class="tile cash"><div class="k">Cash on hand today</div><div class="v" id="tCashT">₱0</div>
         <div class="note">Cash payments received today - what should be in the drawer.</div>
         <div class="bym">Collected today, all methods: <b id="tGotT">₱0</b><br><span id="tGotTBy"></span></div></div>
-      <div class="tile ar"><div class="k">Receivables · today's orders</div><div class="v" id="tArT">₱0</div>
+      <div class="tile ar nbhide"><div class="k">Receivables · today's orders</div><div class="v" id="tArT">₱0</div>
         <div class="note">Still unpaid on the orders taken today.</div></div>
       <div class="tile dark"><div class="k">Sales today</div><div class="v" id="tToday">₱0</div><div class="k" id="tTodayN"></div>
         <div class="split" id="tTodaySplit"></div></div>
@@ -1830,34 +2079,34 @@ setTimeout(function(){
       <div class="k">Total receivables · still to collect</div>
       <div class="v" id="tOwed">₱0</div>
       <div class="k" id="tOwedN"></div>
-      <div class="ages">
+      <div class="ages nbhide">
         <div class="age"><div class="v" id="tA1">₱0</div><div class="k">0–7 days</div></div>
         <div class="age"><div class="v" id="tA2">₱0</div><div class="k">8–30 days</div></div>
         <div class="age"><div class="v" id="tA3" style="color:var(--red)">₱0</div><div class="k">30 days +</div></div>
       </div>
-      <div class="agebar" id="tAgeBar" aria-hidden="true"></div>
+      <div class="agebar nbhide" id="tAgeBar" aria-hidden="true"></div>
       <!-- A figure nobody can open is a figure nobody can chase. -->
       <button type="button" class="owedgo" id="tOwedGo" aria-expanded="false"
               aria-controls="tOwedList">Show the orders</button>
       <div class="owedlist" id="tOwedList" hidden></div>
     </div>
-    <div class="card" style="margin-top:12px">
+    <div class="card nbhide" style="margin-top:12px">
       <h2>Orders taken per day</h2>
       <div class="chart" id="tDays"></div>
       <div class="small muted" id="tDaysK" style="margin-top:6px"></div>
     </div>
     <!-- money IN per day, beside the orders-taken chart above (27 Sep) -->
-    <div class="card" style="margin-top:12px">
+    <div class="card nbhide" style="margin-top:12px">
       <h2>Collected per day</h2>
       <div class="chart" id="tPaidDays"></div>
       <div class="small muted" id="tPaidDaysK" style="margin-top:6px"></div>
     </div>
     <!-- the job-type colours from the board, as the month's sales -->
-    <div class="card" style="margin-top:12px">
+    <div class="card nbhide" style="margin-top:12px">
       <h2>Sales by job type</h2>
       <div id="tCats" class="small tcats"></div>
     </div>
-    <div class="card" style="margin-top:12px">
+    <div class="card nbhide" style="margin-top:12px">
       <h2>What sells</h2>
       <div id="tMix" class="small"></div>
     </div>
@@ -1867,7 +2116,7 @@ setTimeout(function(){
       <h2>Customers who owe</h2>
       <div id="tCust" class="small"></div>
     </div>
-    <div class="card" style="margin-top:12px">
+    <div class="card nbhide" style="margin-top:12px">
       <h2>Government accounts</h2>
       <div id="tGov" class="small"></div>
     </div>
@@ -1876,6 +2125,24 @@ setTimeout(function(){
 
   <!-- staff -->
   <section class="view" id="vStaff" hidden>
+    <!-- NOTEBOOK EDITION, owner only (stage 2): the shop's logo, colour,
+         address and phone. Never drawn in the full edition. -->
+    <div class="card brandcard" id="brandCard" hidden>
+      <h2>Your shop's look</h2>
+      <div class="brlogo"><img id="brImg" alt="Your logo" hidden><span id="brNone" class="small muted">No logo yet</span></div>
+      <div class="brbtns">
+        <label class="btn ghost">Upload logo<input type="file" id="brFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+        <button type="button" class="linkbtn" id="brDrop" hidden>Remove logo</button>
+      </div>
+      <p class="small muted" id="brSwHint" hidden>Your colours, taken from your logo:</p>
+      <div class="swatches" id="brSw" role="group" aria-label="The app's colour"></div>
+      <div class="grid2" style="margin-top:12px">
+        <label class="wide">Address - printed on the claim stub<input id="brAddr" maxlength="160" autocomplete="off" placeholder="e.g. Rizal Ave, Dipolog City"></label>
+        <label class="wide">Phone<input id="brPhone" maxlength="60" autocomplete="off" inputmode="tel" placeholder="09xx"></label>
+      </div>
+      <button class="btn" id="brSave" style="width:100%;margin-top:12px">Save</button>
+      <div class="msg" id="brMsg"></div>
+    </div>
     <!-- the shop's Google Drive, through the spawn-drive Worker -->
     <div class="card" id="drvCard">
       <h2>Google Drive</h2>
@@ -1917,6 +2184,30 @@ setTimeout(function(){
          ids - a name can be edited by the owner, and with one account per shop
          the owner is the client. This is here so the button does not exist
          where it would fail. -->
+    <!-- SPAWN ONLY (notebook stage 3): a one-time code a new shop sets itself
+         up with. On a demo shop's Staff tab, owner only, and the database asks
+         for the platform admin PIN - the card is a convenience, not the lock. -->
+    <div class="card" id="scCard" style="margin-top:12px" hidden>
+      <h2>Spawn: make a shop code</h2>
+      <p class="small muted">A new shop types it on the sign-in screen and sets itself up. One use, good for 14 days.</p>
+      <div class="grid2">
+        <label class="wide">Who it is for<input id="scNote" maxlength="80" autocomplete="off" placeholder="e.g. Juan's Print, Dipolog"></label>
+        <label class="wide">Edition<select id="scEd">
+          <option value="notebook">Notebook - orders and sales only</option>
+          <option value="full">Full - files, artists, production</option>
+        </select></label>
+        <label class="wide">Spawn admin PIN<input id="scPin" type="password"
+          inputmode="numeric" maxlength="4" autocomplete="off" placeholder="····"></label>
+      </div>
+      <button type="button" class="btn" id="scGo" style="width:100%;margin-top:10px">Make the code</button>
+      <div id="scOut" class="scout" hidden>
+        <div class="sccode" id="scCode"></div>
+        <div class="small" id="scWhen"></div>
+        <div class="small sclink" id="scLink"></div>
+        <button type="button" class="btn ghost" id="scCopy" style="width:100%;margin-top:8px">Copy the link</button>
+      </div>
+      <div class="msg" id="scMsg"></div>
+    </div>
     <div class="card" id="dmoCard" style="margin-top:12px" hidden>
       <h2 id="dmoTitle">Clear this demo</h2>
       <p class="small muted" id="dmoBlurb">Deletes every job order on this demo shop, with its payments and
@@ -2342,7 +2633,7 @@ setTimeout(function(){
       <div class="qrbox" id="dvQr" aria-label="QR code to scan"></div>
       <div class="dvcode" id="dvCode"></div>
       <p class="small muted" style="text-align:center">Scan with the phone's camera - or on the new device open
-        <b>decalfix.github.io</b>, tap <b>Set up with a code</b> and type the code.</p>
+        <b class="df-only">decalfix.github.io</b><b class="spwn-only">spwnapp.github.io</b>, tap <b>Set up with a code</b> and type the code.</p>
       <p class="small muted" style="text-align:center">On an iPhone: add the app to the Home Screen first, then type the code.</p>
       <div class="dvcount" id="dvCount"></div>
     </div>
@@ -2611,7 +2902,14 @@ const BUILD = 19;
    switched off, and old code must not write to a real shop. */
 const LIVE_ORIGINS = ['spawn-solutions.pages.dev',
                       'decalfix.pages.dev',
-                      'decalfix.github.io'];
+                      'decalfix.github.io',
+                      /* every notebook shop (stage 4, owned: org spwnapp),
+                         and its Cloudflare backup - claimed 6 Oct as the
+                         `spwnapp` Pages project, which is why it may join:
+                         an unclaimed name on this list would be production
+                         for whoever registered it first. */
+                      'spwnapp.github.io',
+                      'spwnapp.pages.dev'];
 /* `decalfix.github.io.` and `decalfix.github.io` are the same site and two
    different ORIGINS - separate session, separate cache, separate worker. A
    trailing root dot is legal in a URL and browsers keep it, so an address
@@ -2668,7 +2966,12 @@ const $  = s => document.querySelector(s);
 const peso = n => '₱' + Number(n||0).toLocaleString('en-PH',{maximumFractionDigits:2});
 const SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
 const STEP  = { '3XL':1, '4XL':2 };
-const FLOW  = ['new','layout','for_approval','printing','ready','claimed'];
+const FULL_FLOW = ['new','layout','for_approval','printing','ready','claimed'];
+/* A notebook shop's whole flow is taken -> ready -> released (build20c).
+   `let`, swapped by applyEdition() once the shop is known, so every
+   `FLOW[FLOW.indexOf(...)+1]` in the app reads the shop's own steps. */
+const NB_FLOW = ['new','ready','claimed'];
+let FLOW = FULL_FLOW;
 const LABEL = { new:'Received', layout:'With artist', for_approval:'For approval',
                 printing:'Producing', ready:'Ready', claimed:'Released', cancelled:'Voided' };
 const today = () => new Date(Date.now() - new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
@@ -2789,6 +3092,266 @@ const canSeeMoney   = () => ['office','owner'].includes(BENCH) || ROLE === 'owne
    and owner (27 Sep: "the counter can see the paid today, total unpaid of the
    month but never the total sales of the day and the month"). */
 const canSeeTakings = () => canSeeMoney() || BENCH === 'counter';
+
+/* ── THE NOTEBOOK EDITION (5 Oct, build20c) ──
+   One app, two editions, chosen by `shops.edition` - which only postgres can
+   set. 'full' is everything Decal Fix has. 'notebook' is the order notebook
+   for small shops: orders, money, customers and sales, and NOTHING about
+   files, artists, production or approvals.
+   **Every notebook rule is gated on NB(), and every hide is scoped under
+   `body.nb`**, so a full shop runs exactly the code it ran before - that is
+   the promise made when this was built ("this should not affect decalfix"). */
+const NB = () => !!SHOP && SHOP.edition === 'notebook';
+const NB_BENCHES = ['counter','office','owner'];
+const NB_TITLES = { nvNew:'New order', nvBoard:'Orders', nvCust:'Customers',
+                    nvSales:'Sales', nvStaff:'Settings' };
+function applyEdition(){
+  FLOW = NB() ? NB_FLOW : FULL_FLOW;
+  document.body.classList.toggle('nb', NB());
+  /* A notebook shop has no artist or production bench to add anyone to. */
+  document.querySelectorAll('#stBench option').forEach(op => {
+    const off = NB() && !NB_BENCHES.includes(op.value);
+    op.hidden = off; op.disabled = off;
+  });
+  const nm = $('#hShop'); if(nm) nm.textContent = NB() ? SHOP.name : '';
+  const ln = $('#lShop'); if(ln) ln.textContent = NB() ? SHOP.name : '';
+  if(NB()) $('#fNotes').placeholder = 'Anything to remember about this order';
+}
+
+/* ── THE SHOP'S OWN LOOK (5 Oct, notebook stage 2, build20d) ──
+   The owner uploads a logo; the phone shrinks it, reads its colours, and the
+   owner taps the one they want. That colour dresses the header, the main
+   buttons, the New order tile and the avatar. **Red, amber and green keep
+   their meaning** - late, owed and paid are never painted in the brand.
+   A full shop never reaches any of this: applyBrand() and paintLogo() do
+   nothing without NB(), and loadBrand() clears what a notebook shop left. */
+const BRAND_KEY = 'df_brand';
+const LOGO_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/;
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+let LOGO = '';
+function brandRead(){ try{ return JSON.parse(localStorage.getItem(BRAND_KEY) || 'null'); }catch(e){ return null; } }
+function brandWrite(b){
+  try{ b ? localStorage.setItem(BRAND_KEY, JSON.stringify(b)) : localStorage.removeItem(BRAND_KEY); }
+  catch(e){ /* a full store costs the splash its logo, nothing else */ }
+}
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const rgb2hex = c => '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const relLum = c => {
+  const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); };
+  const [r, g, b] = c.map(f); return .2126 * r + .7152 * g + .0722 * b;
+};
+const onWhite = c => 1.05 / (relLum(c) + .05);           // contrast of white text on c
+const mixRgb = (c, to, t) => c.map((v, i) => v + (to[i] - v) * t);
+/* Whatever the logo's colour, white text must read on it: a yellow logo gets
+   a darker yellow-brown for its buttons rather than unreadable ones. */
+function brandShades(hex){
+  let c = hex2rgb(hex);
+  for(let i = 0; i < 25 && onWhite(c) < 4.5; i++) c = mixRgb(c, [0, 0, 0], .08);
+  return { brand: rgb2hex(c), deep: rgb2hex(mixRgb(c, [0, 0, 0], .45)), wash: rgb2hex(mixRgb(c, [255, 255, 255], .9)) };
+}
+function applyBrand(hex){
+  const st = document.documentElement.style;
+  const on = NB() && HEX_RE.test(hex || '');
+  document.body.classList.toggle('brand', on);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(!on){
+    ['--nb-brand', '--nb-brand-deep', '--nb-brand-wash'].forEach(k => st.removeProperty(k));
+    if(meta) meta.content = '#0F0F0F';
+    return;
+  }
+  const s = brandShades(hex);
+  st.setProperty('--nb-brand', s.brand);
+  st.setProperty('--nb-brand-deep', s.deep);
+  st.setProperty('--nb-brand-wash', s.wash);
+  if(meta) meta.content = s.deep;           // the phone's own status bar
+}
+function paintLogo(){
+  const ok = NB() && LOGO_RE.test(LOGO);
+  ['#hLogo', '#lLogo'].forEach(k => {
+    const el = $(k); if(!el) return;
+    el.hidden = !ok;
+    if(ok){ el.src = LOGO; el.alt = SHOP.name + ' logo'; } else el.removeAttribute('src');
+  });
+}
+/* The logo is fetched only when it changed since this phone last saw it
+   (`logo_at`, stamped by the database). Everything else is on the shop row
+   boot already read. The cache is also what the splash reads on the next
+   cold open, before there is a session to ask. */
+async function loadBrand(){
+  if(!NB()){ brandWrite(null); LOGO = ''; applyBrand(null); paintLogo(); return; }
+  applyBrand(SHOP.brand_color);
+  const c = brandRead();
+  const same = c && c.shop === SHOP.id && (c.logo_at || null) === (SHOP.logo_at || null);
+  LOGO = same ? (c.logo || '') : '';
+  paintLogo();
+  let got = true;
+  if(!same && SHOP.logo_at){
+    try{
+      const { data, error } = await sb.from('shops').select('logo').eq('id', SHOP.id).limit(1);
+      if(error) throw error;
+      LOGO = (data && data[0] && LOGO_RE.test(data[0].logo || '')) ? data[0].logo : '';
+    }catch(e){ got = false; }
+    paintLogo();
+  }
+  /* A logo that did not arrive is not recorded as "no logo": the stamp is
+     left as it was, so the next open asks again. */
+  const mine = c && c.shop === SHOP.id ? c : null;
+  brandWrite({ shop: SHOP.id, edition: 'notebook', name: SHOP.name, color: SHOP.brand_color || null,
+               logo_at: got ? (SHOP.logo_at || null) : (mine && mine.logo_at) || null,
+               logo: got ? LOGO : (mine && mine.logo) || '' });
+}
+
+/* A picked logo, made small enough to keep in the shop's row: at most 256 px
+   on its longest side, WebP where the phone can write it (PNG otherwise), and
+   never over 100 KB - stepped down to 192 then 128 px if a busy logo is still
+   too big. The original never leaves the phone. */
+async function shrinkLogo(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((ok, no) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => no(new Error('That file is not a picture this phone can read. Try a PNG or JPG.'));
+      i.src = url;
+    });
+    for(const side of [256, 192, 128]){
+      const k = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      let d = cv.toDataURL('image/webp', .85);
+      if(!d.startsWith('data:image/webp')) d = cv.toDataURL('image/png');
+      if(d.length <= 100000 && LOGO_RE.test(d)) return { data: d, img };
+    }
+    throw new Error('That logo is too detailed to keep. Try a simpler version of it.');
+  }finally{ URL.revokeObjectURL(url); }
+}
+/* The logo's own colours. Drawn at 64 px; see-through, white, black and grey
+   pixels are skipped; the rest are grouped by hue and weighted by how strong
+   they are. Up to three, none too close to another. */
+function logoColours(img){
+  const N = 64, cv = document.createElement('canvas');
+  const k = N / Math.max(img.naturalWidth, img.naturalHeight);
+  cv.width = Math.max(1, Math.round(img.naturalWidth * k)); cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+  const x = cv.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0, cv.width, cv.height);
+  const px = x.getImageData(0, 0, cv.width, cv.height).data;
+  const bins = new Map();
+  for(let i = 0; i < px.length; i += 4){
+    if(px[i + 3] < 200) continue;
+    const r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    if(d < .12 || l < .1 || l > .93) continue;
+    const s = d / (1 - Math.abs(2 * l - 1));
+    if(s < .25) continue;
+    let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+    const key = Math.round(h / 20) % 18;
+    const e = bins.get(key) || { w: 0, r: 0, g: 0, b: 0 };
+    e.w += s; e.r += px[i] * s; e.g += px[i + 1] * s; e.b += px[i + 2] * s;
+    bins.set(key, e);
+  }
+  const out = [];
+  [...bins.entries()].sort((a, b) => b[1].w - a[1].w).forEach(([key, e]) => {
+    if(out.length >= 3) return;
+    if(out.some(o => Math.min(Math.abs(o.key - key), 18 - Math.abs(o.key - key)) < 2)) return;
+    out.push({ key, hex: rgb2hex([e.r / e.w, e.g / e.w, e.b / e.w]) });
+  });
+  return out.map(o => brandShades(o.hex).brand);
+}
+
+/* Settings -> "Your shop's look". Nothing is kept until Save: tapping a
+   colour previews it on the whole app, and leaving Settings unsaved puts the
+   saved look back (showTab). `undefined` logo = unchanged, '' = remove. */
+let BR_PICK = null, BR_LOGO = undefined, BR_COLS = [];
+function paintBrandCard(){
+  const card = $('#brandCard'); if(!card) return;
+  card.hidden = !(NB() && ROLE === 'owner');
+  if(card.hidden) return;
+  BR_PICK = SHOP.brand_color || null; BR_LOGO = undefined;
+  BR_COLS = SHOP.brand_color ? [SHOP.brand_color] : [];
+  $('#brAddr').value = SHOP.address || ''; $('#brPhone').value = SHOP.contact || '';
+  $('#brMsg').className = 'msg'; $('#brMsg').textContent = '';
+  paintBrPreview(); paintSwatches();
+}
+function paintBrPreview(){
+  const src = BR_LOGO === undefined ? LOGO : BR_LOGO;
+  const ok = LOGO_RE.test(src || '');
+  $('#brImg').hidden = !ok; if(ok) $('#brImg').src = src; else $('#brImg').removeAttribute('src');
+  $('#brNone').hidden = ok; $('#brDrop').hidden = !ok;
+}
+function paintSwatches(){
+  const box = $('#brSw'); box.innerHTML = '';
+  const opts = [...new Set(BR_COLS.map(h => h.toLowerCase()))].map((hex, i) => ({ hex, label: 'Colour ' + (i + 1) }))
+    .concat([{ hex: null, label: 'Spawn default' }]);
+  opts.forEach(o => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'sw';
+    b.setAttribute('aria-pressed', String((o.hex || null) === (BR_PICK || null)));
+    const dot = document.createElement('i'); dot.style.background = o.hex || '#0F766E';
+    b.append(dot, document.createTextNode(o.label));
+    b.onclick = () => {
+      BR_PICK = o.hex; applyBrand(o.hex); paintSwatches();
+      $('#brMsg').className = 'msg'; $('#brMsg').textContent = 'This is a preview. Press Save to keep it.';
+    };
+    box.appendChild(b);
+  });
+  $('#brSwHint').hidden = !BR_COLS.length;
+}
+$('#brFile').onchange = async () => {
+  const f = $('#brFile').files[0]; $('#brFile').value = '';
+  if(!f) return;
+  const m = $('#brMsg'); m.className = 'msg'; m.textContent = 'Reading the logo…';
+  try{
+    const r = await shrinkLogo(f);
+    BR_LOGO = r.data; paintBrPreview();
+    BR_COLS = logoColours(r.img);
+    if(BR_COLS.length){ BR_PICK = BR_COLS[0]; applyBrand(BR_PICK); }
+    paintSwatches();
+    m.textContent = BR_COLS.length
+      ? 'Your colours, taken from your logo. Tap the one you like, then Save.'
+      : 'This logo has no strong colour. Keep Spawn default or your colour, then Save.';
+  }catch(e){ m.className = 'msg err'; m.textContent = e.message; }
+};
+$('#brDrop').onclick = () => {
+  BR_LOGO = ''; paintBrPreview();
+  $('#brMsg').className = 'msg'; $('#brMsg').textContent = 'The logo comes off when you press Save.';
+};
+$('#brSave').onclick = async () => {
+  try{ assertWritable(); }catch(err){ return toast(err.message); }
+  const m = $('#brMsg');
+  const patch = { brand_color: BR_PICK && HEX_RE.test(BR_PICK) ? BR_PICK.toLowerCase() : null,
+                  address: $('#brAddr').value.trim().slice(0, 160) || null,
+                  contact: $('#brPhone').value.trim().slice(0, 60) || null };
+  if(BR_LOGO !== undefined) patch.logo = BR_LOGO || null;
+  $('#brSave').disabled = true; m.className = 'msg'; m.textContent = 'Saving…';
+  /* `.select('logo_at')` hands back the saved row, for two reasons. RLS
+     answers an update it filtered out with NO error and zero rows, so without
+     the row a refused save would say "Saved". And `logo_at` is stamped by the
+     database, not sent - this is where this phone learns it (review of
+     build20d, 5 Oct). */
+  const { data, error } = await sb.from('shops').update(patch).eq('id', SHOP.id).select('logo_at');
+  $('#brSave').disabled = false;
+  if(error){
+    m.className = 'msg err';
+    m.textContent = 'Not saved: ' + (error.code === '23514' ? 'that logo or text is too large to keep.' : error.message);
+    return;
+  }
+  if(!data || !data.length){
+    m.className = 'msg err';
+    m.textContent = "Not saved - only the shop's owner account can change the look.";
+    applyBrand(SHOP.brand_color);
+    return;
+  }
+  Object.assign(SHOP, { brand_color: patch.brand_color, address: patch.address, contact: patch.contact,
+                        logo_at: data[0].logo_at || SHOP.logo_at || null });
+  if(BR_LOGO !== undefined){ LOGO = BR_LOGO || ''; BR_LOGO = undefined; }
+  applyBrand(SHOP.brand_color); paintLogo();
+  brandWrite({ shop: SHOP.id, edition: 'notebook', name: SHOP.name, color: SHOP.brand_color || null,
+               logo_at: SHOP.logo_at || null, logo: LOGO });
+  m.className = 'msg ok';
+  m.textContent = 'Saved. Every phone in the shop shows it the next time it opens the app.';
+};
 
 /* Anything a person typed - customer, contact, notes, item names, units and
    notes, staff names, the shop's name - and any error text from the server is
@@ -3313,6 +3876,7 @@ function staffGuard(r, next){
 }
 
 function renderStaff(){
+  renderShopCodeCard();
   const box = $('#stList');
   if(!box) return;
   const rc = $('#relCard');
@@ -3434,14 +3998,22 @@ async function boot(){
     $('#auth').hidden = false; $('#app').hidden = true; $('#fab').hidden = true;
                 $('#hCalc').hidden = true;
     if(SETUP_CODE) showSetup(SETUP_CODE);        // opened from a QR or setup link
+    else if(SHOP_CODE) showShopNew(SHOP_CODE);   // opened from Spawn's shop-code link
     return; }
   /* A setup link opened on a device that is ALREADY signed in has nothing to
      do: the person just taps in. The code is left unused for the device it
      was made for. */
   if(SETUP_CODE) setTimeout(() => toast('This device is already set up - tap in with your PIN.'), 400);
+  /* A shop code on a phone that already belongs to a shop is not used here:
+     the code is left for the phone it was meant for. */
+  if(SHOP_CODE) setTimeout(() => toast("This phone is already signed in to a shop. Open the shop code on the new shop's own phone."), 400);
 
   const { data:mine, error } = await sb.from('shop_users')
-    .select('full_name, role, bench, shop_id, shops(id,name,plan,trial_started_on,release_staff,release_staff2)')
+    /* `logo` itself is NOT read here: it is up to ~100 KB and boot runs on
+       every open. `logo_at` says whether the copy this phone keeps is still
+       current (loadBrand). Needs build20d. */
+    .select('full_name, role, bench, shop_id, shops(id,name,plan,trial_started_on,release_staff,release_staff2,edition,' +
+            'address,contact,brand_color,logo_at)')
     .limit(1);
   if(error || !mine || !mine.length){
     $('#aMsg').className='msg err';
@@ -3452,6 +4024,8 @@ async function boot(){
   }
   SHOP = mine[0].shops; ME = mine[0].full_name || 'Staff';
   BENCH = mine[0].bench || 'counter'; ROLE = mine[0].role || 'staff';
+  applyEdition();       // before the pad: the lock screen names a notebook shop
+  loadBrand();          // not awaited: the pad never waits for the network
   // A dev copy must never open a real shop's books.
   if(ENV === 'dev' && !isSandbox(SHOP)) return lockOut();
 
@@ -3478,8 +4052,14 @@ async function openShop(){
   // one state for the back button to consume, or the first press closes the app
   armBack();
   if(ENV === 'dev') envStripe();
-  document.title = (ENV === 'dev' ? '[DEV] ' : '') + SHOP.name + ' — Decal Fix OS';
+  applyEdition();
+  document.title = (ENV === 'dev' ? '[DEV] ' : '') + SHOP.name + (NB() ? '' : ' — Decal Fix OS');
 
+  /* The notebook's front page is the tiles; the dashboard is the full
+     edition's. Hidden by attribute, so restoreTab and the back button skip
+     whichever one this shop does not have. */
+  $('#nvHome').hidden = !NB();
+  $('#nvDash').hidden = NB();
   // Benches that never take an order do not get the order screen at all.
   $('#nvNew').hidden   = !canTakeOrders();
   $('#nvSales').hidden = !canSeeMoney();
@@ -3502,12 +4082,17 @@ async function openShop(){
   /* The OWNER opens on Analytics - "the first thing they see will be the
      charts, the summary and the numbers". Everybody else on the dashboard.
      A reload still puts anyone back on the tab they were on. */
+  /* A notebook shop always lands on its tiles; a reload still restores. */
   if(!restoreTab(wanted, true) )
-    showTab(BENCH === 'owner' && canSeeMoney() ? 'nvSales' : 'nvDash', true, true);
+    showTab(NB() ? 'nvHome' : BENCH === 'owner' && canSeeMoney() ? 'nvSales' : 'nvDash', true, true);
 
   await loadItems();
-  await loadArtists();
-  await loadGovs();
+  /* No artists and no government accounts in a notebook shop: ARTISTS stays
+     empty, which already hides every "send to artist" control. */
+  if(!NB()){
+    await loadArtists();
+    await loadGovs();
+  }
   newOrder();
   await refresh();
   /* the dashboard is the first thing a counter sees, but the money on it
@@ -3526,8 +4111,11 @@ async function openShop(){
   const claimTile = $('#dClaim') && $('#dClaim').closest('.stat');
   if(claimTile) claimTile.hidden = !canTakeOrders();
   $('#hLock').hidden = !onRoster().length;
-  loadDrive();          // not awaited: the Drive card and tools fill in when the Worker answers
-  loadPeople();         // not awaited: the dot on the avatar when a Gmail is waiting
+  /* A notebook shop never talks to Drive: no Worker call, no Gmail queue. */
+  if(!NB()){
+    loadDrive();        // not awaited: the Drive card and tools fill in when the Worker answers
+    loadPeople();       // not awaited: the dot on the avatar when a Gmail is waiting
+  }
   dropSplash();         // there is a board to look at now; the mark has said its piece
   window.__up && window.__up();   // and the watchdog can stand down
 }
@@ -4732,6 +5320,17 @@ const SETUP_CODE = (() => {
     const u = new URL(location.href), c = u.searchParams.get('setup');
     if(!c) return '';
     u.searchParams.delete('setup');
+    history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
+    return c;
+  }catch(e){ return ''; }
+})();
+/* ?shopcode=CODE - the link Spawn sends with a shop code (stage 3). Read once
+   and taken off the address, exactly like ?setup=. */
+const SHOP_CODE = (() => {
+  try{
+    const u = new URL(location.href), c = u.searchParams.get('shopcode');
+    if(!c) return '';
+    u.searchParams.delete('shopcode');
     history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
     return c;
   }catch(e){ return ''; }
@@ -6433,6 +7032,10 @@ async function setupCall(path, body){
      (spawn-104). The timer also covers reading the answer. */
   const slow = path === '/setup/redeem'
     ? 'The line is too slow right now. Check the signal and tap again. If it then says the code is used, ask for a new one.'
+    /* the account and the shop may both have been made before the answer
+       was lost - signing in is how to find out (stage 3) */
+    : path === '/signup/redeem'
+    ? 'The line is too slow right now. Your shop may already be made: try signing in with that email and password. If that fails, tap Create again.'
     : 'The line is too slow right now. Check the signal and tap again - the code still works.';
   let j;
   try{
@@ -6521,6 +7124,122 @@ $('#suCode').addEventListener('input', () => { const v = $('#suCode'); const n =
   if(n !== v.value.toUpperCase()) v.value = n; });
 $('#suJoin').onclick = () => redeemSetup(false);
 $('#suSign').onclick = () => redeemSetup(true);
+/* ── A NEW SHOP SETS ITSELF UP (5 Oct, notebook stage 3, build20e) ──
+   Same shape as setting up a device: check the code first (/signup/peek),
+   then one call makes the owner's account AND the shop (/signup/redeem -
+   the Worker deletes the account again if the shop cannot be made), then
+   this phone signs in with the email and password just typed. */
+/* A Worker from before stage 3 answers /signup/* with a bare "not found":
+   say what that means rather than showing it. */
+const signupWords = e => /^not found$/i.test(String(e && e.message || ''))
+  ? 'Starting a new shop is not switched on yet. Ask Spawn.' : (e && e.message) || 'Something went wrong. Try again.';
+const SHOP_HOME = 'https://spwnapp.github.io/';
+const niceShopCode = c => { const t = String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                            return t.length > 5 ? t.slice(0, 5) + '-' + t.slice(5, 10) : t; };
+let SHOPNEW_PEEK = null;
+function showShopNew(code){
+  $('#auth').hidden = true; $('#setup').hidden = true; $('#shopnew').hidden = false;
+  $('#snStep1').hidden = false; $('#snStep2').hidden = true;
+  $('#snMsg').textContent = ''; $('#snMsg').className = 'msg';
+  $('#snCode').value = code ? niceShopCode(code) : '';
+  if(code) checkShopCode(); else setTimeout(() => $('#snCode').focus(), 50);
+}
+async function checkShopCode(){
+  const msg = $('#snMsg');
+  msg.className = 'msg'; msg.textContent = 'Checking the code…';
+  $('#snCheck').disabled = true;
+  try{ SHOPNEW_PEEK = await setupCall('/signup/peek', { code: $('#snCode').value }); }
+  catch(e){ msg.className = 'msg err'; msg.textContent = signupWords(e); return; }
+  finally{ $('#snCheck').disabled = false; }
+  msg.textContent = '';
+  $('#snStep1').hidden = true; $('#snStep2').hidden = false;
+  const p = SHOPNEW_PEEK;
+  const until = p.expires_at ? new Date(p.expires_at).toLocaleDateString('en-PH',
+    { timeZone:'Asia/Manila', month:'long', day:'numeric' }) : '';
+  $('#snFor').textContent = (p.note ? 'This code is for ' + p.note + '. ' : 'Your code is good. ') +
+    (until ? 'It works until ' + until + '.' : '');
+  setTimeout(() => $('#snShop').focus(), 50);
+}
+async function createShop(){
+  const msg = $('#snMsg');
+  const bad = t => { msg.className = 'msg err'; msg.textContent = t; };
+  const body = { code: $('#snCode').value,
+                 shop_name: $('#snShop').value.trim().replace(/\s+/g, ' '),
+                 full_name: $('#snName').value.trim().replace(/\s+/g, ' '),
+                 email: $('#snEmail').value.trim().toLowerCase(),
+                 password: $('#snPass').value,
+                 address: $('#snAddr').value.trim() || null,
+                 contact: $('#snPhone').value.trim() || null };
+  if(body.shop_name.length < 2) return bad("Type the shop's name.");
+  if(body.full_name.length < 2) return bad('Type your name.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email)) return bad('Type the email address you will sign in with.');
+  if(body.password.length < 8) return bad('The password needs at least 8 characters.');
+  if(body.password !== $('#snPass2').value) return bad('The two passwords are not the same.');
+  $('#snGo').disabled = true; msg.className = 'msg'; msg.textContent = 'Making your shop… this takes a few seconds.';
+  let r;
+  try{ r = await setupCall('/signup/redeem', body); }
+  catch(e){ $('#snGo').disabled = false; return bad(signupWords(e)); }
+  /* The shop's own phone keeps its session, like every shop device. */
+  try{ safeStore.setItem('df_stay', '1'); }catch(e){}
+  const { error } = await sb.auth.signInWithPassword({ email: body.email, password: body.password });
+  if(error){
+    /* The shop IS made. Say so, and put them on the sign-in form with the
+       email filled in - never "could not create", which would send them to
+       make a second one. */
+    $('#snGo').disabled = false;
+    $('#shopnew').hidden = true; $('#auth').hidden = false;
+    $('#aEmail').value = body.email;
+    $('#aMsg').className = 'msg ok';
+    $('#aMsg').textContent = r.shop_name + ' is made. Sign in with your email and password.';
+    return;
+  }
+  msg.className = 'msg ok';
+  msg.textContent = 'Welcome to ' + r.shop_name + '! Opening your shop…';
+  setTimeout(() => location.replace(location.origin + location.pathname), 700);
+}
+$('#aShopNew').onclick = () => showShopNew('');
+$('#snBack').onclick = () => { $('#shopnew').hidden = true; $('#auth').hidden = false; };
+$('#snCheck').onclick = () => checkShopCode();
+$('#snCode').addEventListener('keydown', e => { if(e.key === 'Enter') checkShopCode(); });
+$('#snCode').addEventListener('input', () => { const v = $('#snCode'); const n = niceShopCode(v.value);
+  if(n !== v.value.toUpperCase()) v.value = n; });
+$('#snGo').onclick = () => createShop();
+
+/* Spawn's card: a demo shop's owner, and the platform admin PIN in the
+   database. Same contract as Clear demo - a code, null for a wrong PIN with
+   one try burned, a raise for a lockout. The PIN box is emptied either way. */
+function renderShopCodeCard(){
+  const c = $('#scCard'); if(!c) return;
+  c.hidden = !(ROLE === 'owner' && isDemoShop());
+}
+$('#scGo').onclick = async () => {
+  const m = $('#scMsg'), pin = $('#scPin').value.trim();
+  const bad = t => { m.className = 'msg err'; m.textContent = t; };
+  if(!/^[0-9]{4}$/.test(pin)) return bad('The Spawn admin PIN is four digits.');
+  $('#scGo').disabled = true; m.className = 'msg'; m.textContent = 'Making the code…';
+  const { data, error } = await sb.rpc('shop_code_create',
+    { p_admin_pin: pin, p_note: $('#scNote').value.trim() || null, p_edition: $('#scEd').value });
+  $('#scGo').disabled = false; $('#scPin').value = '';
+  if(error) return bad(error.message);
+  if(!data) return bad('That is not the Spawn admin PIN. One try used.');
+  /* A notebook shop starts at Spawn's address, not at whichever address
+     Spawn happened to make the code on (Decal Fix's, usually). */
+  const link = (data.edition === 'notebook' ? SHOP_HOME : location.origin + location.pathname) +
+               '?shopcode=' + data.code;
+  $('#scCode').textContent = niceShopCode(data.code);
+  $('#scWhen').textContent = (data.note ? 'For ' + data.note + ' · ' : '') +
+    (data.edition === 'full' ? 'Full edition' : 'Notebook') + ' · works until ' +
+    new Date(data.expires_at).toLocaleDateString('en-PH', { timeZone:'Asia/Manila', month:'long', day:'numeric' });
+  $('#scLink').textContent = link;
+  $('#scCopy').dataset.link = link;
+  $('#scOut').hidden = false;
+  m.className = 'msg ok'; m.textContent = 'Send the link, or read out the code. It works once.';
+};
+$('#scCopy').onclick = async () => {
+  try{ await navigator.clipboard.writeText($('#scCopy').dataset.link || ''); toast('Link copied.'); }
+  catch(e){ toast('Copy did not work - press and hold the link to copy it.'); }
+};
+
 $('#suExisting').onclick = () => {           // a "new person" code used for someone already on the staff
   $('#suNew').hidden = true; $('#suOld').hidden = false;
   $('#suWho').innerHTML = 'This device will be signed in to <b>' + esc(SETUP_PEEK ? SETUP_PEEK.shop_name : 'the shop') + '</b>.';
@@ -6533,9 +7252,10 @@ const canAddDevice = () => !!STAFF && ['counter','office','owner'].includes(BENC
 function openAddDevice(){
   if(!canAddDevice()) return toast('Only the counter, office or owner can add a device.');
   DV_KIND = 'new_person';
-  $('#dvRole').innerHTML = (SETUP_BENCHES[BENCH] || []).map(b =>
+  /* A notebook shop has no artist or production bench to set anyone up on. */
+  $('#dvRole').innerHTML = (SETUP_BENCHES[BENCH] || []).filter(b => !NB() || NB_BENCHES.includes(b)).map(b =>
     `<option value="${esc(b)}">${esc(BENCH_NAME[b] || b)}</option>`).join('');
-  $('#dvRole').value = 'artist';
+  $('#dvRole').value = NB() ? 'counter' : 'artist';
   $('#dvLabel').value = ''; $('#dvPin').value = '';
   $('#dvMsg').textContent = ''; $('#dvMsg').className = 'msg';
   $('#dvForm').hidden = false; $('#dvShow').hidden = true;
@@ -6935,7 +7655,8 @@ async function refresh(){
   ORDERS = data || [];
   /* One extra query per refresh, ids only. RLS scopes it to this shop, and a
      bench that cannot see the board does not reach here anyway. */
-  try{
+  /* A notebook shop has no reviews and no files, so nothing to ask for. */
+  if(!NB()) try{
     /* One query, two answers. It used to filter on `verdict = 'sent_back'`
        and select the id alone; it now takes every verdict with its time and
        its author, because the same rows are the conversation. */
@@ -6958,8 +7679,56 @@ async function refresh(){
   }catch(e){ /* the board is still worth drawing without it */ }
   SYNCED = Date.now();
   renderBoard(); await renderSales();
+  if(NB()) renderHome();
   if(!$('#vCust').hidden){ CUST_AT = 0; renderCustomers(); }
 }
+/* The notebook's tiles. Every figure comes from what refresh() already read -
+   ORDERS and the payment rows renderSales() keeps in DASH_DATA - so the home
+   screen asks the database nothing of its own. A tile for something this
+   person may not see is not drawn at all, and its figure is not written. */
+function renderHome(){
+  const live = ORDERS.filter(o => !o.voided && o.status !== 'cancelled');
+  const n = (k, one, many) => k + ' ' + (k === 1 ? one : many);
+  $('#hmDay').textContent = new Date().toLocaleDateString('en-PH',
+    { timeZone:'Asia/Manila', weekday:'long', month:'long', day:'numeric' });
+  $('#hmOpen').textContent  = n(live.filter(o => o.status === 'new').length, 'in progress', 'in progress');
+  $('#hmReady').textContent = n(live.filter(o => o.status === 'ready').length, 'to claim', 'to claim');
+  const late = live.filter(isLate).length;
+  $('#hmLate').textContent = late ? n(late, 'is late', 'are late') : 'Nothing late';
+  $('#hmLateTile').classList.toggle('calm', !late);
+  $('#hmCustTile').hidden = !canTakeOrders();
+  if(canTakeOrders() && canSeeTakings()){
+    const owing = new Set(live.filter(o => o.order_type !== 'government' && Number(o.balance) > 0)
+                              .map(custKey));
+    $('#hmCust').textContent = owing.size ? n(owing.size, 'owes', 'owe') : 'Nobody owes';
+  }else $('#hmCust').textContent = 'Customers';
+  $('#hmSalesTile').hidden = !canSeeMoney();
+  if(canSeeMoney() && DASH_DATA){
+    const t = DASH_DATA.t;
+    const cash = (DASH_DATA.pays || []).filter(p => p.method === 'cash' &&
+      new Date(p.paid_at).toLocaleDateString('en-CA', { timeZone:'Asia/Manila' }) === t)
+      .reduce((s, p) => s + Number(p.amount), 0);
+    $('#hmSales').textContent = 'Cash today ' + peso(cash);
+  }else $('#hmSales').textContent = '';
+  $('#hmStaffTile').hidden = ROLE !== 'owner';
+  $('#hmLockTile').hidden = !onRoster().length;
+  $('#hmTiles').querySelector('[data-go="new"]').hidden = !canTakeOrders();
+}
+$('#hmTiles').addEventListener('click', e => {
+  const t = e.target.closest('.ntile'); if(!t) return;
+  const go = t.dataset.go;
+  const board = tab => { BOARD_TAB = tab; $('#nvBoard').click(); };
+  if(go === 'new')         $('#nvNew').click();
+  else if(go === 'orders') board('all');
+  else if(go === 'ready')  board('ready');
+  else if(go === 'late')   board('late');
+  else if(go === 'cust')   $('#nvCust').click();
+  else if(go === 'sales')  $('#nvSales').click();
+  else if(go === 'staff')  $('#nvStaff').click();
+  else if(go === 'lock')   showPicker();
+});
+$('#hHome').onclick = () => { LENS = null; showTab('nvHome'); };
+
 function isLate(o){
   return o.target_date && o.target_date < today() && !['claimed','cancelled'].includes(o.status) && !o.voided;
 }
@@ -7058,7 +7827,21 @@ const PROD_TABS = [
   { id:'printed', label:'Done printing',  keep:o => o.status === 'printing' && !!o.printed_at },
   { id:'done',    label:'Released',       keep:o => ['ready','claimed'].includes(o.status) }
 ];
-const tabsFor = () => BENCH === 'artist' ? ARTIST_TABS
+/* THE NOTEBOOK'S QUESTIONS (5 Oct): three statuses, so three of them are
+   just "where is it", plus the two a counter asks of any day. All first, for
+   the same reason as on the full board - nothing may fall between tabs. */
+const NB_TABS = [
+  { id:'all',     label:'All',        keep:(o, m) => m.includes(o.status) &&
+                                                    !(o.status === 'claimed' && Number(o.balance) <= 0) },
+  { id:'late',    label:'Past due',   warn:true, keep:o => isLate(o) },
+  { id:'today',   label:'Due today',  keep:o => o.target_date === today() &&
+                                                !['claimed','cancelled'].includes(o.status) },
+  { id:'new',     label:'Received',   keep:o => o.status === 'new' },
+  { id:'ready',   label:'Ready',      keep:o => o.status === 'ready' },
+  { id:'claimed', label:'Released',   keep:o => o.status === 'claimed' }
+];
+const tabsFor = () => NB() ? NB_TABS
+                    : BENCH === 'artist' ? ARTIST_TABS
                     : BENCH === 'production' ? PROD_TABS
                     : canTakeOrders()    ? BOARD_TABS : null;
 let BOARD_TAB = 'all';
@@ -8128,7 +8911,9 @@ function openDetail(o){
   if(filesFirst) $('#dLines').before($('#dFiles'), $('#dCorrBox'));
   else $('#dAddWhole').before($('#dFiles'), $('#dCorrBox'));
   $('#dFiles').classList.toggle('first', filesFirst);
-  loadFiles(o);
+  /* A notebook order has no files: nothing to fetch, nothing to draw. */
+  if(NB()) $('#dFiles').innerHTML = '';
+  else loadFiles(o);
   // the folder and upload only once the shop's Drive is connected
   /* The correction box is the reviewer's, and only while a design waits.
      Both halves are optional - "if they are any" - and Send back reads them. */
@@ -8195,7 +8980,9 @@ function nextLabel(){
   const owns = (MOVES[BENCH] || []).includes(o.status);
   const to = $('#dArtist').value;
   $('#dNext').textContent =
-      BENCH === 'production' && o.status === 'printing'
+      NB() && owns && nx === 'ready' ? 'Mark ready'
+    : NB() && owns && nx === 'claimed' ? 'Release to customer'
+    : BENCH === 'production' && o.status === 'printing'
         ? (o.printed_at ? 'Move to Released' : 'Done printing')
     : !owns ? 'Not your bench'
     : !nx ? 'Done'
@@ -9313,7 +10100,10 @@ function printSlip(o){
 
   const block = (kind, keeps) => `
     <div class="rule"></div>
+    ${NB() && LOGO_RE.test(LOGO) ? `<img class="slogo" src="${esc(LOGO)}" alt="">` : ''}
     <h3>${esc(SHOP.name)}</h3>
+    ${NB() && (SHOP.address || SHOP.contact)
+      ? `<div class="sinfo">${esc([SHOP.address, SHOP.contact].filter(Boolean).join(' · '))}</div>` : ''}
     <div class="kind">${kind}${o.rush ? ' · RUSH' : ''}</div>
     <div class="ref">${esc(joRef(o))} · ${esc(o.order_date)}</div>
     <div class="cust">${esc(o.customer_name)}${o.customer_contact?` · ${esc(o.customer_contact)}`:''}</div>
@@ -9860,6 +10650,9 @@ function backStep(){
     const btn = $('#' + prev);
     if(btn && !btn.hidden && views[prev]){ showTab(prev, false, true); return true; }
   }
+  /* A notebook shop's resting place is its tiles, the way a phone's is its
+     home screen: back from anywhere else ends there before it closes. */
+  if(NB() && here !== 'nvHome'){ showTab('nvHome', false, true); return true; }
   /* Nowhere left to go back to. Deliberately NOT a trap: from here the press
      closes the app, which is what a back button is for. */
   return false;
@@ -9872,7 +10665,7 @@ addEventListener('popstate', () => {
 });
 
 /* ── tabs ── */
-const views = { nvDash:'vDash', nvNew:'vNew', nvBoard:'vBoard', nvCust:'vCust', nvSales:'vSales', nvStaff:'vStaff' };
+const views = { nvHome:'vHome', nvDash:'vDash', nvNew:'vNew', nvBoard:'vBoard', nvCust:'vCust', nvSales:'vSales', nvStaff:'vStaff' };
 /* `quiet` puts the tab up WITHOUT fetching. Used for the opening placement,
    where openShop is about to fetch everything anyway - two refreshes racing
    is how a board flickers. */
@@ -9891,11 +10684,19 @@ function showTab(id, quiet, noHist){
     $('#'+views[k]).hidden = k!==id;
   });
   // not on Staff: its roster buttons sit where the button floats
-  $('#fab').hidden = id==='nvNew' || id==='nvStaff' || !canTakeOrders();
+  $('#fab').hidden = id==='nvNew' || id==='nvStaff' || id==='nvHome' || !canTakeOrders();
+  /* The notebook's way back to its tiles, wherever the tiles are not. */
+  $('#hHome').hidden = !NB() || id === 'nvHome';
+  /* With no tab strip, the header says which screen this is. */
+  if(NB()) $('#hShop').textContent = id === 'nvHome' ? SHOP.name : (NB_TITLES[id] || '');
+  /* "Your shop's look": fresh each time Settings opens, and a colour that was
+     only previewed goes back to the saved one when Settings is left. */
+  if(NB() && id === 'nvStaff' && now !== 'nvStaff') paintBrandCard();
+  if(NB() && now === 'nvStaff' && id !== 'nvStaff'){ applyBrand(SHOP.brand_color); BR_LOGO = undefined; }
   markTab(id);
   if(!quiet && id!=='nvNew') refresh();
   /* The form's two lists are as old as the tap-in otherwise - see loadArtists. */
-  if(id === 'nvNew' && now !== 'nvNew' && SHOP){ loadArtists().catch(() => {}); loadGovs().catch(() => {}); }
+  if(id === 'nvNew' && now !== 'nvNew' && SHOP && !NB()){ loadArtists().catch(() => {}); loadGovs().catch(() => {}); }
   /* Same for the roster: someone set up by code on another phone (3 Oct -
      Pam) did not appear on the owner's Staff tab until a reload. */
   if(id === 'nvStaff' && now !== 'nvStaff' && ROLE === 'owner'){ loadRoster().then(renderStaff).catch(() => {}); }
