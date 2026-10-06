@@ -998,6 +998,24 @@
                  background:var(--red);color:#fff;font:inherit;font-weight:800;
                  font-size:12.5px;cursor:pointer}
   .updbar button:active{background:var(--red-deep)}
+  /* 6 Oct: the bar only shows when the phone is mid-task, so it has to be
+     seen - top of the screen, bigger, and it says what to do. */
+  .updbar.big{top:10px;bottom:auto;font-size:14px;padding:14px 12px 14px 16px;
+              border:2px solid var(--red);line-height:1.3}
+  /* the order's notes: every line stamped by jo_note, read by every bench */
+  /* one row per note: the words, then who and when underneath in small grey */
+  .dnotes{font-size:13px;line-height:1.4;background:var(--amber-wash);
+          border-left:4px solid #D97706;padding:6px 10px;border-radius:8px;margin:6px 0;
+          overflow-wrap:anywhere}
+  .dnotes h4{margin:2px 0 4px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#9A5B00}
+  .nrow{padding:5px 0;border-top:1px solid rgba(217,119,6,.18)}
+  .nrow:first-of-type{border-top:0}
+  .ntext{font-weight:600;color:var(--text)}
+  .ntext.due{color:#9A5B00}
+  .nby{font-size:11px;color:var(--text-2);margin-top:1px}
+  .metaacts{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px}
+  .metaacts .btn{height:32px;padding:0 11px;font-size:12px}
+  #ntNote{width:100%;min-height:72px;padding:8px 10px;resize:vertical}
 
   /* PIN pad - light, because this is stared at for a full shift */
   /* `place-items:center` overflows equally in both directions on a short
@@ -2194,6 +2212,25 @@ setTimeout(function(){
   </div>
 </dialog>
 
+<!-- A note at any point, or a due-date change - both PIN-signed through
+     jo_note (6 Oct, needs build20f). One dialog, two modes. -->
+<dialog id="ntDlg">
+  <div class="dh"><span class="no" id="ntHead">Add a note</span></div>
+  <div class="db">
+    <label id="ntDateWrap">New due date<input id="ntDate" type="date"></label>
+    <label><span id="ntNoteLbl">Note</span><textarea id="ntNote" rows="3" maxlength="500"></textarea></label>
+    <p class="small muted">Everyone on the job will see it, with your name and the time.</p>
+    <label class="pwl" id="ntPinWrap">Your 4-digit PIN
+      <input id="ntPin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000">
+    </label>
+    <div class="msg" id="ntMsg"></div>
+  </div>
+  <div class="df">
+    <button class="btn ghost" id="ntCancel">Cancel</button>
+    <button class="btn" id="ntSave">Save</button>
+  </div>
+</dialog>
+
 <dialog id="edDlg">
   <div class="dh"><span class="no" id="edHead">Correct the line</span></div>
   <div class="db">
@@ -2389,6 +2426,13 @@ setTimeout(function(){
   <div class="db">
     <div id="dCust" style="font-weight:700"></div>
     <div class="small muted" id="dMeta"></div>
+    <!-- 6 Oct: the order's own notes, appended through jo_note with who and
+         when, shown to every bench. The two buttons open #ntDlg. -->
+    <div class="dnotes" id="dNotes" hidden></div>
+    <div class="metaacts">
+      <button type="button" class="btn ghost" id="dDueBtn" hidden>Change due date</button>
+      <button type="button" class="btn ghost" id="dNoteBtn" hidden>+ Add note</button>
+    </div>
     <!-- Who, not just when. The trail below says what happened; this says
          whose hands it passed through. -->
     <div class="hands" id="dHands" hidden></div>
@@ -3008,7 +3052,11 @@ const TAP_KEY = 'df_tapped';
    screen's fifteen. Read once at load; a hybrid gets the answer for how it
    opened. */
 const FINE_POINTER = matchMedia('(hover:hover) and (pointer:fine)').matches;
-const TAP_FOR = (FINE_POINTER ? 5 : 15) * 60 * 1000;   // the same window as the idle lock
+/* 6 Oct, Wendell: 'make it idle lock 50 mins'. One window for phone and
+   computer. The lock never loses anything on screen - it covers the page and
+   the PIN uncovers it - so a longer window costs only attribution: whoever
+   tapped in is still signing for 50 minutes of a phone left on the counter. */
+const TAP_FOR = 50 * 60 * 1000;   // the same window as the idle lock
 /* A fresh launch from the home screen is not a reload, and it used to mean the
    PIN every time - because the marker lived in sessionStorage and died with
    the tab. On a phone that is wrong far more often than it is right: back at
@@ -7804,6 +7852,7 @@ function openDetail(o){
     (paper && o.customer_contact ? ' \u00b7 ' + o.customer_contact : '') +
     (paper && o.customer_fb ? ' \u00b7 FB ' + o.customer_fb : '')));
   $('#dMeta').textContent = metaText(o);
+  paintNotes(o);
   /* who production handed the finished work to (needs build20a) */
   if(o.released_to) staffName(o.released_to).then(nm => {
     if(nm && CUR === o) $('#dMeta').textContent = metaText(o) + ' · Handed to ' + nm;
@@ -8002,7 +8051,7 @@ $('#dArtist').onchange = async () => {
   refresh();
 };
 const metaText = o => 'Taken ' + o.order_date + (o.target_date ? ' · delivery / release ' + o.target_date : '') +
-                       (govLine(o) ? ' · ' + govLine(o) : '') + (o.notes ? ' · ' + o.notes : '');
+                       (govLine(o) ? ' · ' + govLine(o) : '');
 // a government PO often arrives after the job is taken
 $('#dPoSave').onclick = async () => {
   const po = $('#dPo').value.trim() || null;
@@ -8687,6 +8736,92 @@ $('#edSave').onclick = async () => {
   refresh();
 };
 
+/* ── A note at any point, and a due-date change - both PIN-signed (6 Oct) ──
+   `jo_note` is the one door (build20f): it checks the PIN where the caller
+   cannot reach it, APPENDS a stamped line to the order's notes - the note, or
+   "Due date A -> B", with who and when - and moves the date in the same
+   statement. The notes block is drawn for every bench: a note is for the
+   whole job. Same contract as jo_item_edit: jsonb on success, null for a
+   wrong PIN with a try burned, a raise for everything else. */
+const ntDlg = $('#ntDlg');
+let NT_MODE = 'note';
+/* Each stamped line jo_note wrote is `text - Name, Mon D, H:MM AM`; drawn as
+   the words with who-and-when under them in small grey, so three notes read
+   as three rows and not as a paragraph. A line with no stamp (the note typed
+   on the form when the order was taken) is drawn as words alone. */
+const NOTE_SIG = /^(.*) - ([^-]+?, [A-Z][a-z]{2} \d{1,2}, \d{1,2}:\d{2} [AP]M)$/;
+function paintNotes(o){
+  const b = $('#dNotes');
+  const lines = String(o.notes || '').split('\n').map(s => s.trim()).filter(Boolean);
+  b.innerHTML = lines.length ? '<h4>Notes</h4>' + lines.map(ln => {
+    const m = ln.match(NOTE_SIG);
+    const text = m ? m[1] : ln, by = m ? m[2] : '';
+    const due = /^Due date /.test(text);
+    return '<div class="nrow"><div class="ntext' + (due ? ' due' : '') + '">' + esc(text) + '</div>' +
+           (by ? '<div class="nby">' + esc(by.replace(', ', ' · ')) + '</div>' : '') + '</div>';
+  }).join('') : '';
+  b.hidden = !lines.length;
+  // the due date is the counter's; a note is anybody's, while the job is live
+  $('#dDueBtn').hidden = !canTakeOrders() || !!o.voided || o.status === 'claimed';
+  $('#dNoteBtn').hidden = !!o.voided;
+}
+function openNote(mode){
+  NT_MODE = mode;
+  $('#ntHead').textContent = (mode === 'date' ? 'Change the due date' : 'Add a note') + ' · JO ' + CUR.jo_no;
+  $('#ntDateWrap').hidden = mode !== 'date';
+  $('#ntDate').value = CUR.target_date || '';
+  $('#ntNote').value = '';
+  $('#ntNoteLbl').textContent = mode === 'date' ? 'Why (optional)' : 'Note';
+  $('#ntPinWrap').hidden = !STAFF;
+  $('#ntPin').value = '';
+  $('#ntMsg').textContent = ''; $('#ntMsg').className = 'msg';
+  $('#ntSave').disabled = false;
+  ntDlg.showModal();
+  (mode === 'date' ? $('#ntDate') : $('#ntNote')).focus();
+}
+$('#dDueBtn').onclick = () => openNote('date');
+$('#dNoteBtn').onclick = () => openNote('note');
+$('#ntCancel').onclick = () => ntDlg.close();
+$('#ntSave').onclick = async () => {
+  const msg = $('#ntMsg');
+  const bad = t => { msg.className = 'msg err'; msg.textContent = t; };
+  // one line, as jo_note stores it: a newline could fake a signature line
+  const note = $('#ntNote').value.replace(/\s+/g, ' ').trim();
+  const date = NT_MODE === 'date' ? $('#ntDate').value : '';
+  if(NT_MODE === 'date' && !date) return bad('Pick the new date.');
+  if(NT_MODE === 'date' && date === (CUR.target_date || '') && !note) return bad('That is already the due date.');
+  if(NT_MODE === 'note' && !note) return bad('Type the note first.');
+  if(note.length > 500) return bad('A note is at most 500 characters.');
+  try{ assertWritable(); }catch(err){ return bad(err.message); }
+  const pin = STAFF ? $('#ntPin').value.trim() : '';
+  if(STAFF && !/^[0-9]{4}$/.test(pin)) return bad('Four digits.');
+
+  $('#ntSave').disabled = true;
+  msg.className = 'msg'; msg.textContent = 'Saving…';
+  let out;
+  try{
+    const { data, error } = await sb.rpc('jo_note', {
+      p_id: CUR.id, p_staff: STAFF ? STAFF.id : null, p_pin: STAFF ? pin : null,
+      p_note: note || null, p_target_date: date || null });
+    if(error) throw error;
+    out = data;
+  }catch(e){
+    $('#ntSave').disabled = false;
+    return bad(e.message || 'That did not work.');
+  }
+  $('#ntSave').disabled = false;
+  if(out === null || out === undefined) return bad('That is not your PIN.');
+
+  CUR.notes = out.notes;
+  if(out.target_date) CUR.target_date = out.target_date;
+  ntDlg.close();
+  $('#dMeta').textContent = metaText(CUR);
+  paintNotes(CUR);
+  toast(NT_MODE === 'date' ? 'JO ' + CUR.jo_no + ' is now due ' + CUR.target_date
+                           : 'Note added to JO ' + CUR.jo_no);
+  refresh();
+};
+
 /* Collect records a payment row; the database adds it to the order and
    refuses more than the balance. The app checks first so the refusal is in
    plain words. */
@@ -8969,7 +9104,7 @@ function printSlip(o){
     </table>
     ${o.target_date?`<div class="fine">Delivery / Release Date: ${esc(o.target_date)}</div>`:''}
     ${govLine(o)?`<div class="fine">${esc(govLine(o))}</div>`:''}
-    ${o.notes?`<div class="fine">${esc(o.notes)}</div>`:''}
+    ${o.notes?`<div class="fine" style="white-space:pre-line">${esc(o.notes)}</div>`:''}
     ${STAFF?`<div class="fine">Taken by ${esc(STAFF.name)}</div>`:''}
     <div class="fine sig">Received by ______________________</div>
     <div class="keeps">${esc(keeps)}</div>
@@ -9593,16 +9728,43 @@ boot().catch(e => {
    Registered only when the page is the site root, which is what the
    manifest's start_url says. The test copies live at /demo.html and must
    never get a worker: one could hand a rebuilt stub back to a test run. */
-/* Says so when a new build has taken over, and offers the reload rather than
-   taking it: a half-typed order would go with it. */
+/* 6 Oct: a new build RELOADS ITSELF when nothing would be lost - "some time
+   they don't click reload". The bar is only for a phone that is mid-task,
+   so it is big, at the top, and says what to do. What counts as mid-task:
+   any open dialog, the New order form, an upload in progress. */
+function appBusy(){
+  if(document.querySelector('dialog[open]')) return true;
+  const nv = $('#nvNew');
+  if(nv && nv.getAttribute('aria-selected') === 'true') return true;
+  const up = $('#dUpProg');
+  if(up && !up.hidden) return true;
+  return false;
+}
+window.__appBusy = appBusy;
 function showUpdateBar(){
   if($('#upd')) return;
   const d = document.createElement('div');
-  d.id = 'upd'; d.className = 'updbar';
-  d.innerHTML = '<span>A new version is ready.</span>' +
+  d.id = 'upd'; d.className = 'updbar big';
+  d.innerHTML = '<span>A new version is ready. Please tap Reload to continue.</span>' +
                 '<button type="button" id="updGo">Reload</button>';
   document.body.appendChild(d);
   $('#updGo').onclick = () => location.reload();
+}
+/* The worker that just took over asks each page whether it is busy and
+   reloads the idle ones itself (sw.js); this is the answer, and the fallback
+   for a browser whose worker cannot navigate a page. */
+function newBuildArrived(){
+  if(appBusy()){ showUpdateBar(); return; }
+  setTimeout(() => location.reload(), 2500);
+}
+window.__newBuildArrived = newBuildArrived;
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', e => {
+    if(!e.data || e.data.type !== 'reload?') return;
+    const busy = appBusy();
+    if(e.ports && e.ports[0]) e.ports[0].postMessage(busy ? 'busy' : 'idle');
+    if(busy) showUpdateBar();
+  });
 }
 
 if('serviceWorker' in navigator && location.pathname === '/'){
@@ -9616,7 +9778,7 @@ if('serviceWorker' in navigator && location.pathname === '/'){
        worker was already in charge means a new build took over. */
     const had = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if(had) showUpdateBar();
+      if(had) newBuildArrived();
     });
 
     /* An installed app can stay open for a whole shift without ever asking
