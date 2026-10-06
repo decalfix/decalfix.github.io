@@ -123,6 +123,28 @@
      so the 44px target is the plain button around it. */
   .avbtn{width:44px;height:44px;flex:none;display:grid;place-items:center;background:none;
          border:0;padding:0;cursor:pointer;border-radius:10px}
+  /* the bell (6 Oct): a count of what is waiting, red; it swings when
+     something new lands */
+  .bellb{position:relative}
+  .bellb svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .bellb .bn{position:absolute;top:3px;right:1px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+             background:var(--red);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center;
+             box-shadow:0 0 0 2px #111}
+  .bellb.ring svg{transform-origin:50% 10%;animation:bellring .7s ease-in-out 1}
+  @keyframes bellring{0%,100%{transform:rotate(0)}20%{transform:rotate(-18deg)}45%{transform:rotate(14deg)}70%{transform:rotate(-8deg)}}
+  @media (prefers-reduced-motion:reduce){ .bellb.ring svg{animation:none} }
+  .brow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;
+        border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;
+        padding:9px 10px;margin-bottom:7px;font:inherit;color:inherit;cursor:pointer}
+  .brow.unread{border-left-color:var(--red)}
+  .brow .bk{flex:none;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+            padding:3px 7px;border-radius:6px}
+  .bk.fresh{background:#F2EAFC;color:#4B2489} .bk.appr{background:var(--amber-wash);color:#9A5B00}
+  .bk.claim{background:var(--green-wash);color:var(--green)} .bk.redo{background:var(--red-wash);color:var(--red-deep)}
+  .bk.note{background:#FFF4E0;color:#9A5B00}
+  .brow .bt{flex:1 1 10rem;min-width:0;font-weight:700;font-size:13px;overflow-wrap:anywhere}
+  .brow .bt small{display:block;font-weight:500;color:var(--text-2);font-size:12px}
+  .brow .bw{flex:none;font-size:11px;color:var(--grey)}
   /* account panel */
   .acwho{display:flex;gap:12px;align-items:center}
   .acwho .avatar{width:44px;height:50px;font-size:19px}
@@ -1489,6 +1511,7 @@ setTimeout(function(){
   <div class="in">
     <img class="hmark" src="mark-600.png" alt="Decal Fix">
     <span class="who"><span id="hWho"></span><span id="hClock"></span></span>
+    <button class="avbtn bellb" id="hBell" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="bn" id="hBellN" hidden></span></button>
     <button class="avbtn" id="hAcct" type="button" aria-label="Your account"><span class="avatar" id="hAv"></span></button>
     <button class="btn ghost" id="hLock" style="height:38px;padding:0 12px;font-size:11px">Lock</button>
   </div>
@@ -2209,6 +2232,19 @@ setTimeout(function(){
   <div class="df">
     <button class="btn ghost" id="adCancel">Cancel</button>
     <button class="btn" id="adSave">Add the line</button>
+  </div>
+</dialog>
+
+<!-- The bell's list (6 Oct): what is waiting for whoever is tapped in,
+     newest first, each row opening its order. -->
+<dialog id="bellDlg">
+  <div class="dh"><span class="no">Notifications</span></div>
+  <div class="db">
+    <div id="bellList"></div>
+    <p class="small muted" id="bellNote"></p>
+  </div>
+  <div class="df">
+    <button class="btn ghost" id="bellClose">Close</button>
   </div>
 </dialog>
 
@@ -7558,7 +7594,128 @@ function paintAlerts(seen, mine){
       box.append(b);
     });
   });
+  paintBell(seen, onBoard);
 }
+
+/* ── THE BELL (6 Oct, spawn-115) ──
+   "a notification bell that notifies on the cp and computer". Step 1 of two:
+   a bell in the header with a count of what is waiting for whoever is tapped
+   in, a list newest first, a sound and a buzz when something NEW lands while
+   the app is open, and a system notification where the device allows one.
+   Step 2 - reaching a phone whose app is CLOSED - needs the Worker to hold a
+   push subscription per device and is deliberately after the first real week.
+   **It is built from the SAME lists as the banners** - the bench's own work
+   by forMe, the four banner questions, plus the newest stamped note on each
+   order - so the bell can never name work the board would not show. "New"
+   is "newer than when this person last opened the bell" (`df_bell`, per
+   staff id like df_seen); the ring is "newer than the last refresh". */
+let BELL = [], BELL_NEWEST = 0, BELL_FIRST = true;
+const BELL_KEY = 'df_bell';
+const bellSeenAt = () => { try{ const a = JSON.parse(localStorage.getItem(BELL_KEY) || '{}'); return Number(a[seenKey()] || 0); }catch(e){ return 0; } };
+const bellStamp = at => { try{ const a = JSON.parse(localStorage.getItem(BELL_KEY) || '{}'); a[seenKey()] = at; localStorage.setItem(BELL_KEY, JSON.stringify(a)); }catch(e){} };
+/* The newest stamped line on an order (jo_note writes `text - Name, Mon D,
+   H:MM AM`); your own note is not news to you. The stamp carries no year, so
+   the current one is assumed. */
+function noteEvent(o){
+  const ln = String(o.notes || '').split('\n').map(s => s.trim()).filter(Boolean).pop();
+  if(!ln) return null;
+  const m = ln.match(NOTE_SIG); if(!m) return null;
+  const p = m[2].split(', '); if(p.length !== 3) return null;
+  if(STAFF && p[0] === STAFF.name) return null;
+  const at = Date.parse(p[1] + ', ' + new Date().getFullYear() + ' ' + p[2]);
+  if(isNaN(at)) return null;
+  return { kind:'note', lbl:'Note', o, at, what: m[1], who: p[0] };
+}
+function paintBell(seen, onBoard){
+  const rows = [];
+  const arrives = BENCH === 'artist' || BENCH === 'production';
+  onBoard.filter(hasNew).forEach(o => rows.push({ kind:'fresh', lbl:'New', o, at: stampOf(LAST_MSG.get(o.id)),
+    what: arrives ? 'Job order arrived' : 'Something new - a file or a note' }));
+  if(BENCH === 'production') seen.filter(o => o.status === 'printing' && o.printed_at).forEach(o =>
+    rows.push({ kind:'appr', lbl:'Printed', o, at: stampOf(o.printed_at), what:'Done printing - move it to Released' }));
+  if(BENCH === 'artist') seen.filter(cameBack).forEach(o =>
+    rows.push({ kind:'redo', lbl:'Redo', o, at: stampOf(o.updated_at), what:'Design came back - redo it first' }));
+  if(canTakeOrders()){
+    seen.filter(o => o.status === 'for_approval').forEach(o =>
+      rows.push({ kind:'appr', lbl:'Approve', o, at: stampOf(o.updated_at), what:'Design waiting for approval' }));
+    seen.filter(o => o.status === 'ready').forEach(o =>
+      rows.push({ kind:'claim', lbl:'Ready', o, at: stampOf(o.ready_at || o.updated_at), what:'Finished - waiting for the customer' }));
+  }
+  seen.forEach(o => { const e = noteEvent(o); if(e) rows.push(e); });
+  rows.sort((a, b) => b.at - a.at);
+  BELL = rows;
+  const newest = rows.length ? rows[0].at : 0;
+  const since = bellSeenAt();
+  const n = rows.filter(r => r.at > since).length;
+  const badge = $('#hBellN');
+  if(badge){ badge.textContent = n > 99 ? '99+' : String(n); badge.hidden = !n; }
+  /* the first paint after opening is the state of the world, not news */
+  if(BELL_FIRST){ BELL_FIRST = false; BELL_NEWEST = newest; return; }
+  if(newest > BELL_NEWEST){ BELL_NEWEST = newest; bellRing(rows[0]); }
+}
+window.__bellRung = 0;
+/* A short tone made on the spot (no audio file to cache), a buzz on a phone,
+   and a system notification where the device has allowed one. Each wrapped:
+   none of them may stop the board from drawing. */
+function bellRing(top){
+  window.__bellRung++;
+  const b = $('#hBell');
+  if(b){ b.classList.remove('ring'); void b.offsetWidth; b.classList.add('ring'); }
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(AC){
+      const ac = new AC(), o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.0001;
+      o.connect(g); g.connect(ac.destination); o.start();
+      g.gain.exponentialRampToValueAtTime(0.25, ac.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.5);
+      o.stop(ac.currentTime + 0.55);
+      setTimeout(() => { try{ ac.close(); }catch(e){} }, 900);
+    }
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([120, 60, 120]); }catch(e){}
+  try{
+    if(top && 'Notification' in window && Notification.permission === 'granted')
+      new Notification('JO ' + top.o.jo_no + ' \u00b7 ' + top.o.customer_name,
+                       { body: top.what, tag: 'decalfix-bell', icon: 'icon-192.png' });
+  }catch(e){}
+}
+const bellDlg = $('#bellDlg');
+const bellWhen = at => {
+  if(!at) return '';
+  const d = new Date(at), now = new Date();
+  return d.toDateString() === now.toDateString()
+    ? d.toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit' })
+    : d.toLocaleDateString('en-PH', { month:'short', day:'numeric' });
+};
+$('#hBell').onclick = () => {
+  const since = bellSeenAt();
+  const box = $('#bellList'); box.textContent = '';
+  BELL.forEach(r => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'brow' + (r.at > since ? ' unread' : '');
+    b.innerHTML = '<span class="bk ' + r.kind + '">' + esc(r.lbl) + '</span>' +
+      '<span class="bt">JO ' + esc(String(r.o.jo_no)) + ' \u00b7 ' + esc(r.o.customer_name) +
+      '<small>' + esc(r.what) + (r.who ? ' - ' + esc(r.who) : '') + '</small></span>' +
+      '<span class="bw">' + esc(bellWhen(r.at)) + '</span>';
+    b.onclick = () => { bellDlg.close(); openDetail(r.o); };
+    box.append(b);
+  });
+  $('#bellNote').textContent = BELL.length ? '' : 'Nothing is waiting for you right now.';
+  if(BELL.length) bellStamp(BELL[0].at);
+  $('#hBellN').hidden = true;
+  /* asked once, here, where the person has just shown they want to be told */
+  try{ if('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {}); }catch(e){}
+  bellDlg.showModal();
+};
+$('#bellClose').onclick = () => bellDlg.close();
+/* The bell is only as fresh as the board, and nothing re-read the orders
+   while a phone sat idle - every refresh was a tap. Once a minute while the
+   page is in front, unlocked and not mid-task, and again when the app comes
+   back to the front. */
+const bellLook = () => { if(SHOP && !document.hidden && $('#lock').hidden && !appBusy()) refresh().catch(() => {}); };
+setInterval(bellLook, 60 * 1000);
+addEventListener('visibilitychange', () => { if(!document.hidden) bellLook(); });
 
 /* Every word typed must appear somewhere on the order: "jersey maricel"
    finds Maricel's jersey. "JO 1042", "jo-1042" and "1042" all find JO 1042. */
