@@ -5200,13 +5200,11 @@ const isDemoShop = () => /\b(demo|sandbox|test)\b/i.test((SHOP && SHOP.name) || 
    refused, or simply not drawn - never that something is emptied by surprise.
    **Empty on purpose**, and adding to it is a decision, not a default. */
 const RESET_IDS = [
-  /* Decal Fix Printing Services, while it is the shop Wendell demonstrates on.
-     `build19t` (applied 24 Sep as 20260924081046) put the same id on
-     `shop_reset`'s own array. **Both come back out with `build19u`, before
-     28 Sep**, when their trial on real orders starts - the reversal is
-     already written, because a promise you have to remember to keep is not
-     a promise. */
-  '78d8f495-d67f-4f69-9b21-5d46d87b7222'
+  /* Decal Fix Printing Services sat here from 24 Sep (`build19t` put the same
+     id on `shop_reset`'s own array) while it was the shop Wendell
+     demonstrated on. **Taken off 6 Oct on his word: "hide it for now."**
+     That hides the CARD; `shop_reset` still lists the shop until `build19u`
+     runs, so the database door is closed by the same owner's word only. */
 ];
 const canResetShop = () => ROLE === 'owner' &&
   (RESET_IDS.includes(SHOP && SHOP.id) || isDemoShop());
