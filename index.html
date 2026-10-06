@@ -9468,7 +9468,8 @@ async function renderSales(){
   const t    = today();
   const from = t.slice(0,8) + '01';
 
-  const [{ data:monRows }, { data:owedRows }, { data:paidRows }, { data:govRows }] = await Promise.all([
+  const [{ data:monRows }, { data:owedRows }, { data:paidRows }, { data:govRows },
+         { data:voidIds }, { data:cancIds }] = await Promise.all([
     sb.from('job_orders')
       .select('id,jo_no,customer_name,status,total,balance,order_date,item_type,jo_items(item_type,line_total)')
       .eq('voided', false).neq('status','cancelled')
@@ -9485,12 +9486,23 @@ async function renderSales(){
     sb.from('job_orders')
       .select('jo_no,balance,po_number,gov_account_id,status')
       .eq('order_type', 'government').eq('voided', false).neq('status','cancelled')
-      .gt('balance', 0).limit(2000)
+      .gt('balance', 0).limit(2000),
+    /* 6 Oct: the orders whose money does NOT count - ids only, every one
+       ever, because a payment this month can sit on an order from before */
+    sb.from('job_orders').select('id').eq('voided', true).limit(5000),
+    sb.from('job_orders').select('id').eq('status', 'cancelled').limit(5000)
   ]);
 
   /* Paid today and this month are what the shop actually received - payment
-     rows by the Manila date they came in - not what was booked. */
-  const pays   = paidRows || [];
+     rows by the Manila date they came in - not what was booked.
+     **A payment on a voided or cancelled order is left out** (6 Oct, Wendell:
+     "the voided orders and amount not included because those are test
+     orders"). Every order-based figure already skipped them; the payment
+     rows never did, so a test order collected and then voided still read as
+     cash in the drawer. The rows stay - this is a reading, not a deletion -
+     so the choice is reversible either way. */
+  const dead = new Set([...(voidIds || []), ...(cancIds || [])].map(r => r.id));
+  const pays   = (paidRows || []).filter(p => !dead.has(p.job_order_id));
   const manila = p => new Date(p.paid_at).toLocaleDateString('en-CA', { timeZone:'Asia/Manila' });
   const sumPay = f => pays.filter(f).reduce((s,p)=>s+Number(p.amount),0);
   const isToday = p => manila(p) === t, isMonth = p => manila(p) >= from;
